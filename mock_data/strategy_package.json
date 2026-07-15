@@ -1,0 +1,4 @@
+{
+  "source": "contracts/examples/strategy_package_example.json",
+  "usage": "Strategy Agent 给 Marketing Agent 的第一版联调 mock 数据"
+}

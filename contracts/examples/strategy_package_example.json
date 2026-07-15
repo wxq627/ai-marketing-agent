@@ -1,0 +1,52 @@
+{
+  "campaign_metadata": {
+    "campaign_id": "CMP20260715001",
+    "objective": "提升信用卡分期转化",
+    "product": "credit_card_installment",
+    "budget": 800000,
+    "start_time": "2026-07-20T09:00:00+08:00",
+    "end_time": "2026-07-27T22:00:00+08:00"
+  },
+  "audience_segments": [
+    {
+      "segment_id": "SEG001",
+      "segment_name": "高消费高活跃分期潜力客群",
+      "size": 50000,
+      "priority": 0.91,
+      "features": ["月消费高", "额度使用率高", "App活跃", "分期意图强"],
+      "expected_conversion_rate": 0.082,
+      "expected_roi": 2.4
+    }
+  ],
+  "benefit_rule": {
+    "benefit_type": "installment_fee_coupon",
+    "benefit_name": "分期手续费折扣券",
+    "eligibility": ["marketing_consent=true", "risk_level != high"],
+    "limit": "每客户最多领取1次"
+  },
+  "channel_routing": [
+    {"channel": "app_push", "budget_ratio": 0.5, "contact_order": 1, "retry_rule": "24小时未点击后切换短信"},
+    {"channel": "sms", "budget_ratio": 0.2, "contact_order": 2, "retry_rule": "命中频控则跳过"},
+    {"channel": "wechat", "budget_ratio": 0.3, "contact_order": 3, "retry_rule": "仅高价值客户触达"}
+  ],
+  "content_brief": {
+    "core_message": "账单压力缓释与分期费率优惠",
+    "tone": "专业、克制、合规",
+    "personalization_fields": ["customer_name", "available_benefit", "valid_period"],
+    "required_disclosure": ["活动规则以页面展示为准", "短信需包含退订方式"]
+  },
+  "compliance_guard": {
+    "blocked_words": ["稳赚", "保证", "无条件通过"],
+    "must_not_claim": ["承诺一定省钱", "承诺审批通过"],
+    "frequency_limit": "7天最多触达2次"
+  },
+  "experiment_plan": {
+    "control_group_ratio": 0.1,
+    "test_group_ratio": 0.9,
+    "success_metrics": ["conversion_rate", "roi", "complaint_rate"]
+  },
+  "callback_config": {
+    "feedback_url": "/api/strategy/feedback",
+    "report_interval": "hourly"
+  }
+}
