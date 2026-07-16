@@ -1,0 +1,55 @@
+{
+  "rule_version": "2026-07-v2",
+  "default_channels": ["app_push", "sms", "wechat"],
+  "rules": [
+    {
+      "rule_id": "COMPLAINT_RISK_001",
+      "layer": "business_policy",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "complaint_risk",
+      "operator": "gte",
+      "value": 0.7,
+      "action": "SUPPRESS",
+      "reason_code": "high_complaint_risk",
+      "owner": "marketing_operations",
+      "configurable": true
+    },
+    {
+      "rule_id": "CHANNEL_AVAILABILITY_001",
+      "layer": "business_policy",
+      "scope": "channel",
+      "rule_type": "channel_status",
+      "available_value": "available",
+      "action": "LIMIT_CHANNEL",
+      "reason_code": "channel_unavailable",
+      "owner": "channel_operations",
+      "configurable": true
+    },
+    {
+      "rule_id": "CHANNEL_CAPABILITY_001",
+      "layer": "business_policy",
+      "scope": "channel",
+      "rule_type": "channel_capability",
+      "action": "LIMIT_CHANNEL",
+      "reason_code": "channel_unavailable_for_customer",
+      "owner": "channel_operations",
+      "configurable": true
+    },
+    {
+      "rule_id": "FREQ_CHANNEL_7D_001",
+      "layer": "business_policy",
+      "scope": "channel",
+      "rule_type": "frequency_cap",
+      "caps": {
+        "app_push": {"window_days": 7, "max_contacts": 3},
+        "sms": {"window_days": 7, "max_contacts": 2},
+        "wechat": {"window_days": 7, "max_contacts": 2}
+      },
+      "action": "LIMIT_CHANNEL",
+      "reason_code": "frequency_cap_reached",
+      "owner": "marketing_operations",
+      "configurable": true
+    }
+  ]
+}

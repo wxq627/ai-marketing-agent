@@ -70,6 +70,10 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
             }
             for index, channel in enumerate(plan.channels, start=1)
         ],
+        "audience_delivery_constraints": {
+            "channel_coverage": plan.eligibility_summary.get("channel_coverage", {}),
+            "customer_channel_constraints": plan.customer_channel_constraints,
+        },
         "budget_allocation": {
             "total_budget": request.budget_wan * 10000,
             "unit": "CNY",
@@ -104,6 +108,10 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
 
 def normalize_channel_name(name: str) -> str:
     mapping = {
+        "App Push": "app_push",
+        "App Home": "app_push",
+        "SMS": "sms",
+        "WeChat": "wechat",
         "App弹窗": "app_popup",
         "App首页": "app_home",
         "Push": "app_push",
@@ -114,6 +122,12 @@ def normalize_channel_name(name: str) -> str:
 
 
 def build_retry_rule(channel_name: str) -> str:
+    if channel_name in {"App Push", "App Home"}:
+        return "Use an allowed fallback channel only after the frequency check passes."
+    if channel_name == "SMS":
+        return "Skip when SMS is blocked by customer-level channel eligibility."
+    if channel_name == "WeChat":
+        return "Send only when the customer is eligible for the WeChat channel."
     if channel_name in {"App弹窗", "App首页", "Push"}:
         return "24小时未点击后可切换短信或企微，命中频控则跳过"
     if channel_name == "短信":

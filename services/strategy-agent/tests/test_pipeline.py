@@ -135,10 +135,16 @@ def test_eligibility_evaluates_global_and_channel_rules():
     assert report.eligible_count == 2
     assert decisions["C001"].eligible_channels == ["app_push"]
     assert decisions["C001"].blocked_channels["sms"] == ["channel_consent_revoked"]
+    assert decisions["C001"].final_decision == "ALLOW_WITH_LIMITS"
+    assert {trace.layer for trace in decisions["C001"].rule_trace} == {"compliance"}
     assert decisions["C002"].eligible is False
+    assert decisions["C002"].final_decision == "BLOCK"
+    assert decisions["C002"].hard_blocks == ["no_marketing_consent"]
     assert "no_marketing_consent" in decisions["C002"].exclusion_reasons
     assert decisions["C003"].eligible_channels == ["app_push"]
     assert decisions["C003"].blocked_channels["sms"] == ["frequency_cap_reached"]
+    assert decisions["C003"].final_decision == "ALLOW_WITH_LIMITS"
+    assert any(trace.rule_id == "FREQ_CHANNEL_7D_001" for trace in decisions["C003"].rule_trace)
 
 
 def test_knowledge_insight_plan_uses_only_eligible_customers():
@@ -176,3 +182,60 @@ def test_knowledge_insight_plan_uses_only_eligible_customers():
     assert plan.audience_size == 1
     assert plan.eligibility_summary["eligible_count"] == 1
     assert plan.eligibility_summary["exclusion_summary"] == {"no_marketing_consent": 1}
+
+
+def test_business_suppression_is_distinct_from_compliance_block():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "installment",
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "risk_level": "low",
+                    "complaint_risk": 0.8,
+                    "owned_products": [],
+                },
+            }
+        ],
+    }
+    decision = evaluate_customer_insight(payload).decisions[0]
+
+    assert decision.final_decision == "SUPPRESS"
+    assert decision.hard_blocks == []
+    assert decision.policy_actions == ["high_complaint_risk"]
+    assert decision.eligible is False
+
+
+def test_strategy_uses_only_channels_allowed_by_stage_two():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "installment",
+        "channel_context": {"available_channels": ["app_push", "sms", "wechat"]},
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "channel_consents": {"app_push": True, "sms": False, "wechat": True},
+                    "channel_capabilities": {"app_push": True, "sms": True, "wechat": False},
+                    "risk_level": "low",
+                    "complaint_risk": 0.05,
+                    "recent_contact_count": 0,
+                    "owned_products": [],
+                    "tags": [],
+                },
+            }
+        ],
+    }
+    plan = MarketingDecisionEngine().generate_plan_from_knowledge_insight(
+        CampaignRequest(goal="installment conversion", product="installment", channel_mode="omni"), payload
+    )
+    package = build_strategy_package(plan)
+
+    assert [channel.channel for channel in plan.channels] == ["App Push"]
+    assert [route["channel"] for route in package["channel_routing"]] == ["app_push"]
+    assert package["audience_delivery_constraints"]["customer_channel_constraints"][0]["allowed_channels"] == [
+        "app_push"
+    ]

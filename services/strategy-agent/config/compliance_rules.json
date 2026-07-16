@@ -1,0 +1,40 @@
+{
+  "rule_version": "2026-07-v2",
+  "rules": [
+    {
+      "rule_id": "CONSENT_MARKETING_001",
+      "layer": "compliance",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "marketing_consent",
+      "operator": "not_true",
+      "action": "BLOCK",
+      "reason_code": "no_marketing_consent",
+      "owner": "compliance",
+      "configurable": false
+    },
+    {
+      "rule_id": "RISK_BLOCKLIST_001",
+      "layer": "compliance",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "risk_level",
+      "operator": "in",
+      "values": ["high", "blacklist"],
+      "action": "BLOCK",
+      "reason_code": "blocked_risk_level",
+      "owner": "risk_control",
+      "configurable": false
+    },
+    {
+      "rule_id": "CONSENT_CHANNEL_001",
+      "layer": "compliance",
+      "scope": "channel",
+      "rule_type": "channel_consent",
+      "action": "LIMIT_CHANNEL",
+      "reason_code": "channel_consent_revoked",
+      "owner": "compliance",
+      "configurable": false
+    }
+  ]
+}

@@ -29,10 +29,17 @@ class MarketingDecisionEngine:
         eligibility = self.assess_knowledge_insight(payload)
         eligible_payload = filter_to_eligible_customers(payload, eligibility)
         customers = customers_from_knowledge_insight(eligible_payload)
-        plan = self._generate_plan_with_customers(request, customers)
-        return replace(plan, eligibility_summary=_eligibility_summary(eligibility))
+        allowed_channels = {channel for channel, count in eligibility.channel_coverage.items() if count}
+        plan = self._generate_plan_with_customers(request, customers, allowed_channels=allowed_channels)
+        return replace(
+            plan,
+            eligibility_summary=_eligibility_summary(eligibility),
+            customer_channel_constraints=_customer_channel_constraints(eligibility),
+        )
 
-    def _generate_plan_with_customers(self, request: CampaignRequest, customers) -> MarketingPlan:
+    def _generate_plan_with_customers(
+        self, request: CampaignRequest, customers, allowed_channels: set[str] | None = None
+    ) -> MarketingPlan:
         intent = parse_intent(request)
         normalized = CampaignRequest(
             goal=request.goal,
@@ -44,7 +51,7 @@ class MarketingDecisionEngine:
         )
         scored = score_customers(customers, normalized)
         segments = summarize_segments(scored)
-        channels = build_channel_plan(normalized, len(scored))
+        channels = build_channel_plan(normalized, len(scored), allowed_channels=allowed_channels)
         content = generate_content(normalized, intent, segments)
         compliance = run_compliance_checks(normalized, scored, content)
         uplift, roi, effect, experiment = forecast_effect(normalized, scored, segments)
@@ -83,5 +90,21 @@ def _eligibility_summary(report: EligibilityReport) -> dict:
         "excluded_count": report.excluded_count,
         "exclusion_summary": report.exclusion_summary,
         "blocked_channel_summary": report.blocked_channel_summary,
+        "channel_coverage": report.channel_coverage,
+        "final_decision_summary": report.final_decision_summary,
         "rule_version": report.rule_version,
     }
+
+
+def _customer_channel_constraints(report: EligibilityReport) -> list[dict]:
+    return [
+        {
+            "customer_id": decision.customer_id,
+            "final_decision": decision.final_decision,
+            "allowed_channels": decision.eligible_channels,
+            "blocked_channels": decision.blocked_channels,
+            "rule_trace": [trace.rule_id for trace in decision.rule_trace],
+        }
+        for decision in report.decisions
+        if decision.eligible
+    ]

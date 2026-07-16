@@ -3,23 +3,39 @@ from __future__ import annotations
 from .models import CampaignRequest, ChannelPlan, CustomerScore, SegmentRecommendation
 
 
+# The canonical code is used for eligibility; the display name is for the B-side console.
 CHANNELS = {
-    "omni": [("App弹窗", 0.46, "主触达"), ("短信", 0.18, "限时召回"), ("企微", 0.36, "高价值跟进")],
-    "app": [("App首页", 0.62, "主触达"), ("Push", 0.38, "场景提醒")],
-    "sms": [("短信", 1.0, "低成本召回")],
+    "omni": [
+        ("app_push", "App Push", 0.46, "primary reach"),
+        ("sms", "SMS", 0.18, "timely recall"),
+        ("wechat", "WeChat", 0.36, "high-value follow-up"),
+    ],
+    "app": [
+        ("app_push", "App Home", 0.62, "primary reach"),
+        ("app_push", "App Push", 0.38, "scenario reminder"),
+    ],
+    "sms": [("sms", "SMS", 1.0, "low-cost recall")],
 }
 
 
-def build_channel_plan(request: CampaignRequest, audience_size: int) -> list[ChannelPlan]:
+def build_channel_plan(
+    request: CampaignRequest, audience_size: int, allowed_channels: set[str] | None = None
+) -> list[ChannelPlan]:
     rows = CHANNELS.get(request.channel_mode, CHANNELS["omni"])
+    if allowed_channels is not None:
+        rows = [row for row in rows if row[0] in allowed_channels]
+    if not rows:
+        return []
+
+    total_share = sum(row[2] for row in rows)
     return [
         ChannelPlan(
-            channel=name,
-            budget_share=round(share, 2),
+            channel=display_name,
+            budget_share=round(share / total_share, 2),
             expected_reach=max(1, int(audience_size * (0.72 + share * 0.22))),
             role=role,
         )
-        for name, share, role in rows
+        for _, display_name, share, role in rows
     ]
 
 
@@ -42,9 +58,9 @@ def forecast_effect(
     experiment = {
         "method": "A/B Test",
         "control_group": "10%",
-        "success_metrics": ["转化率", "ROI", "投诉率", "触达成本"],
-        "sample_hint": f"建议灰度 {max(200, int(len(scored) * 0.18))} 人后再全量",
-        "top_segment": segments[0].name if segments else "暂无",
+        "success_metrics": ["conversion_rate", "ROI", "complaint_rate", "contact_cost"],
+        "sample_hint": f"Recommend a pilot with {max(200, int(len(scored) * 0.18))} customers before full rollout.",
+        "top_segment": segments[0].name if segments else "none",
     }
     effect = {
         "ctr": round(avg_response * 28, 2),

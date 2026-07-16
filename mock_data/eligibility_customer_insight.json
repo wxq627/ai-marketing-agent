@@ -49,6 +49,7 @@
         "tags": ["app_active"],
         "marketing_consent": true,
         "channel_consents": {"app_push": true, "sms": false, "wechat": true},
+        "channel_capabilities": {"app_push": true, "sms": true, "wechat": false},
         "risk_level": "low",
         "complaint_risk": 0.05,
         "recent_contact_count": 0,

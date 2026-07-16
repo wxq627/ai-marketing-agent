@@ -1,0 +1,17 @@
+{
+  "rule_version": "2026-07-v2",
+  "rules": [
+    {
+      "rule_id": "PRODUCT_INSTALLMENT_OWNED_001",
+      "layer": "product_eligibility",
+      "scope": "customer",
+      "rule_type": "product_ownership",
+      "product_aliases": ["installment", "credit_card_installment"],
+      "blocked_owned_products": ["credit_card_installment"],
+      "action": "BLOCK",
+      "reason_code": "product_already_owned",
+      "owner": "product_management",
+      "configurable": false
+    }
+  ]
+}

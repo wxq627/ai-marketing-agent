@@ -8,16 +8,37 @@ from pathlib import Path
 from typing import Any
 
 
-RULES_PATH = Path(__file__).resolve().parent.parent / "config" / "eligibility_rules.json"
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+RULE_FILES = {
+    "compliance": "compliance_rules.json",
+    "product_eligibility": "product_eligibility_rules.json",
+    "business_policy": "business_policy_rules.json",
+}
+
+
+@dataclass(frozen=True)
+class RuleTrace:
+    rule_id: str
+    layer: str
+    action: str
+    scope: str
+    reason_code: str
+    owner: str
+    configurable: bool
 
 
 @dataclass(frozen=True)
 class EligibilityDecision:
     customer_id: str
+    final_decision: str
     eligible: bool
     eligible_channels: list[str]
+    channel_eligibility: dict[str, dict[str, Any]]
     blocked_channels: dict[str, list[str]]
+    hard_blocks: list[str]
+    policy_actions: list[str]
     exclusion_reasons: list[str]
+    rule_trace: list[RuleTrace]
     rule_version: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,8 +52,10 @@ class EligibilityReport:
     candidate_count: int
     eligible_count: int
     excluded_count: int
+    final_decision_summary: dict[str, int]
     exclusion_summary: dict[str, int]
     blocked_channel_summary: dict[str, int]
+    channel_coverage: dict[str, int]
     decisions: list[EligibilityDecision]
     rule_version: str
 
@@ -43,9 +66,22 @@ class EligibilityReport:
         }
 
 
-def load_eligibility_rules(path: Path | None = None) -> dict[str, Any]:
-    with (path or RULES_PATH).open(encoding="utf-8") as file:
-        return json.load(file)
+def load_eligibility_rules(config_dir: Path | None = None) -> dict[str, Any]:
+    """Load separately owned compliance, product, and business rule catalogs."""
+    config_dir = config_dir or CONFIG_DIR
+    catalogs: dict[str, Any] = {}
+    versions: set[str] = set()
+    for layer, filename in RULE_FILES.items():
+        with (config_dir / filename).open(encoding="utf-8") as file:
+            catalog = json.load(file)
+        catalogs[layer] = catalog.get("rules", [])
+        versions.add(str(catalog["rule_version"]))
+        if layer == "business_policy":
+            catalogs["default_channels"] = catalog["default_channels"]
+    if len(versions) != 1:
+        raise ValueError("Rule catalogs must use the same rule_version")
+    catalogs["rule_version"] = versions.pop()
+    return catalogs
 
 
 def evaluate_customer_insight(
@@ -54,7 +90,7 @@ def evaluate_customer_insight(
     rules: dict[str, Any] | None = None,
     evaluated_at: datetime | None = None,
 ) -> EligibilityReport:
-    """Apply deterministic marketing eligibility rules to A -> B customer insight."""
+    """Evaluate customer and channel eligibility before strategy optimization."""
     rules = rules or load_eligibility_rules()
     reference_time = evaluated_at or _parse_time(payload.get("evaluation_time")) or datetime.now().astimezone()
     channel_context = payload.get("channel_context", {})
@@ -82,6 +118,8 @@ def evaluate_customer_insight(
         for reasons in decision.blocked_channels.values()
         for reason in reasons
     )
+    channel_coverage = Counter(channel for decision in decisions for channel in decision.eligible_channels)
+    final_decision_summary = Counter(decision.final_decision for decision in decisions)
 
     return EligibilityReport(
         campaign_id=str(payload.get("campaign_id", "")),
@@ -89,8 +127,10 @@ def evaluate_customer_insight(
         candidate_count=len(decisions),
         eligible_count=sum(decision.eligible for decision in decisions),
         excluded_count=sum(not decision.eligible for decision in decisions),
+        final_decision_summary=dict(sorted(final_decision_summary.items())),
         exclusion_summary=dict(sorted(exclusion_summary.items())),
         blocked_channel_summary=dict(sorted(blocked_channel_summary.items())),
+        channel_coverage={channel: channel_coverage.get(channel, 0) for channel in available_channels},
         decisions=decisions,
         rule_version=str(rules["rule_version"]),
     )
@@ -107,36 +147,84 @@ def evaluate_customer(
 ) -> EligibilityDecision:
     profile = customer.get("customer_profile", {})
     customer_id = str(customer.get("customer_id", ""))
-    global_reasons = _global_exclusion_reasons(profile, product, rules)
-    blocked_channels: dict[str, list[str]] = {}
+    hard_blocks: list[str] = []
+    policy_actions: list[str] = []
+    traces: list[RuleTrace] = []
 
+    for rule in rules["compliance"]:
+        if rule["scope"] == "customer" and _matches_profile_rule(profile, rule):
+            hard_blocks.append(rule["reason_code"])
+            traces.append(_trace(rule))
+    for rule in rules["product_eligibility"]:
+        if _matches_product_rule(profile, product, rule):
+            hard_blocks.append(rule["reason_code"])
+            traces.append(_trace(rule))
+    for rule in rules["business_policy"]:
+        if rule["scope"] == "customer" and _matches_profile_rule(profile, rule):
+            policy_actions.append(rule["reason_code"])
+            traces.append(_trace(rule))
+
+    global_reasons = sorted(set(hard_blocks + policy_actions))
+    channel_eligibility: dict[str, dict[str, Any]] = {}
+    blocked_channels: dict[str, list[str]] = {}
     for channel in available_channels:
-        reasons = list(global_reasons)
-        if channel_status.get(channel, "available") != "available":
-            reasons.append("channel_unavailable")
-        if profile.get("marketing_consent") and not _channel_has_consent(profile, channel):
-            reasons.append("channel_consent_revoked")
-        if not reasons and _frequency_cap_reached(customer, channel, rules, evaluated_at):
-            reasons.append("frequency_cap_reached")
-        if reasons:
-            blocked_channels[channel] = sorted(set(reasons))
+        channel_reasons = list(global_reasons)
+        channel_traces = list(traces)
+        if not global_reasons:
+            for rule in rules["compliance"] + rules["business_policy"]:
+                if rule["scope"] != "channel":
+                    continue
+                if _matches_channel_rule(customer, channel, channel_status, rule, evaluated_at):
+                    channel_reasons.append(rule["reason_code"])
+                    trace = _trace(rule)
+                    channel_traces.append(trace)
+                    traces.append(trace)
+        if channel_reasons:
+            reason_codes = sorted(set(channel_reasons))
+            blocked_channels[channel] = reason_codes
+            channel_eligibility[channel] = {
+                "decision": "BLOCKED",
+                "reason_codes": reason_codes,
+                "rule_ids": sorted({trace.rule_id for trace in channel_traces}),
+            }
+        else:
+            channel_eligibility[channel] = {
+                "decision": "ELIGIBLE",
+                "reason_codes": [],
+                "rule_ids": [],
+            }
 
     eligible_channels = [channel for channel in available_channels if channel not in blocked_channels]
-    if not eligible_channels and not global_reasons:
-        global_reasons.append("no_eligible_channel")
+    if hard_blocks:
+        final_decision = "BLOCK"
+    elif policy_actions:
+        final_decision = "SUPPRESS"
+    elif not eligible_channels:
+        final_decision = "SUPPRESS"
+        policy_actions.append("no_eligible_channel")
+    elif len(eligible_channels) == len(available_channels):
+        final_decision = "ALLOW"
+    else:
+        final_decision = "ALLOW_WITH_LIMITS"
 
+    exclusion_reasons = sorted(set(hard_blocks + policy_actions))
     return EligibilityDecision(
         customer_id=customer_id,
-        eligible=bool(eligible_channels),
+        final_decision=final_decision,
+        eligible=final_decision in {"ALLOW", "ALLOW_WITH_LIMITS"},
         eligible_channels=eligible_channels,
+        channel_eligibility=channel_eligibility,
         blocked_channels=blocked_channels,
-        exclusion_reasons=sorted(set(global_reasons)),
+        hard_blocks=sorted(set(hard_blocks)),
+        policy_actions=sorted(set(policy_actions)),
+        exclusion_reasons=exclusion_reasons,
+        rule_trace=_unique_traces(traces),
         rule_version=str(rules["rule_version"]),
     )
 
 
 def filter_to_eligible_customers(payload: dict[str, Any], report: EligibilityReport) -> dict[str, Any]:
-    """Return a copy of A's payload containing only customers with at least one usable channel."""
+    """Pass only allowed customers and their channel constraints to strategy scoring."""
     decision_by_customer = {decision.customer_id: decision for decision in report.decisions}
     customers: list[dict[str, Any]] = []
     for customer in payload.get("customers", []):
@@ -145,46 +233,64 @@ def filter_to_eligible_customers(payload: dict[str, Any], report: EligibilityRep
             continue
         enriched = dict(customer)
         enriched["strategy_eligibility"] = {
+            "final_decision": decision.final_decision,
             "eligible_channels": decision.eligible_channels,
             "blocked_channels": decision.blocked_channels,
+            "rule_trace": [trace.rule_id for trace in decision.rule_trace],
         }
         customers.append(enriched)
-
     filtered = dict(payload)
     filtered["customers"] = customers
     return filtered
 
 
-def _global_exclusion_reasons(profile: dict[str, Any], product: str, rules: dict[str, Any]) -> list[str]:
-    reasons: list[str] = []
-    if not profile.get("marketing_consent", False):
-        reasons.append("no_marketing_consent")
-    if str(profile.get("risk_level", "low")).lower() in set(rules["risk"]["blocked_risk_levels"]):
-        reasons.append("blocked_risk_level")
-    if float(profile.get("complaint_risk", 0)) >= float(rules["risk"]["complaint_risk_threshold"]):
-        reasons.append("high_complaint_risk")
-    if _already_owns_target_product(profile, product, rules):
-        reasons.append("product_already_owned")
-    return reasons
-
-
-def _channel_has_consent(profile: dict[str, Any], channel: str) -> bool:
-    channel_consents = profile.get("channel_consents")
-    if not isinstance(channel_consents, dict):
-        return True
-    return bool(channel_consents.get(channel, True))
-
-
-def _frequency_cap_reached(
-    customer: dict[str, Any], channel: str, rules: dict[str, Any], evaluated_at: datetime
-) -> bool:
-    cap = rules["channel_frequency_caps"].get(channel)
-    if not cap:
+def _matches_profile_rule(profile: dict[str, Any], rule: dict[str, Any]) -> bool:
+    if rule.get("rule_type") != "profile":
         return False
-    recent_count = _recent_marketing_contacts(customer, channel, int(cap["window_days"]), evaluated_at)
-    if recent_count is None:
-        recent_count = int(customer.get("customer_profile", {}).get("recent_contact_count", 0))
-    return recent_count >= int(cap["max_contacts"])
+    value = profile.get(rule["field"])
+    operator = rule["operator"]
+    if operator == "not_true":
+        return value is not True
+    if operator == "in":
+        return str(value).lower() in {str(item).lower() for item in rule["values"]}
+    if operator == "gte":
+        return float(value or 0) >= float(rule["value"])
+    raise ValueError(f"Unsupported profile rule operator: {operator}")
+
+
+def _matches_product_rule(profile: dict[str, Any], product: str, rule: dict[str, Any]) -> bool:
+    if rule.get("rule_type") != "product_ownership" or product not in rule["product_aliases"]:
+        return False
+    owned_products = set(profile.get("owned_products", []))
+    return bool(owned_products.intersection(rule["blocked_owned_products"]))
+
+
+def _matches_channel_rule(
+    customer: dict[str, Any],
+    channel: str,
+    channel_status: dict[str, str],
+    rule: dict[str, Any],
+    evaluated_at: datetime,
+) -> bool:
+    profile = customer.get("customer_profile", {})
+    rule_type = rule.get("rule_type")
+    if rule_type == "channel_consent":
+        consents = profile.get("channel_consents")
+        return isinstance(consents, dict) and consents.get(channel) is False
+    if rule_type == "channel_status":
+        return channel_status.get(channel, rule.get("available_value", "available")) != rule.get("available_value", "available")
+    if rule_type == "channel_capability":
+        capabilities = profile.get("channel_capabilities")
+        return isinstance(capabilities, dict) and capabilities.get(channel) is False
+    if rule_type == "frequency_cap":
+        cap = rule.get("caps", {}).get(channel)
+        if not cap:
+            return False
+        count = _recent_marketing_contacts(customer, channel, int(cap["window_days"]), evaluated_at)
+        if count is None:
+            count = int(profile.get("recent_contact_count", 0))
+        return count >= int(cap["max_contacts"])
+    return False
 
 
 def _recent_marketing_contacts(
@@ -206,12 +312,21 @@ def _recent_marketing_contacts(
     return count
 
 
-def _already_owns_target_product(profile: dict[str, Any], product: str, rules: dict[str, Any]) -> bool:
-    owned_products = set(profile.get("owned_products", []))
-    for config in rules["product_eligibility"].values():
-        if product in config.get("aliases", []):
-            return bool(owned_products.intersection(config.get("blocked_owned_products", [])))
-    return False
+def _trace(rule: dict[str, Any]) -> RuleTrace:
+    return RuleTrace(
+        rule_id=rule["rule_id"],
+        layer=rule["layer"],
+        action=rule["action"],
+        scope=rule["scope"],
+        reason_code=rule["reason_code"],
+        owner=rule["owner"],
+        configurable=bool(rule["configurable"]),
+    )
+
+
+def _unique_traces(traces: list[RuleTrace]) -> list[RuleTrace]:
+    by_id = {trace.rule_id: trace for trace in traces}
+    return [by_id[rule_id] for rule_id in sorted(by_id)]
 
 
 def _parse_time(value: Any) -> datetime | None:
