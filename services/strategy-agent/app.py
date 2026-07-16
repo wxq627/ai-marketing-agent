@@ -44,6 +44,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/generate-from-insight":
             self._handle_strategy_generate_from_insight()
             return
+        if path == "/api/strategy/eligibility":
+            self._handle_strategy_eligibility()
+            return
         if path == "/api/strategy/feedback":
             self._handle_strategy_feedback()
             return
@@ -97,17 +100,28 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             if not request.goal.strip():
                 self._json_response({"error": "goal is required"}, status=400)
                 return
+            eligibility = engine.assess_knowledge_insight(insight_payload)
             plan = engine.generate_plan_from_knowledge_insight(request, insight_payload)
             repo.save(plan)
             self._json_response(
                 {
                     "plan": plan.to_dict(),
                     "strategy_package": build_strategy_package(plan),
+                    "eligibility": eligibility.to_dict(),
                     "source": "knowledge_insight",
                 }
             )
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_eligibility(self) -> None:
+        try:
+            payload = self._read_json_body()
+            customer_insight = payload.get("customer_insight", payload)
+            report = engine.assess_knowledge_insight(customer_insight)
+            self._json_response(report.to_dict())
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=400)
 
     def _handle_strategy_package(self) -> None:
         try:

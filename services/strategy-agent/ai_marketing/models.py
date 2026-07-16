@@ -93,6 +93,7 @@ class MarketingPlan:
     experiment: dict[str, Any]
     effect_forecast: dict[str, float]
     next_actions: list[str] = field(default_factory=list)
+    eligibility_summary: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

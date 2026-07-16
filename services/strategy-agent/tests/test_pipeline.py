@@ -1,6 +1,7 @@
 from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
+from ai_marketing.eligibility import evaluate_customer_insight
 
 
 def test_generate_installment_plan():
@@ -82,3 +83,96 @@ def test_generate_plan_from_knowledge_insight():
     )
     assert plan.audience_size == 1
     assert plan.segments[0].size == 1
+
+
+def test_eligibility_evaluates_global_and_channel_rules():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "credit_card_installment",
+        "evaluation_time": "2026-07-16T12:00:00+08:00",
+        "channel_context": {"available_channels": ["app_push", "sms"]},
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "channel_consents": {"app_push": True, "sms": False},
+                    "risk_level": "low",
+                    "complaint_risk": 0.1,
+                    "owned_products": [],
+                },
+                "contact_history": [],
+            },
+            {
+                "customer_id": "C002",
+                "customer_profile": {
+                    "marketing_consent": False,
+                    "risk_level": "low",
+                    "complaint_risk": 0.1,
+                    "owned_products": [],
+                },
+                "contact_history": [],
+            },
+            {
+                "customer_id": "C003",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "risk_level": "low",
+                    "complaint_risk": 0.1,
+                    "owned_products": [],
+                },
+                "contact_history": [
+                    {"channel": "sms", "contact_type": "marketing", "contacted_at": "2026-07-15T10:00:00+08:00"},
+                    {"channel": "sms", "contact_type": "marketing", "contacted_at": "2026-07-14T10:00:00+08:00"},
+                ],
+            },
+        ],
+    }
+    report = evaluate_customer_insight(payload)
+    decisions = {decision.customer_id: decision for decision in report.decisions}
+
+    assert report.candidate_count == 3
+    assert report.eligible_count == 2
+    assert decisions["C001"].eligible_channels == ["app_push"]
+    assert decisions["C001"].blocked_channels["sms"] == ["channel_consent_revoked"]
+    assert decisions["C002"].eligible is False
+    assert "no_marketing_consent" in decisions["C002"].exclusion_reasons
+    assert decisions["C003"].eligible_channels == ["app_push"]
+    assert decisions["C003"].blocked_channels["sms"] == ["frequency_cap_reached"]
+
+
+def test_knowledge_insight_plan_uses_only_eligible_customers():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "installment",
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "risk_level": "low",
+                    "complaint_risk": 0.05,
+                    "recent_contact_count": 0,
+                    "owned_products": [],
+                    "tags": [],
+                },
+            },
+            {
+                "customer_id": "C002",
+                "customer_profile": {
+                    "marketing_consent": False,
+                    "risk_level": "low",
+                    "complaint_risk": 0.05,
+                    "recent_contact_count": 0,
+                    "owned_products": [],
+                    "tags": [],
+                },
+            },
+        ],
+    }
+    plan = MarketingDecisionEngine().generate_plan_from_knowledge_insight(
+        CampaignRequest(goal="installment conversion", product="installment"), payload
+    )
+    assert plan.audience_size == 1
+    assert plan.eligibility_summary["eligible_count"] == 1
+    assert plan.eligibility_summary["exclusion_summary"] == {"no_marketing_consent": 1}

@@ -87,6 +87,7 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
             "must_not_claim": ["承诺一定省钱", "承诺审批通过", "夸大权益价值"],
             "frequency_limit": FREQUENCY_LIMITS.get(request.frequency_level, "7天最多触达2次"),
             "checks": [check.__dict__ for check in plan.compliance],
+            "eligibility_summary": plan.eligibility_summary,
         },
         "experiment_plan": {
             "control_group_ratio": 0.1,

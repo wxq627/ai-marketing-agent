@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 
 from .compliance import run_compliance_checks
 from .content import generate_content
 from .data import load_demo_customers
+from .eligibility import EligibilityReport, evaluate_customer_insight, filter_to_eligible_customers
 from .knowledge_adapter import customers_from_knowledge_insight
 from .intent import parse_intent
 from .models import CampaignRequest, MarketingPlan
@@ -20,11 +22,15 @@ class MarketingDecisionEngine:
     def generate_plan(self, request: CampaignRequest) -> MarketingPlan:
         return self._generate_plan_with_customers(request, self.customers)
 
+    def assess_knowledge_insight(self, payload: dict) -> EligibilityReport:
+        return evaluate_customer_insight(payload)
+
     def generate_plan_from_knowledge_insight(self, request: CampaignRequest, payload: dict) -> MarketingPlan:
-        customers = customers_from_knowledge_insight(payload)
-        if not customers:
-            customers = self.customers
-        return self._generate_plan_with_customers(request, customers)
+        eligibility = self.assess_knowledge_insight(payload)
+        eligible_payload = filter_to_eligible_customers(payload, eligibility)
+        customers = customers_from_knowledge_insight(eligible_payload)
+        plan = self._generate_plan_with_customers(request, customers)
+        return replace(plan, eligibility_summary=_eligibility_summary(eligibility))
 
     def _generate_plan_with_customers(self, request: CampaignRequest, customers) -> MarketingPlan:
         intent = parse_intent(request)
@@ -68,3 +74,14 @@ class MarketingDecisionEngine:
     def _campaign_id(request: CampaignRequest) -> str:
         payload = json.dumps(request.__dict__, ensure_ascii=False, sort_keys=True)
         return "MKT-" + hashlib.sha1(payload.encode("utf-8")).hexdigest()[:8].upper()
+
+
+def _eligibility_summary(report: EligibilityReport) -> dict:
+    return {
+        "candidate_count": report.candidate_count,
+        "eligible_count": report.eligible_count,
+        "excluded_count": report.excluded_count,
+        "exclusion_summary": report.exclusion_summary,
+        "blocked_channel_summary": report.blocked_channel_summary,
+        "rule_version": report.rule_version,
+    }

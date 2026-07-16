@@ -1,0 +1,27 @@
+{
+  "rule_version": "2026-07-v1",
+  "default_channels": ["app_push", "sms", "wechat"],
+  "channel_frequency_caps": {
+    "app_push": {"window_days": 7, "max_contacts": 3},
+    "sms": {"window_days": 7, "max_contacts": 2},
+    "wechat": {"window_days": 7, "max_contacts": 2}
+  },
+  "risk": {
+    "blocked_risk_levels": ["high", "blacklist"],
+    "complaint_risk_threshold": 0.7
+  },
+  "product_eligibility": {
+    "installment": {
+      "aliases": ["installment", "credit_card_installment"],
+      "blocked_owned_products": ["credit_card_installment"]
+    },
+    "coupon": {
+      "aliases": ["coupon", "coupon_package"],
+      "blocked_owned_products": []
+    },
+    "travel": {
+      "aliases": ["travel", "travel_benefit"],
+      "blocked_owned_products": []
+    }
+  }
+}
