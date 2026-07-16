@@ -1,0 +1,18 @@
+{
+  "image_file": "618_shopping.png",
+  "activity_name": "618购物节返现",
+  "campaign_id": "CAMP_2026_618",
+  "start_date": "2026-06-01",
+  "end_date": "2026-06-18",
+  "main_title": "618年中大促·刷招行返现5%",
+  "sub_title": "天猫/京东满500返50 · 6期免息",
+  "visual_description": "紫色电商主题背景，中央'618'大字。周围有购物车、优惠券、快递盒等图标。底部有倒计时组件和适用商户logo。",
+  "rules_summary": [
+    "在天猫/京东消费满500元返50元",
+    "享6期免息分期",
+    "名额有限先到先得",
+    "每人限享一次返现"
+  ],
+  "target_segment": "20-40岁普卡/金卡/白金卡",
+  "cta_text": "去购物"
+}

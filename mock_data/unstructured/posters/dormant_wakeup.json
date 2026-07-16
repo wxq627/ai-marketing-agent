@@ -1,0 +1,17 @@
+{
+  "image_file": "dormant_wakeup.png",
+  "activity_name": "沉睡客户唤醒计划",
+  "campaign_id": "CAMP_2026_DORMANT",
+  "start_date": "2026-04-01",
+  "end_date": "2026-12-31",
+  "main_title": "好久不见，回来刷一笔领50元！",
+  "sub_title": "你的信用卡想你啦~",
+  "visual_description": "温暖橙色背景，中央有一只可爱的招行猫吉祥物挥手。下方有红包图标'50元'。整体风格温馨、友好。",
+  "rules_summary": [
+    "30天内任意消费1笔即赠50元刷卡金",
+    "消费满500元额外赠送5000积分",
+    "限已连续90天无交易的客户"
+  ],
+  "target_segment": "沉睡期客户",
+  "cta_text": "去看看有什么优惠"
+}

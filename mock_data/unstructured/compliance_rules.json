@@ -1,0 +1,136 @@
+{
+  "version": "1.0.0",
+  "effective_date": "2026-07-01",
+  "description": "XX银行信用卡中心营销合规规则 — 项目一 Knowledge Agent 供给项目二/三使用",
+  "categories": {
+    "product_marketing": {
+      "label": "产品营销规范",
+      "rules": [
+        {
+          "rule_id": "CMP-001",
+          "rule": "分期活动不可承诺收益",
+          "description": "营销文案中禁止使用'稳赚'、'保证收益'、'省钱无忧'等绝对化收益承诺表述",
+          "severity": "critical",
+          "applicable_to": ["分期/借贷需求"],
+          "example_violation": "用我们的分期，稳赚不赔！",
+          "example_compliant": "灵活分期，缓解您的账单压力"
+        },
+        {
+          "rule_id": "CMP-002",
+          "rule": "必须标注年化利率",
+          "description": "所有涉及分期、贷款产品的营销文案必须明确标注年化利率(APR)",
+          "severity": "critical",
+          "applicable_to": ["分期/借贷需求"],
+          "example_violation": "手续费低至0.35%",
+          "example_compliant": "手续费0.35%/期，年化利率约7.8%"
+        },
+        {
+          "rule_id": "CMP-003",
+          "rule": "必须包含风险提示",
+          "description": "分期营销必须包含'分期有风险，请根据自身能力合理借贷'等风险提示语",
+          "severity": "critical",
+          "applicable_to": ["分期/借贷需求"],
+          "example_violation": "快来分期吧！",
+          "example_compliant": "分期有风险，请根据自身还款能力合理选择。快来了解您的专属方案。"
+        },
+        {
+          "rule_id": "CMP-004",
+          "rule": "不得使用限时限量虚假紧迫感",
+          "description": "除非活动确实有名额上限且有明确倒计时，否则禁止使用'仅剩'、'马上抢'、'即将结束'等制造虚假紧迫感的表述",
+          "severity": "high",
+          "applicable_to": ["all"],
+          "example_violation": "仅剩3个名额！马上抢！",
+          "example_compliant": "活动名额20000个，当前已领取18500个"
+        }
+      ]
+    },
+    "data_privacy": {
+      "label": "数据隐私与授权",
+      "rules": [
+        {
+          "rule_id": "PRV-001",
+          "rule": "未授权客户不可触达",
+          "description": "marketing_consent=false 或 contact_preference 中未包含该渠道的客户不可通过该渠道触达",
+          "severity": "critical",
+          "applicable_to": ["all"],
+          "check_field": "marketing_consent"
+        },
+        {
+          "rule_id": "PRV-002",
+          "rule": "未授权不可个性化推荐",
+          "description": "未授权个性化推荐的客户，不得基于其行为数据进行个性化内容推送，仅可发送通用营销内容",
+          "severity": "high",
+          "applicable_to": ["all"]
+        },
+        {
+          "rule_id": "PRV-003",
+          "rule": "敏感信息脱敏处理",
+          "description": "所有输出到C端的营销内容中不得泄露客户真实姓名、完整卡号、身份证号等敏感信息",
+          "severity": "critical",
+          "applicable_to": ["all"]
+        }
+      ]
+    },
+    "content_standards": {
+      "label": "内容规范",
+      "rules": [
+        {
+          "rule_id": "CNT-001",
+          "rule": "短信必须包含退订方式",
+          "description": "所有营销短信末尾必须包含'回TD退订'或'回复T退订'",
+          "severity": "critical",
+          "applicable_to": ["短信"],
+          "example": "...详情请登录掌上生活APP查看。回TD退订"
+        },
+        {
+          "rule_id": "CNT-002",
+          "rule": "不得在21:00-08:00发送营销推送",
+          "description": "APP Push和短信营销推送时间限制在08:00-21:00，电话外呼限制在09:00-20:00",
+          "severity": "high",
+          "applicable_to": ["APP Push", "短信", "电话外呼"],
+          "quiet_hours": {"start": "21:00", "end": "08:00"}
+        },
+        {
+          "rule_id": "CNT-003",
+          "rule": "外呼前需检查免打扰名单",
+          "description": "电话外呼前必须检查客户是否在免打扰名单中（通过contact_preference和投诉历史判断）",
+          "severity": "high",
+          "applicable_to": ["电话外呼"]
+        },
+        {
+          "rule_id": "CNT-004",
+          "rule": "AB测试流量标识",
+          "description": "所有营销内容需携带AB实验标识(traffic_flag)，便于效果归因分析",
+          "severity": "medium",
+          "applicable_to": ["all"]
+        }
+      ]
+    },
+    "channel_specific": {
+      "label": "渠道专项规范",
+      "rules": [
+        {
+          "rule_id": "CHN-001",
+          "rule": "Apple Push通知不得超过110字符",
+          "description": "iOS推送通知栏显示字符数限制，超长会被截断",
+          "severity": "medium",
+          "applicable_to": ["APP Push"]
+        },
+        {
+          "rule_id": "CHN-002",
+          "rule": "短信正文+退订语不得超过140字符(含签名)",
+          "description": "单条短信计费按140字符，超出拆分多条",
+          "severity": "medium",
+          "applicable_to": ["短信"]
+        },
+        {
+          "rule_id": "CHN-003",
+          "rule": "微信公众号模板消息每月限4次",
+          "description": "微信平台对营销类模板消息有月度次数限制",
+          "severity": "high",
+          "applicable_to": ["微信公众号"]
+        }
+      ]
+    }
+  }
+}
