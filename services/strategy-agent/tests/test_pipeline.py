@@ -70,6 +70,7 @@ def test_generate_plan_from_knowledge_insight():
                     "risk_level": "low",
                     "complaint_risk": 0.03,
                     "recent_contact_count": 1,
+                    "recent_contact_count_by_channel": {"app_push": 0, "sms": 0, "wechat": 0},
                     "preferred_channel": "app_push",
                 },
                 "intent_vector": {"top_intents": [{"name": "分期咨询", "score": 0.76}]},
@@ -145,6 +146,8 @@ def test_eligibility_evaluates_global_and_channel_rules():
     assert decisions["C003"].blocked_channels["sms"] == ["frequency_cap_reached"]
     assert decisions["C003"].final_decision == "ALLOW_WITH_LIMITS"
     assert any(trace.rule_id == "FREQ_CHANNEL_7D_001" for trace in decisions["C003"].rule_trace)
+    assert report.global_exclusion_by_layer["compliance"] == {"no_marketing_consent": 1}
+    assert report.channel_block_by_layer["compliance"] == {"channel_consent_revoked": 1}
 
 
 def test_knowledge_insight_plan_uses_only_eligible_customers():
@@ -159,6 +162,7 @@ def test_knowledge_insight_plan_uses_only_eligible_customers():
                     "risk_level": "low",
                     "complaint_risk": 0.05,
                     "recent_contact_count": 0,
+                    "recent_contact_count_by_channel": {"app_push": 0, "sms": 0, "wechat": 0},
                     "owned_products": [],
                     "tags": [],
                 },
@@ -170,6 +174,7 @@ def test_knowledge_insight_plan_uses_only_eligible_customers():
                     "risk_level": "low",
                     "complaint_risk": 0.05,
                     "recent_contact_count": 0,
+                    "recent_contact_count_by_channel": {"app_push": 0, "sms": 0, "wechat": 0},
                     "owned_products": [],
                     "tags": [],
                 },
@@ -223,6 +228,7 @@ def test_strategy_uses_only_channels_allowed_by_stage_two():
                     "risk_level": "low",
                     "complaint_risk": 0.05,
                     "recent_contact_count": 0,
+                    "recent_contact_count_by_channel": {"app_push": 0, "sms": 0, "wechat": 0},
                     "owned_products": [],
                     "tags": [],
                 },
@@ -239,3 +245,60 @@ def test_strategy_uses_only_channels_allowed_by_stage_two():
     assert package["audience_delivery_constraints"]["customer_channel_constraints"][0]["allowed_channels"] == [
         "app_push"
     ]
+
+
+def test_all_channel_compliance_blocks_are_not_suppressed_as_policy():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "installment",
+        "channel_context": {"available_channels": ["app_push", "sms", "wechat"]},
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "channel_consents": {"app_push": False, "sms": False, "wechat": False},
+                    "risk_level": "low",
+                    "complaint_risk": 0.05,
+                    "owned_products": [],
+                },
+                "contact_history": [],
+            }
+        ],
+    }
+    decision = evaluate_customer_insight(payload).decisions[0]
+
+    assert decision.final_decision == "BLOCK_ALL_CHANNELS"
+    assert decision.hard_blocks == []
+    assert decision.channel_compliance_blocks == {
+        "app_push": ["channel_consent_revoked"],
+        "sms": ["channel_consent_revoked"],
+        "wechat": ["channel_consent_revoked"],
+    }
+    assert decision.policy_actions == []
+
+
+def test_frequency_requires_channel_level_data_not_global_total():
+    payload = {
+        "campaign_id": "CMP001",
+        "target_product": "installment",
+        "channel_context": {"available_channels": ["app_push"]},
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "marketing_consent": True,
+                    "risk_level": "low",
+                    "complaint_risk": 0.05,
+                    "recent_contact_count": 5,
+                    "owned_products": [],
+                },
+            }
+        ],
+    }
+    decision = evaluate_customer_insight(payload).decisions[0]
+
+    assert decision.final_decision == "SUPPRESS"
+    assert decision.channel_policy_blocks == {"app_push": ["frequency_data_missing"]}
+    assert "frequency_cap_reached" not in decision.blocked_channels["app_push"]
+    assert decision.data_quality_warnings == ["frequency_data_missing:app_push"]

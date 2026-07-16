@@ -89,9 +89,12 @@ def _eligibility_summary(report: EligibilityReport) -> dict:
         "eligible_count": report.eligible_count,
         "excluded_count": report.excluded_count,
         "exclusion_summary": report.exclusion_summary,
+        "global_exclusion_by_layer": report.global_exclusion_by_layer,
+        "channel_block_by_layer": report.channel_block_by_layer,
         "blocked_channel_summary": report.blocked_channel_summary,
         "channel_coverage": report.channel_coverage,
         "final_decision_summary": report.final_decision_summary,
+        "data_quality_warning_summary": report.data_quality_warning_summary,
         "rule_version": report.rule_version,
     }
 
@@ -103,6 +106,9 @@ def _customer_channel_constraints(report: EligibilityReport) -> list[dict]:
             "final_decision": decision.final_decision,
             "allowed_channels": decision.eligible_channels,
             "blocked_channels": decision.blocked_channels,
+            "channel_compliance_blocks": decision.channel_compliance_blocks,
+            "channel_policy_blocks": decision.channel_policy_blocks,
+            "data_quality_warnings": decision.data_quality_warnings,
             "rule_trace": [trace.rule_id for trace in decision.rule_trace],
         }
         for decision in report.decisions

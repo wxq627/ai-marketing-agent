@@ -1,5 +1,5 @@
 {
-  "rule_version": "2026-07-v2",
+  "rule_version": "2026-07-v3",
   "rules": [
     {
       "rule_id": "PRODUCT_INSTALLMENT_OWNED_001",

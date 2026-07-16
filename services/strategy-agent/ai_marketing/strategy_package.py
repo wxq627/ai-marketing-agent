@@ -72,6 +72,8 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
         ],
         "audience_delivery_constraints": {
             "channel_coverage": plan.eligibility_summary.get("channel_coverage", {}),
+            "channel_block_by_layer": plan.eligibility_summary.get("channel_block_by_layer", {}),
+            "data_quality_warning_summary": plan.eligibility_summary.get("data_quality_warning_summary", {}),
             "customer_channel_constraints": plan.customer_channel_constraints,
         },
         "budget_allocation": {

@@ -1,5 +1,5 @@
 {
-  "rule_version": "2026-07-v2",
+  "rule_version": "2026-07-v3",
   "default_channels": ["app_push", "sms", "wechat"],
   "rules": [
     {
@@ -48,6 +48,8 @@
       },
       "action": "LIMIT_CHANNEL",
       "reason_code": "frequency_cap_reached",
+      "missing_data_action": "LIMIT_CHANNEL",
+      "missing_data_reason_code": "frequency_data_missing",
       "owner": "marketing_operations",
       "configurable": true
     }
