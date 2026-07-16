@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.storage import PlanRepository
+from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,21 +35,23 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
-        if path != "/api/generate":
-            self.send_error(404, "Not found")
+        if path == "/api/generate":
+            self._handle_legacy_generate()
             return
+        if path == "/api/strategy/generate":
+            self._handle_strategy_generate()
+            return
+        if path == "/api/strategy/feedback":
+            self._handle_strategy_feedback()
+            return
+        if path == "/api/strategy/package":
+            self._handle_strategy_package()
+            return
+        self.send_error(404, "Not found")
 
+    def _handle_legacy_generate(self) -> None:
         try:
-            body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
-            payload = json.loads(body or "{}")
-            request = CampaignRequest(
-                goal=str(payload.get("goal", "")),
-                product=str(payload.get("product", "installment")),
-                channel_mode=str(payload.get("channel_mode", "omni")),
-                budget_wan=int(payload.get("budget_wan", 80)),
-                risk_level=int(payload.get("risk_level", 2)),
-                frequency_level=int(payload.get("frequency_level", 2)),
-            )
+            request = self._read_campaign_request()
             if not request.goal.strip():
                 self._json_response({"error": "goal is required"}, status=400)
                 return
@@ -57,6 +60,57 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._json_response(plan.to_dict())
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_generate(self) -> None:
+        try:
+            request = self._read_campaign_request()
+            if not request.goal.strip():
+                self._json_response({"error": "goal is required"}, status=400)
+                return
+            plan = engine.generate_plan(request)
+            repo.save(plan)
+            self._json_response(
+                {
+                    "plan": plan.to_dict(),
+                    "strategy_package": build_strategy_package(plan),
+                }
+            )
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_package(self) -> None:
+        try:
+            request = self._read_campaign_request()
+            if not request.goal.strip():
+                self._json_response({"error": "goal is required"}, status=400)
+                return
+            plan = engine.generate_plan(request)
+            repo.save(plan)
+            self._json_response(build_strategy_package(plan))
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_feedback(self) -> None:
+        try:
+            payload = self._read_json_body()
+            self._json_response(summarize_feedback(payload))
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _read_campaign_request(self) -> CampaignRequest:
+        payload = self._read_json_body()
+        return CampaignRequest(
+            goal=str(payload.get("goal", "")),
+            product=str(payload.get("product", "installment")),
+            channel_mode=str(payload.get("channel_mode", "omni")),
+            budget_wan=int(payload.get("budget_wan", 80)),
+            risk_level=int(payload.get("risk_level", 2)),
+            frequency_level=int(payload.get("frequency_level", 2)),
+        )
+
+    def _read_json_body(self) -> dict:
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
+        return json.loads(body or "{}")
 
     def log_message(self, format: str, *args) -> None:
         return

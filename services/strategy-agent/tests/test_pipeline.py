@@ -1,5 +1,6 @@
 from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
+from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
 
 
 def test_generate_installment_plan():
@@ -20,3 +21,32 @@ def test_generate_installment_plan():
     assert plan.channels
     assert plan.content["sms"]
     assert all(check.status in {"通过", "需复核", "拦截"} for check in plan.compliance)
+
+
+def test_build_strategy_package_matches_contract_shape():
+    engine = MarketingDecisionEngine()
+    plan = engine.generate_plan(CampaignRequest(goal="提升信用卡分期转化", product="installment"))
+    package = build_strategy_package(plan)
+    assert package["campaign_metadata"]["campaign_id"] == plan.campaign_id
+    assert package["campaign_metadata"]["product"] == "credit_card_installment"
+    assert package["audience_segments"]
+    assert package["channel_routing"]
+    assert package["content_brief"]["channel_copy"]["sms"]
+    assert package["compliance_guard"]["frequency_limit"]
+
+
+def test_summarize_feedback_generates_suggestions():
+    summary = summarize_feedback(
+        {
+            "campaign_id": "CMP001",
+            "feedback_metrics": {
+                "exposure_count": 1000,
+                "click_count": 50,
+                "conversion_count": 5,
+                "complaint_count": 2,
+                "roi": 1.2,
+            },
+        }
+    )
+    assert summary["campaign_id"] == "CMP001"
+    assert summary["suggestions"]
