@@ -1,0 +1,4 @@
+﻿log_id,id_value,old_oneid,new_oneid,conflict_reason,resolution,resolved_at
+LOG_CONFLICT_001,158****1226,UID000002,UID000001,"旧手机号被新客户使用, 系统检测到同号异人",人工确认,
+LOG_CONFLICT_002,DEV_A_542,UID000001,UID000001,"疑似共享设备(家庭iPad), device_id=DEV_A_542被多人使用",保留原映射,2026-07-15 00:00:00
+LOG_CONFLICT_003,DEV_HW_370,UID000003,UID000003,"客户更换设备, 旧device_id超过30天未活跃, 自动标记inactive",自动合并,2026-07-15 00:00:00

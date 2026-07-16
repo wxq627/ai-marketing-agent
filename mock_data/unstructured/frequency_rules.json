@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "effective_date": "2026-07-01",
+  "description": "XX银行信用卡中心营销触达频控规则 — 项目一 Knowledge Agent 供给项目二 Strategy Agent 使用",
+  "default_rules": {
+    "global_max_per_day": 2,
+    "global_max_per_week": 5,
+    "global_max_per_month": 12,
+    "global_cooldown_hours": 4,
+    "cross_channel_dedup": true
+  },
+  "per_channel_rules": [
+    {
+      "channel": "APP Push",
+      "max_per_day": 1,
+      "max_per_week": 3,
+      "max_per_month": 8,
+      "cooldown_hours": 6,
+      "notes": "推送频控较严格，避免用户关闭通知权限"
+    },
+    {
+      "channel": "短信",
+      "max_per_day": 1,
+      "max_per_week": 2,
+      "max_per_month": 6,
+      "cooldown_hours": 24,
+      "notes": "工信部合规要求：营销短信每天≤1条"
+    },
+    {
+      "channel": "微信公众号",
+      "max_per_day": 1,
+      "max_per_week": 3,
+      "max_per_month": 8,
+      "cooldown_hours": 8,
+      "notes": "模板消息有微信平台限制"
+    },
+    {
+      "channel": "电话外呼",
+      "max_per_day": 1,
+      "max_per_week": 1,
+      "max_per_month": 3,
+      "cooldown_hours": 72,
+      "notes": "外呼频控最严格，避免骚扰投诉"
+    },
+    {
+      "channel": "邮件",
+      "max_per_day": 1,
+      "max_per_week": 2,
+      "max_per_month": 4,
+      "cooldown_hours": 24,
+      "notes": "邮件相对宽松"
+    }
+  ],
+  "per_customer_type_rules": [
+    {
+      "type": "high_value",
+      "definition": "vip_tier in ('钻石','白金') or income_level='H'",
+      "override": {
+        "global_max_per_week": 3,
+        "global_max_per_month": 8,
+        "notes": "高价值客户降低频控，允许更精准的高频触达"
+      }
+    },
+    {
+      "type": "dormant",
+      "definition": "lifecycle_stage='沉睡期'",
+      "override": {
+        "global_max_per_week": 1,
+        "global_max_per_month": 2,
+        "notes": "沉睡客户大幅降低触达，优先用低打扰渠道（APP Push/邮件）"
+      }
+    },
+    {
+      "type": "complaint_risk",
+      "definition": "churn_risk_score >= 70",
+      "override": {
+        "global_max_per_week": 1,
+        "global_max_per_month": 1,
+        "cooldown_hours": 168,
+        "notes": "高投诉风险客户暂停主动营销触达",
+        "blocked_channels": ["电话外呼", "短信"]
+      }
+    },
+    {
+      "type": "new_customer",
+      "definition": "lifecycle_stage='新户'",
+      "override": {
+        "global_max_per_week": 3,
+        "global_max_per_month": 6,
+        "notes": "新户可适当增加引导触达"
+      }
+    }
+  ],
+  "negative_feedback_escalation": {
+    "thresholds": [
+      {"signal": "连续3次推送未点击", "action": "cooldown_72h", "description": "暂停该客户所有主动推送72小时"},
+      {"signal": "客户主动关闭通知权限", "action": "block_push_permanent", "description": "永久不再发送APP Push"},
+      {"signal": "短信回复TD退订", "action": "block_sms_permanent", "description": "永久不再发送营销短信"},
+      {"signal": "客户投诉营销骚扰", "action": "block_all_marketing", "description": "全局禁止主动营销，仅保留服务通知"}
+    ]
+  },
+  "permission_rules": {
+    "description": "硬门槛校验规则 — 以下任一条件满足则绝对不可触达",
+    "hard_blocks": [
+      {"rule": "marketing_consent = false", "action": "block_all", "priority": "critical"},
+      {"rule": "blacklist_flag = true", "action": "block_all", "priority": "critical"},
+      {"rule": "do_not_contact_signal = true", "action": "block_all", "priority": "critical"},
+      {"rule": "dnc_list = true", "action": "block_all_marketing", "priority": "critical"}
+    ],
+    "channel_blocks": [
+      {"rule": "{channel}_consent = false", "action": "block_channel", "priority": "high"},
+      {"rule": "渠道名 in unsubscribe_channels", "action": "block_channel_permanent", "priority": "high"},
+      {"rule": "risk_level = high AND channel = 电话外呼", "action": "block_channel", "priority": "high"}
+    ],
+    "product_eligibility_checks": [
+      {"rule": "客户年龄 not in [min_age, max_age]", "action": "exclude_product", "source": "product_eligibility.csv"},
+      {"rule": "客户收入等级 not in required_income", "action": "exclude_product", "source": "product_eligibility.csv"},
+      {"rule": "客户最高卡等级 < required_card_level", "action": "exclude_product", "source": "product_eligibility.csv"},
+      {"rule": "客户授信额度 < min_credit", "action": "exclude_product", "source": "product_eligibility.csv"}
+    ]
+  },
+  "product_rules_ref": {
+    "description": "产品规则详见 product_eligibility.csv 和 compliance_rules.json",
+    "files": ["product_eligibility.csv", "compliance_rules.json", "product_catalog.csv"]
+  }
+}

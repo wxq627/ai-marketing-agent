@@ -1,0 +1,34 @@
+{
+  "call_id": "ASR000926",
+  "cust_id": "C002223",
+  "phone": "138****5402",
+  "timestamp": "2026-02-18T23:47:00Z",
+  "duration_sec": 452,
+  "call_direction": "outbound",
+  "call_reason": "一般咨询",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "喂！我的钱包丢了，信用卡也在里面，能不能马上帮我挂失？"
+    },
+    {
+      "role": "agent",
+      "text": "您别急，我现在马上帮您挂失！请告诉我您的姓名和身份证号，我核实身份后立即冻结卡片。"
+    },
+    {
+      "role": "customer",
+      "text": "我叫李*芳，身份证号是3101****002。"
+    },
+    {
+      "role": "agent",
+      "text": "已核实，李女士，您的尾号8801和6632两张卡已经立即冻结。挂失后卡片所有功能停止，不会产生任何损失。请问您需要补办新卡吗？补办新卡7个工作日内寄到，卡号会改变。"
+    },
+    {
+      "role": "customer",
+      "text": "要补办，两张都要。太感谢了！"
+    }
+  ],
+  "resolution": "紧急挂失并补办新卡",
+  "sentiment_label": "urgent_to_relieved",
+  "intent_label": "一般咨询"
+}

@@ -1,0 +1,18 @@
+{
+  "image_file": "campus_graduation.png",
+  "activity_name": "校园卡毕业季升级",
+  "campaign_id": "CAMP_2026_CAMPUS",
+  "start_date": "2026-06-01",
+  "end_date": "2026-07-31",
+  "main_title": "毕业快乐！校园卡免费升级金卡",
+  "sub_title": "额度提升 | 50元转卡礼",
+  "visual_description": "学院风设计，蓝色毕业袍和学位帽元素。中央展示'校园卡→金卡'的升级动画。底部有毕业生剪影和祝福语。",
+  "rules_summary": [
+    "应届毕业生凭毕业证/学位证申请转卡",
+    "校园卡免费升级为标准金卡",
+    "额度在原校园卡基础上+5000元起",
+    "转卡成功赠送50元刷卡金"
+  ],
+  "target_segment": "校园卡即将毕业的学生",
+  "cta_text": "申请转卡"
+}

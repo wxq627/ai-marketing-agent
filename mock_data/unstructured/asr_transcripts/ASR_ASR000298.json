@@ -1,0 +1,42 @@
+{
+  "call_id": "ASR000298",
+  "cust_id": "C000761",
+  "phone": "186****6523",
+  "timestamp": "2026-06-24T04:39:00Z",
+  "duration_sec": 196,
+  "call_direction": "inbound",
+  "call_reason": "跨境/出行需求",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "你好，我下个月要去日本旅游，想问一下在境外用信用卡有什么要注意的？"
+    },
+    {
+      "role": "agent",
+      "text": "您好！去日本旅游用招行信用卡非常方便。首先建议您开通境外免货币转换费服务，这样日元消费直接按银联汇率结算，不额外收费。另外您可以看看您的卡是否有境外返现权益。"
+    },
+    {
+      "role": "customer",
+      "text": "我的是白金卡，有境外返现吗？"
+    },
+    {
+      "role": "agent",
+      "text": "有的！白金卡境外消费返现最高5%，月上限500元。而且日本很多百货商场（如三越、伊势丹）刷招行卡还有额外折扣。"
+    },
+    {
+      "role": "customer",
+      "text": "太好了，那取现方面呢？"
+    },
+    {
+      "role": "agent",
+      "text": "境外ATM取现每月前3笔免手续费，建议您到日本后在7-11便利店的ATM取日元，汇率比机场换汇划算很多。不过提醒您取现会产生利息，建议提前在APP上预存一些现金到信用卡。"
+    },
+    {
+      "role": "customer",
+      "text": "好的明白了，非常感谢！"
+    }
+  ],
+  "resolution": "提供境外用卡指导",
+  "sentiment_label": "neutral_to_satisfied",
+  "intent_label": "跨境/出行需求"
+}

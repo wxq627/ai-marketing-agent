@@ -1,0 +1,18 @@
+{
+  "image_file": "summer_travel.png",
+  "activity_name": "暑期出行季",
+  "campaign_id": "CAMP_2026_SUMMER",
+  "start_date": "2026-07-01",
+  "end_date": "2026-08-31",
+  "main_title": "放暑假了！机票酒店刷招行卡",
+  "sub_title": "机票满1000减100 | 酒店连住8折 | WiFi首日1元",
+  "visual_description": "蓝天海滩背景，中央展示飞机和度假酒店图标。右上有'SUMMER'艺术字。底部三个图标分别对应机票/酒店/WiFi优惠。",
+  "rules_summary": [
+    "机票单笔满1000元立减100元（限携程/飞猪）",
+    "合作酒店连住3晚享8折",
+    "境外WiFi租赁首日1元起",
+    "每人各权益限享1次"
+  ],
+  "target_segment": "22-45岁金卡及以上",
+  "cta_text": "马上预订"
+}
