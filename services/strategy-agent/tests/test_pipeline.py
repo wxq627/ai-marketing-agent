@@ -50,3 +50,35 @@ def test_summarize_feedback_generates_suggestions():
     )
     assert summary["campaign_id"] == "CMP001"
     assert summary["suggestions"]
+
+
+def test_generate_plan_from_knowledge_insight():
+    engine = MarketingDecisionEngine()
+    payload = {
+        "target_product": "installment",
+        "customers": [
+            {
+                "customer_id": "C001",
+                "customer_profile": {
+                    "age": 29,
+                    "city_tier": 1,
+                    "monthly_spend": 12000,
+                    "credit_limit_usage": 0.68,
+                    "tags": ["高消费", "App活跃", "分期敏感"],
+                    "marketing_consent": True,
+                    "risk_level": "low",
+                    "complaint_risk": 0.03,
+                    "recent_contact_count": 1,
+                    "preferred_channel": "app_push",
+                },
+                "intent_vector": {"top_intents": [{"name": "分期咨询", "score": 0.76}]},
+                "event_sequence": [{"event_name": "搜索分期费率"}],
+            }
+        ],
+    }
+    plan = engine.generate_plan_from_knowledge_insight(
+        CampaignRequest(goal="提升分期转化", product="installment"),
+        payload,
+    )
+    assert plan.audience_size == 1
+    assert plan.segments[0].size == 1

@@ -26,7 +26,7 @@
 
 ### 阶段 2：群像刻画与客群圈选
 
-状态：待开始
+状态：进行中
 
 目标：
 
@@ -74,3 +74,6 @@
 - 新增 `/api/strategy/generate`、`/api/strategy/package`、`/api/strategy/feedback` 设计与实现。
 - 增加策略包与反馈复盘测试。
 - 已完成 `py_compile` 与核心 pipeline 测试。
+- 新增 `knowledge_adapter.py`，支持把项目一 Customer Insight JSON 转换为策略模型可用特征。
+- 新增 `generate_plan_from_knowledge_insight`，支持 B 端直接消费项目一 mock 数据。
+- 新增 `/api/strategy/generate-from-insight` 接口雏形。

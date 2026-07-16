@@ -6,6 +6,7 @@ import json
 from .compliance import run_compliance_checks
 from .content import generate_content
 from .data import load_demo_customers
+from .knowledge_adapter import customers_from_knowledge_insight
 from .intent import parse_intent
 from .models import CampaignRequest, MarketingPlan
 from .optimizer import build_channel_plan, forecast_effect
@@ -17,6 +18,15 @@ class MarketingDecisionEngine:
         self.customers = load_demo_customers()
 
     def generate_plan(self, request: CampaignRequest) -> MarketingPlan:
+        return self._generate_plan_with_customers(request, self.customers)
+
+    def generate_plan_from_knowledge_insight(self, request: CampaignRequest, payload: dict) -> MarketingPlan:
+        customers = customers_from_knowledge_insight(payload)
+        if not customers:
+            customers = self.customers
+        return self._generate_plan_with_customers(request, customers)
+
+    def _generate_plan_with_customers(self, request: CampaignRequest, customers) -> MarketingPlan:
         intent = parse_intent(request)
         normalized = CampaignRequest(
             goal=request.goal,
@@ -26,7 +36,7 @@ class MarketingDecisionEngine:
             risk_level=request.risk_level,
             frequency_level=request.frequency_level,
         )
-        scored = score_customers(self.customers, normalized)
+        scored = score_customers(customers, normalized)
         segments = summarize_segments(scored)
         channels = build_channel_plan(normalized, len(scored))
         content = generate_content(normalized, intent, segments)

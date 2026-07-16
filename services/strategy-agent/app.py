@@ -41,6 +41,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/generate":
             self._handle_strategy_generate()
             return
+        if path == "/api/strategy/generate-from-insight":
+            self._handle_strategy_generate_from_insight()
+            return
         if path == "/api/strategy/feedback":
             self._handle_strategy_feedback()
             return
@@ -73,6 +76,34 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 {
                     "plan": plan.to_dict(),
                     "strategy_package": build_strategy_package(plan),
+                }
+            )
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_generate_from_insight(self) -> None:
+        try:
+            payload = self._read_json_body()
+            request_payload = payload.get("campaign_request", {})
+            insight_payload = payload.get("customer_insight", {})
+            request = CampaignRequest(
+                goal=str(request_payload.get("goal", "")),
+                product=str(request_payload.get("product", insight_payload.get("target_product", "installment"))),
+                channel_mode=str(request_payload.get("channel_mode", "omni")),
+                budget_wan=int(request_payload.get("budget_wan", 80)),
+                risk_level=int(request_payload.get("risk_level", 2)),
+                frequency_level=int(request_payload.get("frequency_level", 2)),
+            )
+            if not request.goal.strip():
+                self._json_response({"error": "goal is required"}, status=400)
+                return
+            plan = engine.generate_plan_from_knowledge_insight(request, insight_payload)
+            repo.save(plan)
+            self._json_response(
+                {
+                    "plan": plan.to_dict(),
+                    "strategy_package": build_strategy_package(plan),
+                    "source": "knowledge_insight",
                 }
             )
         except Exception as exc:
