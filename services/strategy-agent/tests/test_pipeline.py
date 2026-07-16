@@ -2,6 +2,7 @@ from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
 from ai_marketing.eligibility import evaluate_customer_insight
+from ai_marketing.llm_adapter import parse_campaign_goal
 
 
 def test_generate_installment_plan():
@@ -187,6 +188,60 @@ def test_knowledge_insight_plan_uses_only_eligible_customers():
     assert plan.audience_size == 1
     assert plan.eligibility_summary["eligible_count"] == 1
     assert plan.eligibility_summary["exclusion_summary"] == {"no_marketing_consent": 1}
+
+
+def test_goal_parser_falls_back_without_api_key():
+    result = parse_campaign_goal(
+        "Improve installment conversion with a low-risk campaign",
+        CampaignRequest(
+            goal="ignored",
+            product="coupon",
+            channel_mode="app",
+            budget_wan=20,
+            risk_level=1,
+            frequency_level=1,
+        ),
+        api_key="",
+    )
+    assert result.source == "fallback"
+    assert result.fallback_reason == "api_key_not_configured"
+    assert result.campaign_request.goal == "Improve installment conversion with a low-risk campaign"
+    assert result.campaign_request.budget_wan == 20
+
+
+def test_goal_parser_uses_structured_openai_response():
+    def sender(payload, api_key):
+        assert payload["text"]["format"]["strict"] is True
+        assert api_key == "test-key"
+        return {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": (
+                                '{"product":"installment","channel_mode":"app","budget_wan":30,'
+                                '"risk_level":1,"frequency_level":2,'
+                                '"audience_hints":["high_spend"],"constraints":["frequency_cap"]}'
+                            ),
+                        }
+                    ],
+                }
+            ]
+        }
+
+    result = parse_campaign_goal(
+        "Target installment users with low risk",
+        CampaignRequest(goal="ignored"),
+        api_key="test-key",
+        sender=sender,
+    )
+    assert result.source == "openai"
+    assert result.campaign_request.product == "installment"
+    assert result.campaign_request.channel_mode == "app"
+    assert result.campaign_request.budget_wan == 30
+    assert result.audience_hints == ["high_spend"]
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

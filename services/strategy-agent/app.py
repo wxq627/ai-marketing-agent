@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from ai_marketing.models import CampaignRequest
+from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.storage import PlanRepository
 from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
@@ -46,6 +47,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/strategy/eligibility":
             self._handle_strategy_eligibility()
+            return
+        if path == "/api/strategy/parse-goal":
+            self._handle_strategy_parse_goal()
             return
         if path == "/api/strategy/feedback":
             self._handle_strategy_feedback()
@@ -122,6 +126,16 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._json_response(report.to_dict())
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=400)
+
+    def _handle_strategy_parse_goal(self) -> None:
+        try:
+            defaults = self._read_campaign_request()
+            result = parse_campaign_goal(defaults.goal, defaults)
+            self._json_response(result.to_dict())
+        except ValueError as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
 
     def _handle_strategy_package(self) -> None:
         try:

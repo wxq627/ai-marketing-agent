@@ -23,17 +23,11 @@ async function generatePlan() {
   els.status.textContent = "正在生成";
   els.generate.disabled = true;
   try {
+    const request = await parseGoalWithLlm();
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        goal: els.goal.value,
-        product: els.product.value,
-        channel_mode: els.channel.value,
-        budget_wan: Number(els.budget.value),
-        risk_level: Number(els.risk.value),
-        frequency_level: Number(els.freq.value),
-      }),
+      body: JSON.stringify(request),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "生成失败");
@@ -44,6 +38,31 @@ async function generatePlan() {
   } finally {
     els.generate.disabled = false;
   }
+}
+
+async function parseGoalWithLlm() {
+  const response = await fetch("/api/strategy/parse-goal", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      goal: els.goal.value,
+      product: els.product.value,
+      channel_mode: els.channel.value,
+      budget_wan: Number(els.budget.value),
+      risk_level: Number(els.risk.value),
+      frequency_level: Number(els.freq.value),
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Goal parsing failed");
+  const request = data.campaign_request;
+  els.product.value = request.product;
+  els.channel.value = request.channel_mode;
+  els.budget.value = request.budget_wan;
+  els.risk.value = request.risk_level;
+  els.freq.value = request.frequency_level;
+  els.status.textContent = data.source === "openai" ? "LLM parsed" : "Rule fallback";
+  return request;
 }
 
 function renderPlan(plan) {
