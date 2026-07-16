@@ -12,7 +12,7 @@ from .models import CampaignRequest
 
 
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
-DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_MODEL = "deepseek-v4-pro"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
 ALLOWED_CHANNEL_MODES = {"omni", "app", "sms"}
 
@@ -67,8 +67,12 @@ def parse_campaign_goal(
             source="deepseek",
             model=model,
         )
-    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError, TypeError, AttributeError):
-        return _fallback_result(normalized_goal, defaults, "deepseek_request_failed")
+    except HTTPError as exc:
+        return _fallback_result(normalized_goal, defaults, f"deepseek_http_{exc.code}")
+    except (URLError, TimeoutError):
+        return _fallback_result(normalized_goal, defaults, "deepseek_network_or_timeout")
+    except (ValueError, json.JSONDecodeError, TypeError, AttributeError):
+        return _fallback_result(normalized_goal, defaults, "deepseek_response_validation_failed")
 
 
 def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) -> dict[str, Any]:
@@ -98,6 +102,8 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                 ),
             },
         ],
+        # Goal parsing is a bounded extraction task, so reasoning adds latency without value.
+        "thinking": {"type": "disabled"},
         "response_format": {"type": "json_object"},
         "max_tokens": 500,
     }
@@ -110,7 +116,7 @@ def _send_deepseek_request(payload: dict[str, Any], api_key: str) -> dict[str, A
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    timeout = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "15"))
+    timeout = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "90"))
     with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 

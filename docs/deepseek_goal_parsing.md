@@ -8,7 +8,8 @@ Set the key in the terminal that starts the Strategy Agent. Do not commit keys t
 
 ```powershell
 $env:DEEPSEEK_API_KEY = "your_api_key"
-$env:DEEPSEEK_MODEL = "deepseek-v4-flash"
+$env:DEEPSEEK_MODEL = "deepseek-v4-pro"
+$env:DEEPSEEK_TIMEOUT_SECONDS = "90"
 python app.py
 ```
 
@@ -36,3 +37,5 @@ The response contains a validated `campaign_request`, audience hints, constraint
 ## Safety Boundary
 
 DeepSeek only converts the operator goal into campaign parameters. Customer eligibility, consent, frequency caps, risk filtering, product eligibility, customer selection, and budget enforcement remain deterministic Strategy Agent logic.
+
+The goal parser disables DeepSeek thinking mode because this step is a short, schema-bound extraction task. It validates every model field again before generating a strategy.

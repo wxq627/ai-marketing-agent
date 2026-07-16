@@ -212,6 +212,7 @@ def test_goal_parser_falls_back_without_api_key():
 def test_goal_parser_uses_deepseek_json_response():
     def sender(payload, api_key):
         assert payload["response_format"] == {"type": "json_object"}
+        assert payload["thinking"] == {"type": "disabled"}
         assert "json" in payload["messages"][0]["content"].lower()
         assert api_key == "test-key"
         return {
