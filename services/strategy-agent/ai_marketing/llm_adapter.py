@@ -11,8 +11,8 @@ from .intent import parse_intent
 from .models import CampaignRequest
 
 
-OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-DEFAULT_MODEL = "gpt-4o-mini"
+DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
+DEFAULT_MODEL = "deepseek-v4-flash"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
 ALLOWED_CHANNEL_MODES = {"omni", "app", "sms"}
 
@@ -44,102 +44,85 @@ def parse_campaign_goal(
     api_key: str | None = None,
     sender: Callable[[dict[str, Any], str], dict[str, Any]] | None = None,
 ) -> GoalParseResult:
-    """Parse an operator goal with OpenAI, with deterministic fallback for local demos."""
+    """Parse an operator goal with DeepSeek, with deterministic fallback for local demos."""
     normalized_goal = goal.strip()
     if not normalized_goal:
         raise ValueError("goal is required")
 
-    key = os.getenv("OPENAI_API_KEY", "") if api_key is None else api_key
-    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+    key = os.getenv("DEEPSEEK_API_KEY", "") if api_key is None else api_key
+    model = os.getenv("DEEPSEEK_MODEL", DEFAULT_MODEL)
     if not key:
         return _fallback_result(normalized_goal, defaults, "api_key_not_configured")
 
     try:
-        response = (sender or _send_openai_request)(_build_openai_payload(normalized_goal, defaults, model), key)
+        response = (sender or _send_deepseek_request)(_build_deepseek_payload(normalized_goal, defaults, model), key)
         parsed = json.loads(_extract_output_text(response))
+        if not isinstance(parsed, dict):
+            raise ValueError("DeepSeek response must be a JSON object")
         request = _campaign_request_from_model(parsed, normalized_goal, defaults)
         return GoalParseResult(
             campaign_request=request,
             audience_hints=_string_list(parsed.get("audience_hints"), limit=5),
             constraints=_string_list(parsed.get("constraints"), limit=5),
-            source="openai",
+            source="deepseek",
             model=model,
         )
-    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        return _fallback_result(normalized_goal, defaults, "openai_request_failed")
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError, TypeError, AttributeError):
+        return _fallback_result(normalized_goal, defaults, "deepseek_request_failed")
 
 
-def _build_openai_payload(goal: str, defaults: CampaignRequest, model: str) -> dict[str, Any]:
+def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) -> dict[str, Any]:
     return {
         "model": model,
-        "instructions": (
-            "You convert a bank marketing operator's goal into a constrained campaign request. "
-            "Use only the allowed products and channel modes in the JSON schema. "
-            "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
-            "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals."
-        ),
-        "input": (
-            f"Operator goal: {goal}\n"
-            f"Defaults: product={defaults.product}, channel_mode={defaults.channel_mode}, "
-            f"budget_wan={defaults.budget_wan}, risk_level={defaults.risk_level}, "
-            f"frequency_level={defaults.frequency_level}."
-        ),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "campaign_goal_parse",
-                "strict": True,
-                "schema": _goal_parse_schema(),
-            }
-        },
-    }
-
-
-def _goal_parse_schema() -> dict[str, Any]:
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "product": {"type": "string", "enum": sorted(ALLOWED_PRODUCTS)},
-            "channel_mode": {"type": "string", "enum": sorted(ALLOWED_CHANNEL_MODES)},
-            "budget_wan": {"type": "integer", "minimum": 1, "maximum": 200},
-            "risk_level": {"type": "integer", "enum": [1, 2, 3]},
-            "frequency_level": {"type": "integer", "enum": [1, 2, 3, 4]},
-            "audience_hints": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
-            "constraints": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
-        },
-        "required": [
-            "product",
-            "channel_mode",
-            "budget_wan",
-            "risk_level",
-            "frequency_level",
-            "audience_hints",
-            "constraints",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You convert a bank marketing operator's goal into a constrained campaign request. "
+                    "Return only one valid json object, with no markdown. "
+                    "Use only product values installment, coupon, travel and channel_mode values omni, app, sms. "
+                    "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
+                    "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals. "
+                    "The json object must exactly follow this example shape: "
+                    '{"product":"installment","channel_mode":"omni","budget_wan":80,'
+                    '"risk_level":2,"frequency_level":2,"audience_hints":["tag"],"constraints":["rule"]}.'
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Operator goal: {goal}\n"
+                    f"Defaults: product={defaults.product}, channel_mode={defaults.channel_mode}, "
+                    f"budget_wan={defaults.budget_wan}, risk_level={defaults.risk_level}, "
+                    f"frequency_level={defaults.frequency_level}."
+                ),
+            },
         ],
+        "response_format": {"type": "json_object"},
+        "max_tokens": 500,
     }
 
 
-def _send_openai_request(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
+def _send_deepseek_request(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
     request = Request(
-        OPENAI_RESPONSES_URL,
+        DEEPSEEK_CHAT_COMPLETIONS_URL,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "15"))
+    timeout = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "15"))
     with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def _extract_output_text(response: dict[str, Any]) -> str:
-    for item in response.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content", []):
-            if content.get("type") == "output_text" and isinstance(content.get("text"), str):
-                return content["text"]
-    raise ValueError("OpenAI response did not include output_text")
+    choices = response.get("choices", [])
+    if choices and isinstance(choices[0], dict):
+        message = choices[0].get("message", {})
+        content = message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, str) and content.strip():
+            return content
+    raise ValueError("DeepSeek response did not include message content")
 
 
 def _campaign_request_from_model(
@@ -151,11 +134,11 @@ def _campaign_request_from_model(
     risk_level = parsed.get("risk_level", defaults.risk_level)
     frequency_level = parsed.get("frequency_level", defaults.frequency_level)
     if product not in ALLOWED_PRODUCTS or channel_mode not in ALLOWED_CHANNEL_MODES:
-        raise ValueError("OpenAI response contained unsupported campaign options")
+        raise ValueError("DeepSeek response contained unsupported campaign options")
     if not isinstance(budget_wan, int) or not 1 <= budget_wan <= 200:
-        raise ValueError("OpenAI response contained invalid budget")
+        raise ValueError("DeepSeek response contained invalid budget")
     if risk_level not in {1, 2, 3} or frequency_level not in {1, 2, 3, 4}:
-        raise ValueError("OpenAI response contained invalid campaign controls")
+        raise ValueError("DeepSeek response contained invalid campaign controls")
     return CampaignRequest(
         goal=goal,
         product=product,

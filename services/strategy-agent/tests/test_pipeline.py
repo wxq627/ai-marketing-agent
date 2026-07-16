@@ -209,24 +209,21 @@ def test_goal_parser_falls_back_without_api_key():
     assert result.campaign_request.budget_wan == 20
 
 
-def test_goal_parser_uses_structured_openai_response():
+def test_goal_parser_uses_deepseek_json_response():
     def sender(payload, api_key):
-        assert payload["text"]["format"]["strict"] is True
+        assert payload["response_format"] == {"type": "json_object"}
+        assert "json" in payload["messages"][0]["content"].lower()
         assert api_key == "test-key"
         return {
-            "output": [
+            "choices": [
                 {
-                    "type": "message",
-                    "content": [
-                        {
-                            "type": "output_text",
-                            "text": (
-                                '{"product":"installment","channel_mode":"app","budget_wan":30,'
-                                '"risk_level":1,"frequency_level":2,'
-                                '"audience_hints":["high_spend"],"constraints":["frequency_cap"]}'
-                            ),
-                        }
-                    ],
+                    "message": {
+                        "content": (
+                            '{"product":"installment","channel_mode":"app","budget_wan":30,'
+                            '"risk_level":1,"frequency_level":2,'
+                            '"audience_hints":["high_spend"],"constraints":["frequency_cap"]}'
+                        )
+                    },
                 }
             ]
         }
@@ -237,7 +234,7 @@ def test_goal_parser_uses_structured_openai_response():
         api_key="test-key",
         sender=sender,
     )
-    assert result.source == "openai"
+    assert result.source == "deepseek"
     assert result.campaign_request.product == "installment"
     assert result.campaign_request.channel_mode == "app"
     assert result.campaign_request.budget_wan == 30

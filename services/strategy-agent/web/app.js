@@ -61,7 +61,7 @@ async function parseGoalWithLlm() {
   els.budget.value = request.budget_wan;
   els.risk.value = request.risk_level;
   els.freq.value = request.frequency_level;
-  els.status.textContent = data.source === "openai" ? "LLM parsed" : "Rule fallback";
+  els.status.textContent = data.source === "deepseek" ? "DeepSeek parsed" : "Rule fallback";
   return request;
 }
 
