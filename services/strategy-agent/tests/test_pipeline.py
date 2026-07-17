@@ -5,6 +5,7 @@ from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.persona import kmeans_available
+from ai_marketing.personalization import PersonalizedStrategyService
 
 
 def test_generate_installment_plan():
@@ -301,6 +302,22 @@ def test_kmeans_personas_cover_the_selected_audience_when_dependency_is_availabl
     assert all(segment.strategy["content_direction"] for segment in plan.segments)
     package = build_strategy_package(plan)
     assert len(package["content_brief"]["persona_content_briefs"]) == 4
+
+
+def test_online_personalization_returns_recommendations_and_chat_strategy():
+    service = PersonalizedStrategyService(LocalKnowledgeData(), MarketingDecisionEngine())
+    recommendations = service.recommendations("UID000001", limit=5)
+    decision = service.decision(
+        "UID000001",
+        scene="chat",
+        user_intent="\u60f3\u4e86\u89e3\u8d26\u5355\u5206\u671f\u8d39\u7528",
+    )
+
+    assert recommendations["recommendations"]
+    assert recommendations["recommendations"][0]["rank"] == 1
+    assert all(item["allowed_channels"] == ["in_app"] for item in recommendations["recommendations"])
+    assert decision["should_recommend"] is True
+    assert decision["recommended_product_id"] == "INSTALLMENT"
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

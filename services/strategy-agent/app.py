@@ -4,11 +4,13 @@ import json
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote
 
 from ai_marketing.models import CampaignRequest
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
+from ai_marketing.personalization import PersonalizedStrategyService
 from ai_marketing.storage import PlanRepository
 from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
 
@@ -20,6 +22,7 @@ DATA_DIR = BASE_DIR / "data"
 engine = MarketingDecisionEngine()
 local_knowledge_data = LocalKnowledgeData()
 repo = PlanRepository(DATA_DIR / "marketing_demo.sqlite3")
+personalization = PersonalizedStrategyService(local_knowledge_data, engine)
 
 
 class MarketingHandler(SimpleHTTPRequestHandler):
@@ -28,6 +31,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path.startswith("/api/strategy/customers/") and path.endswith("/recommendations"):
+            self._handle_personalized_recommendations(path)
+            return
         if path == "/api/activities":
             self._json_response({"items": repo.list_recent()})
             return
@@ -38,6 +44,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/strategy/decision":
+            self._handle_personalized_decision()
+            return
         if path == "/api/generate":
             self._handle_legacy_generate()
             return
@@ -66,6 +75,58 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._handle_strategy_package()
             return
         self.send_error(404, "Not found")
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def _handle_personalized_recommendations(self, path: str) -> None:
+        try:
+            prefix = "/api/strategy/customers/"
+            oneid = unquote(path[len(prefix) : -len("/recommendations")]).strip("/")
+            query = parse_qs(urlparse(self.path).query)
+            result = personalization.recommendations(
+                oneid,
+                scene=str(query.get("scene", ["agent_home"])[0]),
+                limit=int(query.get("limit", [5])[0]),
+            )
+            self._json_response(result)
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
+        except PermissionError as exc:
+            self._json_response({"error": str(exc), "recommendations": []}, status=200)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_personalized_decision(self) -> None:
+        try:
+            payload = self._read_json_body()
+            oneid = str(payload.get("oneid", "")).strip()
+            if not oneid:
+                self._json_response({"error": "oneid is required"}, status=400)
+                return
+            result = personalization.decision(
+                oneid,
+                scene=str(payload.get("scene", "chat")),
+                user_intent=str(payload.get("user_intent", "")),
+                product_id=str(payload.get("product_id", "")),
+                conversation_summary=str(payload.get("conversation_summary", "")),
+                touchpoint=str(payload.get("touchpoint", "in_app")),
+            )
+            self._json_response(result)
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
+        except PermissionError as exc:
+            self._json_response({"should_recommend": False, "reason": str(exc)}, status=200)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
 
     def _handle_legacy_generate(self) -> None:
         try:
@@ -246,6 +307,7 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(encoded)
 

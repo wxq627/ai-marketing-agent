@@ -42,6 +42,7 @@ class LocalKnowledgeData:
         self._snapshots: dict[str, dict[str, str]] | None = None
         self._intents: dict[str, dict[str, str]] | None = None
         self._events: dict[str, list[dict[str, str]]] | None = None
+        self._oneid_to_customer_id: dict[str, str] | None = None
 
     def build_customer_insight(
         self,
@@ -80,6 +81,56 @@ class LocalKnowledgeData:
                 for customer_id in customer_ids
             ],
         }
+
+    def build_customer_insight_for_oneid(
+        self,
+        oneid: str,
+        *,
+        target_product: str = "installment",
+        evaluation_time: str | None = None,
+    ) -> dict[str, Any] | None:
+        customer_id = self.customer_id_for_oneid(oneid)
+        if customer_id is None:
+            return None
+        profiles = self._load_profiles()
+        snapshots = self._load_snapshots()
+        consents = self._load_consents()
+        contacts = self._load_contacts()
+        intents = self._load_intents()
+        events = self._load_events()
+        profile = profiles.get(customer_id)
+        if profile is None:
+            return None
+        return {
+            "campaign_id": "ONLINE_PERSONALIZATION",
+            "target_product": target_product,
+            "evaluation_time": evaluation_time or datetime.now().astimezone().isoformat(),
+            "source": "project1_local_csv",
+            "data_version": "2026-07-16-project1",
+            "channel_context": self._load_channel_context(),
+            "customers": [
+                self._to_insight_customer(
+                    profile=profile,
+                    snapshot=snapshots.get(customer_id, {}),
+                    consent=consents.get(customer_id, {}),
+                    contacts=contacts.get(customer_id, []),
+                    intent=intents.get(customer_id, {}),
+                    events=events.get(customer_id, []),
+                )
+            ],
+        }
+
+    def customer_id_for_oneid(self, oneid: str) -> str | None:
+        if self._oneid_to_customer_id is None:
+            profiles = self._load_profiles()
+            snapshots = self._load_snapshots()
+            rows = snapshots or profiles
+            self._oneid_to_customer_id = {
+                row.get("oneid", "").strip(): customer_id
+                for customer_id, row in rows.items()
+                if row.get("oneid", "").strip()
+            }
+        return self._oneid_to_customer_id.get(oneid.strip())
 
     def _load_profiles(self) -> dict[str, dict[str, str]]:
         if self._profiles is None:
@@ -199,8 +250,12 @@ class LocalKnowledgeData:
 
         customer_profile = {
             "oneid": source.get("oneid", ""),
+            "gender": profile.get("demographics_gender", ""),
             "age": _as_int(_field(source, "age", "demographics_age"), default=35),
             "city_tier": CITY_TIERS.get(_field(source, "city", "demographics_city"), 3),
+            "income_level": _field(source, "income_level", "demographics_income_level"),
+            "card_level": _field(source, "card_level", "account_primary_card_level"),
+            "total_credit_amount": _as_float(_field(source, "total_credit_amount", "account_total_credit_amount")),
             "monthly_spend": monthly_spend,
             "credit_limit_usage": min(1.0, monthly_spend / credit_amount) if credit_amount else 0.0,
             "app_active_days": min(30, max(short_term_active_days * 3, long_term_active_days // 3)),
