@@ -1,0 +1,18 @@
+{
+  "image_file": "spring_festival_promo.png",
+  "activity_name": "春节境外消费返现季",
+  "campaign_id": "CAMP_2026_SPRINGFEST",
+  "start_date": "2026-01-15",
+  "end_date": "2026-02-15",
+  "main_title": "春节出境游，刷招行卡返现8%！",
+  "sub_title": "港澳日韩东南亚通用",
+  "visual_description": "红色春节主题背景，灯笼和福字装饰，中央展示东京、曼谷、新加坡等城市地标剪影。左下有金色'8%返现'图标。底部有活动时间和条款简要。",
+  "rules_summary": [
+    "境外线下消费享8%返现，单月封顶800元",
+    "港澳台、日韩、东南亚、欧美均适用",
+    "需提前在APP报名",
+    "返现金额次月15日前到账"
+  ],
+  "target_segment": "25-55岁白金卡及以上持卡人",
+  "cta_text": "立即报名参与"
+}

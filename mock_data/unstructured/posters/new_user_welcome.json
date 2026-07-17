@@ -1,0 +1,18 @@
+{
+  "image_file": "new_user_welcome.png",
+  "activity_name": "新户开卡三重礼",
+  "campaign_id": "CAMP_2026_NEWUSER",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "main_title": "新户专享·开卡就送100元！",
+  "sub_title": "首刷+绑卡+开卡 三重好礼",
+  "visual_description": "清新蓝色背景，中央展示三张礼品卡片（刷卡金100元/定制礼品/红包）。顶部有'Welcome'英文字。整体设计年轻化、时尚感。",
+  "rules_summary": [
+    "开卡后30天内任意消费1笔即送100元刷卡金",
+    "首笔消费满99元可选定制礼品（三选一）",
+    "首次绑定支付宝/微信/云闪付各送10元红包",
+    "三项可兼得"
+  ],
+  "target_segment": "新户",
+  "cta_text": "立即激活卡片"
+}

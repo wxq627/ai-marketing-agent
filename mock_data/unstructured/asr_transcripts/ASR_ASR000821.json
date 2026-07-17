@@ -1,0 +1,26 @@
+{
+  "call_id": "ASR000821",
+  "cust_id": "C001012",
+  "phone": "177****0729",
+  "timestamp": "2026-02-14T05:30:00Z",
+  "duration_sec": 331,
+  "call_direction": "inbound",
+  "call_reason": "一般咨询",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "你好，我换了新手机号，怎么更新信用卡绑定的手机号？"
+    },
+    {
+      "role": "agent",
+      "text": "您好，更新手机号可以在掌上生活APP上操作，路径是：我的→设置→安全中心→修改手机号。需要验证身份证号和原手机号接收验证码。如果您原手机号已经不能用了，需要携带身份证到任意招行网点办理。"
+    },
+    {
+      "role": "customer",
+      "text": "APP上就能改是吧？那我试试。"
+    }
+  ],
+  "resolution": "指导手机号更新",
+  "sentiment_label": "neutral",
+  "intent_label": "一般咨询"
+}

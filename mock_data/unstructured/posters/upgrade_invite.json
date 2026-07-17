@@ -1,0 +1,18 @@
+{
+  "image_file": "upgrade_invite.png",
+  "activity_name": "金卡升级白金卡专属邀请",
+  "campaign_id": "CAMP_2026_UPGRADE",
+  "start_date": "2026-05-01",
+  "end_date": "2026-12-31",
+  "main_title": "恭喜！您已获得白金卡升级资格",
+  "sub_title": "首年年费5折 | 赠机场贵宾厅2次",
+  "visual_description": "黑金配色高端风格，中央放置白金卡产品图。左侧列出升级后新增权益的图标列表。右下角有'专属邀请'水印。",
+  "rules_summary": [
+    "限收到邀请的金卡持卡人（年消费≥8万元）",
+    "升级后首年年费5折（原价3600元→1800元）",
+    "额外赠送机场贵宾厅2次体验",
+    "升级后原卡额度保留并可能提升"
+  ],
+  "target_segment": "高消费金卡持卡人",
+  "cta_text": "查看我的升级权益"
+}

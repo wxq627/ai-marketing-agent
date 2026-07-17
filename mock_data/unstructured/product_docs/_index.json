@@ -1,0 +1,182 @@
+[
+  {
+    "doc_id": "DOC_001",
+    "title": "经典版白金信用卡说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_01.txt",
+    "product_name": "经典版白金信用卡",
+    "char_count": 1288,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_002",
+    "title": "银联白金信用卡说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_02.txt",
+    "product_name": "银联白金信用卡",
+    "char_count": 1286,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_003",
+    "title": "全币种国际白金信用卡说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_03.txt",
+    "product_name": "全币种国际白金信用卡",
+    "char_count": 1288,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_004",
+    "title": "银联钻石信用卡说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_04.txt",
+    "product_name": "银联钻石信用卡",
+    "char_count": 1282,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_005",
+    "title": "万事达世界信用卡说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_05.txt",
+    "product_name": "万事达世界信用卡",
+    "char_count": 1282,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_006",
+    "title": "标准信用卡（金卡）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_06.txt",
+    "product_name": "标准信用卡（金卡）",
+    "char_count": 1290,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_007",
+    "title": "携程旅行信用卡（金卡）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_07.txt",
+    "product_name": "携程旅行信用卡（金卡）",
+    "char_count": 1294,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_008",
+    "title": "京东联名信用卡（金卡）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_08.txt",
+    "product_name": "京东联名信用卡（金卡）",
+    "char_count": 1294,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_009",
+    "title": "标准信用卡（普卡）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_09.txt",
+    "product_name": "标准信用卡（普卡）",
+    "char_count": 1290,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_010",
+    "title": "YOUNG卡（青年版）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_10.txt",
+    "product_name": "YOUNG卡（青年版）",
+    "char_count": 1292,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_011",
+    "title": "YOUNG卡（校园版）说明",
+    "doc_type": "权益说明",
+    "file_path": "doc_11.txt",
+    "product_name": "YOUNG卡（校园版）",
+    "char_count": 1282,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_012",
+    "title": "分期付款条款",
+    "doc_type": "分期条款",
+    "file_path": "doc_12.txt",
+    "product_name": "分期付款条款",
+    "char_count": 952,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_013",
+    "title": "信用卡章程说明",
+    "doc_type": "通用",
+    "file_path": "doc_13.txt",
+    "product_name": "信用卡章程",
+    "char_count": 387,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_014",
+    "title": "积分规则说明说明",
+    "doc_type": "通用",
+    "file_path": "doc_14.txt",
+    "product_name": "积分规则说明",
+    "char_count": 388,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_015",
+    "title": "境外消费指南说明",
+    "doc_type": "通用",
+    "file_path": "doc_15.txt",
+    "product_name": "境外消费指南",
+    "char_count": 387,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_016",
+    "title": "保险权益细则说明",
+    "doc_type": "通用",
+    "file_path": "doc_16.txt",
+    "product_name": "保险权益细则",
+    "char_count": 388,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_017",
+    "title": "新户开卡礼规则说明",
+    "doc_type": "通用",
+    "file_path": "doc_17.txt",
+    "product_name": "新户开卡礼规则",
+    "char_count": 389,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_018",
+    "title": "电子现金使用说明说明",
+    "doc_type": "通用",
+    "file_path": "doc_18.txt",
+    "product_name": "电子现金使用说明",
+    "char_count": 390,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_019",
+    "title": "掌上生活APP功能介绍说明",
+    "doc_type": "通用",
+    "file_path": "doc_19.txt",
+    "product_name": "掌上生活APP功能介绍",
+    "char_count": 393,
+    "generated_at": "2026-07-15"
+  },
+  {
+    "doc_id": "DOC_020",
+    "title": "用卡安全指南说明",
+    "doc_type": "通用",
+    "file_path": "doc_20.txt",
+    "product_name": "用卡安全指南",
+    "char_count": 388,
+    "generated_at": "2026-07-15"
+  }
+]

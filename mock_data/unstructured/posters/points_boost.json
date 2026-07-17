@@ -1,0 +1,17 @@
+{
+  "image_file": "points_boost.png",
+  "activity_name": "积分膨胀季",
+  "main_title": "积分兑换膨胀1.2倍！",
+  "sub_title": "限时活动 · 兑完即止",
+  "rules_summary": [
+    "积分商城兑换指定商品享1.2倍价值",
+    "含航空里程/视频会员/实物礼品",
+    "活动期间每人限兑3次"
+  ],
+  "campaign_id": "",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "visual_description": "通用营销海报风格",
+  "target_segment": "所有持卡人",
+  "cta_text": "了解更多"
+}
