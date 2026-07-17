@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .local_knowledge_data import STRUCTURED_DATA_DIR
 
@@ -68,6 +69,33 @@ class OfferCatalog:
         return offers
 
 
+def offer_eligibility_reasons(offer: ProductOffer, profile: dict[str, Any]) -> list[str]:
+    """Return product-level exclusion codes for a customer profile."""
+    reasons: list[str] = []
+    age = _as_int(profile.get("age"))
+    income = str(profile.get("income_level", ""))
+    credit = _as_float(profile.get("total_credit_amount"))
+    card_level = str(profile.get("card_level", ""))
+    gender = str(profile.get("gender", ""))
+    conditions = offer.special_conditions
+
+    if age < offer.min_age or age > offer.max_age:
+        reasons.append("product_age_not_eligible")
+    if offer.required_income and income not in _split_values(offer.required_income):
+        reasons.append("product_income_not_eligible")
+    if credit < offer.min_credit:
+        reasons.append("product_credit_not_eligible")
+    if not _card_level_eligible(card_level, offer.required_card_level):
+        reasons.append("product_card_level_not_eligible")
+    if "\u6682\u505c" in conditions or "\u9080\u8bf7" in conditions:
+        reasons.append("product_not_open_for_application")
+    if "\u5973\u6027" in conditions and gender != "\u5973":
+        reasons.append("product_gender_not_eligible")
+    if "\u5b66\u751f" in conditions:
+        reasons.append("product_special_condition_not_eligible")
+    return reasons
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8-sig", newline="") as file:
         return list(csv.DictReader(file))
@@ -89,3 +117,18 @@ def _as_float(value: str | None) -> float:
         return float(value or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _card_level_eligible(current: str, required: str) -> bool:
+    if not required or required == "-":
+        return True
+    ranks = {
+        "\u666e\u5361": 1,
+        "\u91d1\u5361": 2,
+        "\u767d\u91d1\u5361": 3,
+        "\u94bb\u77f3\u5361": 4,
+        "\u65e0\u9650\u5361": 5,
+    }
+    required_level = next((rank for name, rank in ranks.items() if name in required), 0)
+    current_level = next((rank for name, rank in ranks.items() if name in current), 0)
+    return current_level >= required_level

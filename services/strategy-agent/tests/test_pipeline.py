@@ -6,6 +6,7 @@ from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.persona import DEFAULT_CLUSTER_COUNT, kmeans_available
 from ai_marketing.personalization import PersonalizedStrategyService
+from ai_marketing.candidates import StrategyCandidateService
 
 
 def test_generate_installment_plan():
@@ -318,6 +319,23 @@ def test_online_personalization_returns_recommendations_and_chat_strategy():
     assert all(item["allowed_channels"] == ["in_app"] for item in recommendations["recommendations"])
     assert decision["should_recommend"] is True
     assert decision["recommended_product_id"] == "INSTALLMENT"
+
+
+def test_real_data_candidate_generation_outputs_only_eligible_product_channel_pairs():
+    result = StrategyCandidateService(LocalKnowledgeData(), MarketingDecisionEngine()).generate(
+        customer_limit=30,
+        sample_limit=500,
+        include_blocked=True,
+    )
+
+    assert result["source"] == "project1_local_csv"
+    assert result["summary"]["input_customer_count"] == 30
+    assert result["summary"]["eligible_candidate_count"] > 0
+    assert result["candidate_sample"]
+    assert all(item["candidate_status"] == "ELIGIBLE" for item in result["candidate_sample"])
+    assert all(item["channel"] in {"app_push", "sms", "wechat"} for item in result["candidate_sample"])
+    assert all(item["contact_cost"] > 0 for item in result["candidate_sample"])
+    assert result["blocked_sample"]
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from urllib.parse import parse_qs, unquote
 
 from ai_marketing.models import CampaignRequest
+from ai_marketing.candidates import StrategyCandidateService
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
@@ -23,6 +24,7 @@ engine = MarketingDecisionEngine()
 local_knowledge_data = LocalKnowledgeData()
 repo = PlanRepository(DATA_DIR / "marketing_demo.sqlite3")
 personalization = PersonalizedStrategyService(local_knowledge_data, engine)
+candidates = StrategyCandidateService(local_knowledge_data, engine)
 
 
 class MarketingHandler(SimpleHTTPRequestHandler):
@@ -46,6 +48,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/strategy/decision":
             self._handle_personalized_decision()
+            return
+        if path == "/api/strategy/candidates/real-data":
+            self._handle_real_data_candidates()
             return
         if path == "/api/generate":
             self._handle_legacy_generate()
@@ -123,6 +128,21 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._json_response({"error": str(exc)}, status=404)
         except PermissionError as exc:
             self._json_response({"should_recommend": False, "reason": str(exc)}, status=200)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_real_data_candidates(self) -> None:
+        try:
+            payload = self._read_json_body()
+            customer_limit = payload.get("customer_limit", 200)
+            result = candidates.generate(
+                customer_limit=_optional_int(customer_limit),
+                sample_limit=int(payload.get("sample_limit", 100)),
+                include_blocked=payload.get("include_blocked") is True,
+            )
+            self._json_response(result)
         except (TypeError, ValueError) as exc:
             self._json_response({"error": str(exc)}, status=400)
         except Exception as exc:

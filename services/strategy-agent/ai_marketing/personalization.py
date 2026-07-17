@@ -8,7 +8,7 @@ from .eligibility import filter_to_eligible_customers
 from .knowledge_adapter import customers_from_knowledge_insight
 from .local_knowledge_data import LocalKnowledgeData
 from .models import CampaignRequest, Customer
-from .offer_catalog import OfferCatalog, ProductOffer
+from .offer_catalog import OfferCatalog, ProductOffer, offer_eligibility_reasons
 from .orchestrator import MarketingDecisionEngine
 from .persona import PersonaProfile, cluster_priority_candidates
 from .recommender import filter_priority_candidates
@@ -135,7 +135,7 @@ class PersonalizedStrategyService:
         offers = [only_product] if only_product else self.catalog.offers()
         ranked: list[tuple[float, ProductOffer, str]] = []
         for offer in offers:
-            if offer is None or not _product_eligible(offer, profile):
+            if offer is None or offer_eligibility_reasons(offer, profile):
                 continue
             score, theme = _offer_score(customer, offer, persona)
             ranked.append((score, offer, theme))
@@ -192,28 +192,6 @@ class PersonalizedStrategyService:
     @staticmethod
     def _empty_response(oneid: str, scene: str, reason: str) -> dict[str, Any]:
         return {"oneid": oneid, "scene": scene, "strategy_version": "online_personalization_v1", "recommendations": [], "reason": reason}
-
-
-def _product_eligible(offer: ProductOffer, profile: dict[str, Any]) -> bool:
-    age = int(profile.get("age", 0))
-    income = str(profile.get("income_level", ""))
-    credit = float(profile.get("total_credit_amount", 0))
-    card_level = str(profile.get("card_level", ""))
-    gender = str(profile.get("gender", ""))
-    conditions = offer.special_conditions
-    if age < offer.min_age or age > offer.max_age or credit < offer.min_credit:
-        return False
-    if offer.required_income and income not in _split_levels(offer.required_income):
-        return False
-    if not _card_level_eligible(card_level, offer.required_card_level):
-        return False
-    if "\u6682\u505c" in conditions or "\u9080\u8bf7" in conditions:
-        return False
-    if "\u5973\u6027" in conditions and gender != "\u5973":
-        return False
-    if "\u5b66\u751f" in conditions:
-        return False
-    return True
 
 
 def _offer_score(customer: Customer, offer: ProductOffer, persona: PersonaProfile | None) -> tuple[float, str]:
@@ -288,19 +266,6 @@ def _persona_name(persona: PersonaProfile | None) -> str:
 
 def _segment_id(persona: PersonaProfile | None) -> str:
     return f"SEG{persona.cluster_id + 1:03d}" if persona else "SEG000"
-
-
-def _split_levels(value: str) -> set[str]:
-    return {item.strip() for item in value.split(",") if item.strip()}
-
-
-def _card_level_eligible(current: str, required: str) -> bool:
-    if not required or required == "-":
-        return True
-    ranks = {"\u666e\u5361": 1, "\u91d1\u5361": 2, "\u767d\u91d1\u5361": 3, "\u94bb\u77f3\u5361": 4, "\u65e0\u9650\u5361": 5}
-    required_level = next((rank for name, rank in ranks.items() if name in required), 0)
-    current_level = next((rank for name, rank in ranks.items() if name in current), 0)
-    return current_level >= required_level
 
 
 def _is_installment_request(product_id: str, user_intent: str, summary: str) -> bool:
