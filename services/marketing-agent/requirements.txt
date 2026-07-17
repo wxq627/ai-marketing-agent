@@ -1,0 +1,27 @@
+# === 核心 Web 框架 ===
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-dotenv>=1.0.0      # 环境变量管理
+
+# === AI Agent 与大模型 ===
+langchain>=0.3.30
+langchain-openai>=0.2.0   # 兼容 OpenAI 协议的大模型调用
+langgraph>=0.2.0          # 复杂多轮对话与状态编排
+pydantic>=2.9.0           # 数据校验与结构化输出
+tiktoken>=0.7.0           # Token 精确计算与成本控制
+
+# === 异步任务与缓存 ===
+celery[redis]>=5.4.0      # 异步触达任务队列
+redis>=5.0.0              # 频控、幂等、缓存
+
+# === 可观测性与日志 ===
+langfuse>=2.0.0           # Agent 全链路追踪与调试
+loguru>=0.7.0             # 结构化日志，替代原生 logging
+
+# === 工具与网络 ===
+httpx>=0.27.0             # 异步 HTTP 客户端 (调用外部推送/短信API)
+jinja2>=3.1.0             # Prompt 模板渲染
+
+# === 测试 ===
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

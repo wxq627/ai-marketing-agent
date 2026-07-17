@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marketing Agent 仿真工作台</title>
+<style>
+  :root { --primary: #1677ff; --bg: #f5f7fa; --card: #fff; --border: #e8e8e8; --text: #333; --sub: #999; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  header { background: var(--primary); color: #fff; padding: 12px 24px; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+  header span.badge { background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+  .container { flex: 1; display: grid; grid-template-columns: 320px 1fr 300px; gap: 16px; padding: 16px; overflow: hidden; }
+  .panel { background: var(--card); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-title { padding: 14px 18px; font-weight: 600; border-bottom: 1px solid var(--border); font-size: 14px; background: #fafafa; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+  /* 左侧：策略控制台 */
+  .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; width: 100%; margin-bottom: 8px; transition: all 0.2s; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .status-dot.green { background: #52c41a; }
+  .status-dot.yellow { background: #faad14; }
+  .status-dot.red { background: #ff4d4f; }
+  .log-item { font-size: 12px; padding: 6px 0; border-bottom: 1px dashed var(--border); color: var(--sub); word-break: break-all; }
+  .log-item .time { color: var(--primary); margin-right: 6px; }
+
+  /* 中间：仿真手机 */
+  .phone-frame { max-width: 375px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; border: 2px solid #333; border-radius: 24px; overflow: hidden; background: #fff; }
+  .phone-header { background: #333; color: #fff; padding: 10px 16px; font-size: 13px; display: flex; justify-content: space-between; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #f0f2f5; }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; }
+  .msg.bot { align-self: flex-start; background: #fff; border-bottom-left-radius: 4px; }
+  .msg.user { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.system { align-self: center; background: rgba(0,0,0,0.05); font-size: 12px; color: var(--sub); padding: 4px 12px; border-radius: 12px; }
+  .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); background: #fff; }
+  .chat-input input { flex: 1; border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; outline: none; font-size: 14px; }
+  .chat-input button { padding: 8px 20px; border: none; background: var(--primary); color: #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
+  .typing { font-size: 12px; color: var(--sub); padding: 0 12px 4px; display: none; }
+
+  /* 右侧：反馈看板 */
+  .metric-card { padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; }
+  .metric-label { font-size: 12px; color: var(--sub); }
+  .metric-value { font-size: 24px; font-weight: 700; color: var(--text); margin-top: 4px; }
+  .metric-sub { font-size: 12px; color: #52c41a; margin-top: 2px; }
+  .channel-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+  .channel-bar .bar { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+  .channel-bar .fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.5s; }
+</style>
+</head>
+<body>
+
+<header>
+  🏦 Marketing Agent 仿真工作台
+  <span class="badge">MVP v1.0</span>
+  <span class="badge" id="envBadge">development</span>
+</header>
+
+<div class="container">
+  <!-- 左面板：策略控制 -->
+  <div class="panel">
+    <div class="panel-title">📋 策略控制台</div>
+    <div class="panel-body">
+      <button class="btn btn-primary" onclick="deployCampaign()">🚀 部署营销活动</button>
+      <button class="btn btn-outline" onclick="simulateFeedback()">📊 模拟反馈回流</button>
+      <button class="btn btn-outline" onclick="clearChat()">🗑️ 清空对话</button>
+      <hr style="margin:12px 0;border:none;border-top:1px dashed var(--border)">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:8px;">运行日志</div>
+      <div id="logPanel"></div>
+    </div>
+  </div>
+
+  <!-- 中面板：仿真手机 -->
+  <div class="panel">
+    <div class="panel-title">📱 C端仿真界面</div>
+    <div class="panel-body" style="display:flex;align-items:center;justify-content:center;background:#e8e8e8;">
+      <div class="phone-frame">
+        <div class="phone-header">
+          <span>💬 智能客服</span>
+          <span id="sessionLabel">SESSION-001</span>
+        </div>
+        <div class="chat-area" id="chatArea">
+          <div class="msg system">欢迎使用信用卡分期服务，请问有什么可以帮您？</div>
+        </div>
+        <div class="typing" id="typingIndicator">🤖 正在思考...</div>
+        <div class="chat-input">
+          <input type="text" id="msgInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
+          <button onclick="sendMessage()">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右面板：反馈看板 -->
+  <div class="panel">
+    <div class="panel-title">📈 实时反馈看板</div>
+    <div class="panel-body">
+      <div class="metric-card">
+        <div class="metric-label">总曝光量</div>
+        <div class="metric-value" id="metricExposure">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">转化量 / 转化率</div>
+        <div class="metric-value" id="metricConversion">0</div>
+        <div class="metric-sub" id="metricConvRate">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">ROI</div>
+        <div class="metric-value" id="metricROI">-</div>
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin:12px 0 8px;">渠道归因</div>
+      <div id="channelBars"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api/marketing';
+const SESSION_ID = 'SIM-' + Date.now();
+let currentStrategy = null;
+
+// 内置示例策略包（与 strategy_package_example.json 一致）
+const SAMPLE_STRATEGY = {"campaign_metadata":{"campaign_id":"CMP20260715001","objective":"提升信用卡分期转化","product":"credit_card_installment","budget":800000,"start_time":"2026-07-20T09:00:00+08:00","end_time":"2026-07-27T22:00:00+08:00"},"audience_segments":[{"segment_id":"SEG001","segment_name":"高消费高活跃分期潜力客群","size":50000,"priority":0.91,"features":["月消费高","额度使用率高","App活跃","分期意图强"],"expected_conversion_rate":0.082,"expected_roi":2.4}],"benefit_rule":{"benefit_type":"installment_fee_coupon","benefit_name":"分期手续费折扣券","eligibility":["marketing_consent=true","risk_level != high"],"limit":"每客户最多领取1次"},"channel_routing":[{"channel":"app_push","budget_ratio":0.5,"contact_order":1,"retry_rule":"24小时未点击后切换短信"},{"channel":"sms","budget_ratio":0.2,"contact_order":2,"retry_rule":"命中频控则跳过"},{"channel":"wechat","budget_ratio":0.3,"contact_order":3,"retry_rule":"仅高价值客户触达"}],"content_brief":{"core_message":"账单压力缓释与分期费率优惠","tone":"专业、克制、合规","personalization_fields":["customer_name","available_benefit","valid_period"],"required_disclosure":["活动规则以页面展示为准","短信需包含退订方式"]},"compliance_guard":{"blocked_words":["稳赚","保证","无条件通过"],"must_not_claim":["承诺一定省钱","承诺审批通过"],"frequency_limit":"7天最多触达2次"},"experiment_plan":{"control_group_ratio":0.1,"test_group_ratio":0.9,"success_metrics":["conversion_rate","roi","complaint_rate"]},"callback_config":{"feedback_url":"/api/strategy/feedback","report_interval":"hourly"}};
+
+const SAMPLE_CUSTOMER = {"customer_name":"张三","available_benefit":"分期手续费5折","valid_period":"2026年7月20日-7月27日","features":["月消费高","额度使用率高","App活跃"]};
+
+function addLog(msg) {
+  const el = document.getElementById('logPanel');
+  const time = new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  el.innerHTML = `<div class="log-item"><span class="time">${time}</span>${msg}</div>` + el.innerHTML;
+}
+
+function appendMsg(role, text) {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.textContent = text;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+async function deployCampaign() {
+  addLog('⏳ 正在部署营销活动...');
+  try {
+    const res = await fetch(`${API_BASE}/campaign/deploy`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ strategy: SAMPLE_STRATEGY, customer_list: [{customer_id:'CUST-SIM-001', profile: SAMPLE_CUSTOMER}] })
+    });
+    const data = await res.json();
+    currentStrategy = SAMPLE_STRATEGY;
+    addLog(`✅ 部署成功 | task=${data.task_id.slice(0,8)} | 子任务=${data.dispatched_count}`);
+    appendMsg('system', `📢 营销活动「${SAMPLE_STRATEGY.campaign_metadata.objective}」已触发`);
+  } catch(e) { addLog(`❌ 部署失败: ${e.message}`); }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  appendMsg('user', text);
+  document.getElementById('typingIndicator').style.display = 'block';
+
+  try {
+    const res = await fetch(`${API_BASE}/chat/`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text, session_id: SESSION_ID, customer_profile: SAMPLE_CUSTOMER, strategy: currentStrategy })
+    });
+    const data = await res.json();
+    document.getElementById('typingIndicator').style.display = 'none';
+    appendMsg('bot', data.response);
+    addLog(`💬 [${data.intent}] ${text.slice(0,20)}...`);
+  } catch(e) {
+    document.getElementById('typingIndicator').style.display = 'none';
+    appendMsg('system', '⚠️ 服务暂不可用，请检查后端是否启动');
+    addLog(`❌ 对话异常: ${e.message}`);
+  }
+}
+
+function simulateFeedback() {
+  const exposure = Math.floor(Math.random()*10000)+40000;
+  const conversion = Math.floor(exposure * (0.06 + Math.random()*0.04));
+  const cost = Math.floor(Math.random()*100000)+200000;
+  const revenue = Math.floor(cost * (1.5 + Math.random()*1.5));
+  const roi = (revenue/cost).toFixed(2);
+
+  document.getElementById('metricExposure').textContent = exposure.toLocaleString();
+  document.getElementById('metricConversion').textContent = conversion.toLocaleString();
+  document.getElementById('metricConvRate').textContent = `${(conversion/exposure*100).toFixed(2)}%`;
+  document.getElementById('metricROI').textContent = roi;
+
+  const channels = [{name:'App Push',ratio:0.5},{name:'SMS',ratio:0.2},{name:'WeChat',ratio:0.3}];
+  let barsHtml = '';
+  channels.forEach(ch => {
+    const conv = Math.floor(conversion * ch.ratio * (0.8+Math.random()*0.4));
+    const pct = Math.min(100, (conv/conversion*100)).toFixed(0);
+    barsHtml += `<div class="channel-bar"><span style="width:60px">${ch.name}</span><div class="bar"><div class="fill" style="width:${pct}%"></div></div><span>${conv}</span></div>`;
+  });
+  document.getElementById('channelBars').innerHTML = barsHtml;
+  addLog(`📊 反馈模拟 | 曝光=${exposure} 转化=${conversion} ROI=${roi}`);
+
+  // 同时上报给后端
+  fetch(`${API_BASE}/feedback/aggregate`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({campaign_id:'CMP20260715001',feedback_metrics:{exposure_count:exposure,click_count:Math.floor(exposure*0.12),conversion_count:conversion,reject_count:Math.floor(exposure*0.02),complaint_count:Math.floor(Math.random()*10),cost:cost,revenue:revenue,roi:parseFloat(roi)},channel_attribution:[],segment_performance:[],conversation_outcome:null})
+  }).catch(()=>{});
+}
+
+function clearChat() {
+  document.getElementById('chatArea').innerHTML = '<div class="msg system">对话已重置，请问有什么可以帮您？</div>';
+  addLog('🗑️ 对话已清空');
+}
+
+// 初始化
+addLog('🟢 仿真工作台就绪');
+document.getElementById('sessionLabel').textContent = SESSION_ID;
+fetch('/health').then(r=>r.json()).then(d=>{document.getElementById('envBadge').textContent=d.env}).catch(()=>{});
+</script>
+</body>
+</html>
