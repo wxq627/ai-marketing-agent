@@ -27,4 +27,6 @@ POST /api/strategy/generate/real-data
 
 The response contains a plan and a B-to-C strategy package. The package includes only the customers selected after scoring, not every customer who passed eligibility.
 
+The web console sends `goal_parsed: true` after it has called the goal-parsing endpoint, so the model is not called twice. Direct API callers can omit this field and the endpoint will parse the goal itself.
+
 Channel budget shares use the Project A channel cost and average click-rate fields. Customer scores use Project A consumption, credit, activity, installment contribution, consent, risk, and contact history fields.

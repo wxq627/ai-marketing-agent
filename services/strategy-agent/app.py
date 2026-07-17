@@ -166,19 +166,32 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         try:
             payload = self._read_json_body()
             request = _campaign_request_from_payload(payload)
-            parsed_goal = parse_campaign_goal(request.goal, request)
+            if payload.get("goal_parsed") is True:
+                strategy_request = request
+                goal_parsing = {
+                    "campaign_request": strategy_request.__dict__,
+                    "audience_hints": [],
+                    "constraints": [],
+                    "source": "client",
+                    "model": None,
+                    "fallback_reason": None,
+                }
+            else:
+                parsed_goal = parse_campaign_goal(request.goal, request)
+                strategy_request = parsed_goal.campaign_request
+                goal_parsing = parsed_goal.to_dict()
             insight = local_knowledge_data.build_customer_insight(
                 campaign_id="LOCAL_REAL_DATA",
-                target_product=parsed_goal.campaign_request.product,
+                target_product=strategy_request.product,
                 evaluation_time=payload.get("evaluation_time"),
             )
-            plan = engine.generate_plan_from_knowledge_insight(parsed_goal.campaign_request, insight)
+            plan = engine.generate_plan_from_knowledge_insight(strategy_request, insight)
             repo.save(plan)
             self._json_response(
                 {
                     "source": insight["source"],
                     "data_version": insight["data_version"],
-                    "goal_parsing": parsed_goal.to_dict(),
+                    "goal_parsing": goal_parsing,
                     "plan": plan.to_dict(),
                     "strategy_package": build_strategy_package(plan),
                 }

@@ -24,6 +24,7 @@ async function generatePlan() {
   els.generate.disabled = true;
   try {
     const request = await parseGoalWithLlm();
+    request.goal_parsed = true;
     const response = await fetch("/api/strategy/generate/real-data", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
