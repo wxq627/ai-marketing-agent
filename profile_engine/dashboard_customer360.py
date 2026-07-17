@@ -201,56 +201,109 @@ def render_intent(oneid,row):
         for s in p["sub_signals"][:5]:
             st.caption(f"  • {s['signal']}: 实际值={s['value']}, 触发阈值={s['threshold']}, 贡献={s['weight']}分")
 
-    # 情感分析 — 基于客户真实数据动态生成
+    # 情感分析 — 直接基于客户真实数据计算(不再经过LLM丢失信号)
     st.markdown("---")
     st.markdown("### 情感分析")
-    from intent_engine.llm_classifier import SentimentAnalyzer
-    analyzer=SentimentAnalyzer(mock_mode=True)
+    st.caption("基于客户逾期次数/流失分/风险等级/搜索词/生命周期/活跃度 综合计算")
 
-    # 基于客户真实数据构建动态对话摘要
-    search_kw = g(row,"short_term_7d_top_search_keywords","")
+    # === 焦虑度计算 (0-100) ===
+    anxiety = 20  # 基础焦虑
+    reasons = []
+
     overdue_cnt = int(g(row,"risk_history_overdue_count_6m",0))
-    complaint_cnt = int(g(row,"risk_overdue_status","0")!="M0")  # 用逾期状态近似
-    churn_score = int(g(row,"risk_churn_risk_score",0))
-    risk_level = g(row,"risk_risk_level","low")
+    if overdue_cnt >= 3:
+        anxiety += 35; reasons.append(f"近6月逾期{overdue_cnt}次")
+    elif overdue_cnt >= 2:
+        anxiety += 25; reasons.append(f"近6月逾期{overdue_cnt}次")
+    elif overdue_cnt >= 1:
+        anxiety += 15; reasons.append(f"近6月逾期{overdue_cnt}次")
+
+    churn = int(g(row,"risk_churn_risk_score",0))
+    if churn >= 70:
+        anxiety += 20; reasons.append(f"高流失风险({churn}/100)")
+    elif churn >= 40:
+        anxiety += 10; reasons.append(f"中流失风险({churn}/100)")
+
+    risk_lvl = g(row,"risk_risk_level","low")
+    if risk_lvl == "high":
+        anxiety += 20; reasons.append("高风险等级")
+    elif risk_lvl == "medium":
+        anxiety += 8; reasons.append("中风险等级")
+
+    search_kw = str(g(row,"short_term_7d_top_search_keywords",""))
+    if any(w in search_kw for w in ["注销","销户","投诉","退卡"]):
+        anxiety += 20; reasons.append("搜索销户/投诉相关词")
+    if any(w in search_kw for w in ["还不上","压力","最低还款"]):
+        anxiety += 15; reasons.append("搜索还款压力相关词")
+
     lifecycle = g(row,"lifecycle_stage","")
-    value_level = g(row,"value_value_level","medium")
-
-    # 构建反映客户真实状态的对话摘要
-    conv_parts = []
-    if "注销" in search_kw or "销户" in search_kw:
-        conv_parts.append("客户搜索了销户相关内容")
-    if "投诉" in search_kw:
-        conv_parts.append("客户表达了不满情绪")
-    if "分期" in search_kw or "手续费" in search_kw:
-        conv_parts.append("客户在咨询分期方案,对费用表示关注")
-    if overdue_cnt >= 2:
-        conv_parts.append("客户近期有多次逾期记录,还款压力较大")
-    if risk_level == "high":
-        conv_parts.append("客户风险等级较高")
     if lifecycle == "沉睡期":
-        conv_parts.append("客户长期未使用卡片")
-    if lifecycle == "新户":
-        conv_parts.append("客户刚开卡,对权益和功能充满好奇")
-    if value_level == "high" and risk_level == "low":
-        conv_parts.append("客户消费活跃,对服务体验满意")
-    if churn_score >= 50:
-        conv_parts.append("客户流失风险较高,需要重点关注")
+        anxiety += 10; reasons.append("沉睡期客户")
 
-    if not conv_parts:
-        conv_parts.append("客户日常正常使用信用卡")
+    dormancy = g(row,"long_term_90d_dormancy_risk","")
+    if dormancy == "high":
+        anxiety += 10; reasons.append("高沉睡风险")
 
-    sim_conv = "。".join(conv_parts) + "。"
+    anxiety = min(anxiety, 100)
 
-    # 用动态对话文本做LLM分类
-    llm_result = {"sentiment":"中性"}
-    try:
-        from intent_engine.llm_classifier import LLMClassifier
-        clf = LLMClassifier(mock_mode=True)
-        llm_result = clf.classify(sim_conv)
-    except: pass
+    # === 满意度计算 (0-100) ===
+    satisfaction = 50  # 基础满意度
+    val_lvl = g(row,"value_value_level","medium")
+    if val_lvl == "high":
+        satisfaction += 20; reasons.append("高价值客户,消费活跃")
+    elif val_lvl == "medium":
+        satisfaction += 5
 
-    sentiment = analyzer.analyze(llm_result.get("sentiment","中性"), sim_conv[:60])
+    activity = int(g(row,"long_term_90d_activity_score",0))
+    if activity >= 60:
+        satisfaction += 15; reasons.append(f"高活跃度({activity}/100)")
+    elif activity >= 30:
+        satisfaction += 5
+
+    if lifecycle in ("成熟期","成长期"):
+        satisfaction += 5
+    elif lifecycle == "新户":
+        satisfaction += 10; reasons.append("新户,体验新鲜")
+
+    if risk_lvl == "low" and churn < 20:
+        satisfaction += 10
+
+    if any(w in search_kw for w in ["优惠","5折","积分","兑换","返现","权益"]):
+        satisfaction += 10; reasons.append("关注优惠权益,使用积极")
+
+    satisfaction = min(satisfaction, 100)
+
+    # === 情感标签 ===
+    if anxiety >= 70:
+        overall = "焦虑"
+    elif anxiety >= 45:
+        overall = "轻微焦虑"
+    elif satisfaction >= 70:
+        overall = "满意"
+    elif satisfaction <= 30:
+        overall = "不满"
+    else:
+        overall = "中性"
+
+    # === B端策略 ===
+    if overall in ("焦虑","轻微焦虑"):
+        b_strategy = "优先推荐低门槛分期/关怀方案,话术需温和"
+    elif overall == "不满":
+        b_strategy = "避免频繁营销,先推送安抚/补偿方案,仅发送服务通知"
+    elif overall == "满意":
+        b_strategy = "可推送升级/高端权益/交叉销售,话术可积极"
+    else:
+        b_strategy = "按标准策略执行,保持常规触达节奏"
+
+    # === 关键证据 ===
+    key_evidence = "；".join(reasons[:4]) if reasons else "客户日常正常使用,无明显异常信号"
+    sentiment = {
+        "overall": overall,
+        "anxiety_score": anxiety,
+        "satisfaction_score": satisfaction,
+        "key_evidence": key_evidence,
+        "b_strategy_impact": b_strategy,
+    }
     c1,c2=st.columns(2)
     with c1:
         st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:center">'
