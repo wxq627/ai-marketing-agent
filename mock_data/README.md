@@ -37,7 +37,7 @@ mock_data/
 │   └── compliance_rules.json           # 营销合规规则 🆕
 └── scripts/                            ← 生成 + 运维脚本
     ├── config.py                       # 全局配置
-    ├── generate_products.py            # 产品/权益/活动 (基于招行真实体系)
+    ├── generate_products.py            # 产品/权益/活动 (基于XX银行真实体系)
     ├── generate_customers.py           # 客户+信用卡
     ├── generate_transactions.py        # 交易+账单
     ├── generate_crm.py                 # CRM数据
@@ -106,13 +106,13 @@ mock_data/
 
 | 序号 | 字段名 | 类型 | 说明 |
 |:--:|--------|------|------|
-| 1 | `card_no` | VARCHAR(32) | 卡号(脱敏, BIN前缀使用招行真实BIN) |
+| 1 | `card_no` | VARCHAR(32) | 卡号(脱敏, BIN前缀使用XX银行真实BIN) |
 | 2 | `cust_id` | VARCHAR(32) | 客户ID (外键→customer_basic) |
 | 3 | `card_level` | VARCHAR(16) | 卡等级: 校园卡 / 普卡 / 金卡 / 白金卡 / 钻石卡 / 无限卡 |
 | 4 | `credit_amount` | DECIMAL(12,2) | 授信额度 |
 | 5 | `open_date` | DATE | 开卡日期 |
 | 6 | `card_status` | VARCHAR(16) | 卡片状态: 正常 / 冻结 / 销卡 |
-| 7 | `product_id` | VARCHAR(32) | 产品ID (外键→product_catalog, 对应15款真实招行产品) |
+| 7 | `product_id` | VARCHAR(32) | 产品ID (外键→product_catalog, 对应15款真实XX银行产品) |
 | 8 | `is_primary` | BOOLEAN | 是否主卡 |
 
 ---
@@ -172,7 +172,11 @@ mock_data/
 | 2 | `device_id` | VARCHAR(32) | 设备ID |
 | 3 | `open_id` | VARCHAR(64) | 微信OpenID |
 | 4 | `event_type` | VARCHAR(32) | 事件类型: 页面浏览 / 点击 / 搜索 / 停留 / 分享 / 退出 |
+<<<<<<< HEAD
 | 5 | `page_name` | VARCHAR(64) | 页面名称 (对应APP真实页面) |
+=======
+| 5 | `page_name` | VARCHAR(64) | 页面名称 (对应手机银行APP真实页面) |
+>>>>>>> origin/feature/project1-knowledge-agent
 | 6 | `search_keyword` | VARCHAR(128) | 搜索关键词(可为空) |
 | 7 | `duration_sec` | INT | 停留/浏览时长(秒) |
 | 8 | `timestamp` | DATETIME | 事件时间 |
@@ -283,7 +287,7 @@ mock_data/
 | 序号 | 字段名 | 类型 | 说明 |
 |:--:|--------|------|------|
 | 1 | `channel_code` | VARCHAR(16) | 渠道编码 (如 `CH_PUSH`) |
-| 2 | `channel_name` | VARCHAR(32) | 渠道名称: APP Push / 短信 / 微信公众号 / 邮件 / 掌上生活APP内消息 / 电话外呼 / 彩信 / 直邮 |
+| 2 | `channel_name` | VARCHAR(32) | 渠道名称: APP Push / 短信 / 微信公众号 / 邮件 / 手机银行APP内消息 / 电话外呼 / 彩信 / 直邮 |
 | 3 | `channel_type` | VARCHAR(16) | 渠道类型: owned(自有) / offline(线下) |
 | 4 | `cost_per_send` | DECIMAL(6,2) | 单次触达成本(元) |
 | 5 | `availability` | VARCHAR(16) | 可用时段: always / business_hours / business_days |
@@ -299,7 +303,11 @@ mock_data/
 | 渠道 | 单次成本 | 日容量 | 打开率 | 点击率 | 状态 |
 |------|:---:|:---:|:---:|:---:|:--:|
 | APP Push | ¥0.02 | 500K | 18% | 6% | active |
+<<<<<<< HEAD
 | APP内消息 | ¥0.01 | 800K | 25% | 10% | active |
+=======
+| 手机银行APP内消息 | ¥0.01 | 800K | 25% | 10% | active |
+>>>>>>> origin/feature/project1-knowledge-agent
 | 短信 | ¥0.06 | 200K | 8% | 2% | active |
 | 微信公众号 | ¥0.03 | 300K | 12% | 4% | active |
 | 邮件 | ¥0.01 | 100K | 5% | 1% | active |
@@ -348,7 +356,7 @@ mock_data/
 | 1 | `contact_id` | VARCHAR(16) | 触达记录ID |
 | 2 | `cust_id` | VARCHAR(32) | 客户ID |
 | 3 | `campaign_id` | VARCHAR(32) | 关联活动ID (非营销类为空) |
-| 4 | `channel` | VARCHAR(16) | 触达渠道: APP Push/短信/微信公众号/邮件/掌上生活APP内消息/电话外呼 |
+| 4 | `channel` | VARCHAR(16) | 触达渠道: APP Push/短信/微信公众号/邮件/手机银行APP内消息/电话外呼 |
 | 5 | `contact_time` | DATETIME | 触达时间 (近90天, 120,000条) |
 | 6 | `contact_type` | VARCHAR(16) | 触达类型: marketing(85%)/service/transactional |
 | 7 | `status` | VARCHAR(16) | 状态: sent / delivered / opened(45%) / clicked(25%) / bounced / unsubscribed |
@@ -631,7 +639,11 @@ python run_all.py
 ### 分步生成
 
 ```bash
+<<<<<<< HEAD
 # 1. 先生成产品/权益/活动 (无依赖, 基于真实体系)
+=======
+# 1. 先生成产品/权益/活动 (无依赖, 基于XX银行真实体系)
+>>>>>>> origin/feature/project1-knowledge-agent
 python generate_products.py
 
 # 2. 生成客户和信用卡 (依赖产品)
@@ -659,7 +671,11 @@ python sync_names.py
 ### 依赖关系
 
 ```
+<<<<<<< HEAD
 generate_products.py         ← 无依赖, 先跑. 生成15款产品+90项权益+25个活动
+=======
+generate_products.py         ← 无依赖, 先跑. 生成15款XX银行产品+90项权益+25个活动
+>>>>>>> origin/feature/project1-knowledge-agent
 generate_customers.py        ← 依赖 products, 根据卡等级分配真实产品ID
 generate_transactions.py     ← 依赖 customers (信用卡)
 generate_crm.py              ← 依赖 customers + cards
@@ -702,7 +718,11 @@ RANDOM_SEED = 42  # 改为其他值
 | customer_basic ↔ crm_customer | `cust_id` | 一对一关系 |
 | customer_basic ↔ app_events | 通过 `device_id` / `open_id` (内存中映射) | 多设备 |
 | customer_basic ↔ asr_transcripts | `cust_id` | 可能多条通话 |
+<<<<<<< HEAD
 | product_catalog ↔ credit_card | `product_id` | 15款真实产品 |
+=======
+| product_catalog ↔ credit_card | `product_id` | 15款XX银行真实产品 |
+>>>>>>> origin/feature/project1-knowledge-agent
 | customer_basic ↔ customer_consent | `cust_id` | 8,000条, 含18字段(授权+退订+投诉+风险+价值) |
 | customer_basic ↔ contact_history | `cust_id` | 120,000条近90天触达记录 |
 | product_catalog ↔ product_eligibility | `product_id` | 15条办理资格规则 |
@@ -723,14 +743,23 @@ RANDOM_SEED = 42  # 改为其他值
 
 | 数据层 | 真实来源参考 |
 |--------|------------|
+<<<<<<< HEAD
 | **产品体系** | XX银行信用卡官网公告 (2025-2026年度高端信用卡礼遇)、APP产品目录 |
 | **权益体系** | 官网权益说明页、机场贵宾厅/300精选酒店/积分兑换等官方说明 |
 | **营销活动** | Apple Pay返现活动(2025.7-2026.3)、周三5折饭票、9元观影等常态化活动 |
 | **卡等级** | 校园卡/普卡/金卡/白金卡/钻石卡/无限卡 — XX银行六级卡等体系 |
 | **商户/渠道** | 合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
 | **APP页面** | APP实际页面结构(账单详情/分期计算器/权益商城/积分兑换等) |
+=======
+| **产品体系** | XX银行信用卡官网公告 (2025-2026年度高端信用卡礼遇)、手机银行APP产品目录 |
+| **权益体系** | 官网权益说明页、机场贵宾厅/300精选酒店/积分兑换等官方说明 |
+| **营销活动** | Apple Pay返现活动(2025.7-2026.3)、周三5折饭票、9元观影等常态化活动 |
+| **卡等级** | 校园卡/普卡/金卡/白金卡/钻石卡/无限卡 — XX银行六级卡等体系 |
+| **商户/渠道** | XX银行合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
+| **APP页面** | 手机银行APP实际页面结构(账单详情/分期计算器/权益商城/积分兑换等) |
+>>>>>>> origin/feature/project1-knowledge-agent
 
-> 数据中的客户个人信息为随机生成并已脱敏, 与实际招行客户无任何关联。
+> 数据中的客户个人信息为随机生成并已脱敏, 与实际XX银行客户无任何关联。
 
 ---
 

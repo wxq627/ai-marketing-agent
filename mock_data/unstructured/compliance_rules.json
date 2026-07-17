@@ -80,7 +80,7 @@
           "description": "所有营销短信末尾必须包含'回TD退订'或'回复T退订'",
           "severity": "critical",
           "applicable_to": ["短信"],
-          "example": "...详情请登录掌上生活APP查看。回TD退订"
+          "example": "...详情请登录手机银行APP查看。回TD退订"
         },
         {
           "rule_id": "CNT-002",

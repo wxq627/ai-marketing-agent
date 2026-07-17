@@ -21,6 +21,7 @@ POST /api/marketing/feedback-events
 ## 第一版交付建议
 
 先读取 `contracts/examples/strategy_package_example.json`，完成 C 端触达展示和反馈 mock。
+<<<<<<< HEAD
 
 
 ## 最终验证步骤
@@ -51,3 +52,5 @@ http://localhost:8000
 | 三 | Channel Adapter + Celery 异步任务 | `pytest tests/test_phase3.py` |
 | 四 | FastAPI 路由 + 仿真 App 界面 | 浏览器访问 `localhost:8000` |
 
+=======
+>>>>>>> origin/feature/project1-knowledge-agent
