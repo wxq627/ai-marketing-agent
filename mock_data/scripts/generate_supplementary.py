@@ -122,7 +122,7 @@ def generate_customer_consent(df_customers, df_crm):
 def generate_contact_history(df_customers, df_campaigns, n_total=120000):
     """生成近90天营销触达历史记录。"""
     campaigns = df_campaigns[df_campaigns["campaign_id"].str.startswith("CAMP_")]
-    channels = ["APP Push", "短信", "微信公众号", "邮件", "掌上生活APP内消息", "电话外呼"]
+    channels = ["APP Push", "短信", "微信公众号", "邮件", "手机银行APP内消息", "电话外呼"]
     types = ["marketing", "service", "transactional"]
     statuses = ["sent", "delivered", "opened", "clicked", "bounced", "unsubscribed"]
     status_weights = [0.02, 0.10, 0.45, 0.25, 0.08, 0.10]

@@ -3,7 +3,7 @@ CH_PUSH,APP Push,owned,0.02,always,500000,10000000,true,text+image+deeplink,0.18
 CH_SMS,短信,owned,0.06,always,200000,5000000,true,text+shortlink,0.08,0.02,1800,active
 CH_WECHAT,微信公众号,owned,0.03,always,300000,8000000,true,text+image+card+miniprogram,0.12,0.04,600,active
 CH_EMAIL,邮件,owned,0.01,always,100000,3000000,true,html+image+link,0.05,0.01,7200,active
-CH_INAPP,掌上生活APP内消息,owned,0.01,always,800000,15000000,false,text+image+banner+deeplink,0.25,0.10,120,active
+CH_INAPP,手机银行APP内消息,owned,0.01,always,800000,15000000,false,text+image+banner+deeplink,0.25,0.10,120,active
 CH_PHONE,电话外呼,owned,2.50,business_hours,5000,100000,true,voice,0.35,0.15,300,active
 CH_SMS_MMS,彩信,owned,0.15,always,50000,1000000,true,image+text+link,0.10,0.03,3600,active
 CH_DM,直邮,offline,3.00,business_days,10000,200000,false,physical_mail,0.20,0.05,259200,inactive
