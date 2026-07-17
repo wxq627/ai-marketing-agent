@@ -1,0 +1,214 @@
+# 意图规则配置 — 可热更新
+# 每条意图 = 一组触发规则 + 权重, 加权求和 → 0-100分
+# 技术方案附录B完整实现
+
+intents:
+  分期_借贷需求:
+    label: "分期/借贷需求"
+    rules:
+      - signal: "账单金额/授信额度比"
+        source: "bill_record + credit_card"
+        threshold: 0.70
+        operator: "gt"
+        weight: 30
+        description: "账单压力信号: 账单金额超过授信额度的70%"
+        field_map: {bill_amount: "账单金额", credit_amount: "授信额度"}
+      - signal: "近7天搜索分期关键词"
+        source: "app_events.search_keyword"
+        threshold: 2
+        operator: "gte"
+        weight: 20
+        keywords: ["分期", "手续费", "最低还款", "账单分期", "免息", "12期", "现金分期"]
+        description: "主动搜索信号"
+      - signal: "近7天客服通话涉及分期"
+        source: "asr_transcripts"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        keywords: ["账单压力", "分期", "还不上", "手续费"]
+        description: "人工求助信号(权重高)"
+      - signal: "近3月最低还款次数"
+        source: "bill_record.is_min_payment"
+        threshold: 1
+        operator: "gte"
+        weight: 10
+        description: "还款能力信号"
+      - signal: "近7天浏览分期计算器"
+        source: "app_events.page_name"
+        threshold: 3
+        operator: "gte"
+        weight: 15
+        pages: ["分期计算器"]
+        description: "行为意图信号"
+    thresholds:
+      high: 70
+      medium: 40
+    b_strategy: "推送分期免息优惠; 推送专项分期额度; 推送账单分期方案"
+
+  跨境_出行需求:
+    label: "跨境/出行需求"
+    rules:
+      - signal: "近30天境外交易笔数"
+        source: "transaction_log.is_cross_border"
+        threshold: 3
+        operator: "gte"
+        weight: 25
+      - signal: "近7天搜索境外/出行关键词"
+        source: "app_events.search_keyword"
+        threshold: 2
+        operator: "gte"
+        weight: 20
+        keywords: ["境外", "汇率", "海淘", "免税", "出境游", "签证", "机票", "酒店"]
+      - signal: "近7天搜索旅游目的地"
+        source: "app_events.search_keyword"
+        threshold: 3
+        operator: "gte"
+        weight: 20
+        keywords: ["东京", "巴黎", "曼谷", "新加坡", "伦敦", "纽约", "首尔", "大阪"]
+      - signal: "持有境外返现权益但未使用"
+        source: "credit_card + benefit"
+        threshold: 1
+        operator: "gte"
+        weight: 15
+    thresholds: {high: 70, medium: 40}
+    b_strategy: "推送境外返现卡; 推送旅行保险; 推送机场贵宾厅权益"
+
+  额度_升级需求:
+    label: "额度/升级需求"
+    rules:
+      - signal: "近90天平均额度使用率"
+        source: "credit_card + transaction_log"
+        threshold: 0.85
+        operator: "gt"
+        weight: 25
+      - signal: "近7天搜索提额关键词"
+        source: "app_events.search_keyword"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        keywords: ["提额", "额度不够", "申请提额", "临时额度", "固定额度"]
+      - signal: "收入等级H但卡等<=金卡"
+        source: "customer_basic + credit_card"
+        threshold: 1
+        operator: "gte"
+        weight: 15
+        description: "收入与卡等不匹配信号"
+      - signal: "近30天浏览高端卡产品页"
+        source: "app_events.page_name"
+        threshold: 3
+        operator: "gte"
+        weight: 20
+        pages: ["高端卡专区", "信用卡申请", "产品升级"]
+    thresholds: {high: 70, medium: 40}
+    b_strategy: "推送提额邀请; 推送高端卡升级; 推送白金卡邀请"
+
+  权益_优惠需求:
+    label: "权益/优惠需求"
+    rules:
+      - signal: "近7天浏览权益商城"
+        source: "app_events.page_name"
+        threshold: 5
+        operator: "gte"
+        weight: 25
+        pages: ["权益商城", "积分兑换", "活动中心"]
+      - signal: "近7天搜索权益/优惠关键词"
+        source: "app_events.search_keyword"
+        threshold: 2
+        operator: "gte"
+        weight: 20
+        keywords: ["积分兑换", "里程", "优惠券", "5折", "折扣", "返现", "兑换", "权益"]
+      - signal: "近30天浏览合作商户页面"
+        source: "app_events.page_name"
+        threshold: 3
+        operator: "gte"
+        weight: 15
+        pages: ["联名卡专区", "商城商品详情"]
+      - signal: "搜索咖啡/电影/餐饮等生活权益"
+        source: "app_events.search_keyword"
+        threshold: 1
+        operator: "gte"
+        weight: 15
+        keywords: ["星巴克", "电影票", "饭票", "贵宾厅", "接送机"]
+    thresholds: {high: 70, medium: 40}
+    b_strategy: "推送积分兑换活动; 推送限时优惠券; 推送合作商户折扣"
+
+  沉睡_流失风险:
+    label: "沉睡/流失风险"
+    rules:
+      - signal: "连续无主动交易天数"
+        source: "transaction_log"
+        threshold: 90
+        operator: "gt"
+        weight: 30
+      - signal: "额度使用率持续下降30天"
+        source: "credit_card + transaction_log"
+        threshold: 0.30
+        operator: "gt"
+        weight: 20
+        description: "下降超过30%触发"
+      - signal: "近30天有客服投诉"
+        source: "asr_transcripts"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        sentiment_keywords: ["不满", "投诉", "dissatisfied"]
+      - signal: "近7天搜索销户/注销"
+        source: "app_events.search_keyword"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        keywords: ["销户", "注销", "取消", "退卡"]
+    thresholds: {high: 50, medium: 30}
+    b_strategy: "推送唤醒红包; 推送客户关怀; 推送专属客户经理"
+    priority_note: "score>=50时需特别注意——高风险信号,B端通常需要优先处理"
+
+  新户_激活引导:
+    label: "新户/激活引导"
+    rules:
+      - signal: "生命周期=新户"
+        source: "crm_customer.lifecycle_stage"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        lifecycle_stages: ["新户"]
+      - signal: "卡状态正常但开卡后7天无交易"
+        source: "credit_card"
+        threshold: 1
+        operator: "gte"
+        weight: 25
+        description: "开卡>7天且交易=0"
+      - signal: "绑定快捷支付但未产生交易"
+        source: "transaction_log"
+        threshold: 1
+        operator: "gte"
+        weight: 15
+      - signal: "浏览新手引导页面"
+        source: "app_events.page_name"
+        threshold: 1
+        operator: "gte"
+        weight: 10
+        pages: ["新手指引"]
+    thresholds: {high: 70, medium: 40}
+    b_strategy: "推送新手权益; 推送首刷礼; 推送激活引导"
+
+# 置信度映射
+confidence:
+  high: {min: 70, label: "high", description: "高置信度, 建议优先触达"}
+  medium: {min: 40, max: 69, label: "medium", description: "中等置信度, 需持续观察"}
+  low: {max: 39, label: "low", description: "低置信度, 暂无显著需求"}
+
+# 趋势判断
+trend:
+  rising: {change_pct: 15, description: "近7天评分较前7天上升>15%, 需求升温"}
+  stable: {change_pct: 15, description: "变化在±15%以内, 需求稳定"}
+  falling: {change_pct: -15, description: "下降>15%, 需求消退或已被满足"}
+
+# 情感维度
+sentiment:
+  labels: ["满意", "中性", "焦虑", "不满", "好奇"]
+  mappings:
+    anxious: "焦虑"
+    dissatisfied: "不满"
+    satisfied: "满意"
+    neutral: "中性"
+    curious: "好奇"

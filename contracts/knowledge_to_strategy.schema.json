@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledge_to_strategy.schema.json",
+  "title": "Knowledge Agent to Strategy Agent Customer Insight",
+  "type": "object",
+  "required": ["campaign_id", "target_product", "customers", "domain_knowledge"],
+  "properties": {
+    "campaign_id": {"type": "string"},
+    "target_product": {"type": "string"},
+    "customers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["customer_id", "customer_profile"],
+        "properties": {
+          "customer_id": {"type": "string"},
+          "customer_profile": {
+            "type": "object",
+            "required": ["tags", "marketing_consent", "risk_level", "recent_contact_count"],
+            "properties": {
+              "age": {"type": "integer"},
+              "city_tier": {"type": "integer"},
+              "lifecycle_stage": {"type": "string"},
+              "value_level": {"type": "string"},
+              "monthly_spend": {"type": "number"},
+              "credit_limit_usage": {"type": "number"},
+              "tags": {"type": "array", "items": {"type": "string"}},
+              "marketing_consent": {"type": "boolean"},
+              "risk_level": {"type": "string"},
+              "complaint_risk": {"type": "number"},
+              "recent_contact_count": {"type": "integer"},
+              "preferred_channel": {"type": "string"}
+            }
+          },
+          "intent_vector": {"type": "object"},
+          "event_sequence": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    "domain_knowledge": {
+      "type": "object",
+      "properties": {
+        "product_rules": {"type": "array", "items": {"type": "string"}},
+        "permission_rules": {"type": "array", "items": {"type": "string"}},
+        "frequency_rules": {"type": "array", "items": {"type": "string"}},
+        "compliance_rules": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "channel_context": {"type": "object"}
+  }
+}

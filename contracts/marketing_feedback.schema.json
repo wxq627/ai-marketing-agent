@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "marketing_feedback.schema.json",
+  "title": "Marketing Agent Feedback to Strategy Agent",
+  "type": "object",
+  "required": ["campaign_id", "feedback_metrics"],
+  "properties": {
+    "campaign_id": {"type": "string"},
+    "feedback_metrics": {
+      "type": "object",
+      "required": ["exposure_count", "click_count", "conversion_count", "complaint_count", "roi"],
+      "properties": {
+        "exposure_count": {"type": "integer"},
+        "click_count": {"type": "integer"},
+        "conversion_count": {"type": "integer"},
+        "reject_count": {"type": "integer"},
+        "complaint_count": {"type": "integer"},
+        "cost": {"type": "number"},
+        "revenue": {"type": "number"},
+        "roi": {"type": "number"}
+      }
+    },
+    "channel_attribution": {"type": "array", "items": {"type": "object"}},
+    "segment_performance": {"type": "array", "items": {"type": "object"}},
+    "conversation_outcome": {"type": "object"}
+  }
+}

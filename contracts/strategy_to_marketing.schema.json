@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "strategy_to_marketing.schema.json",
+  "title": "Strategy Agent to Marketing Agent Campaign Package",
+  "type": "object",
+  "required": ["campaign_metadata", "audience_segments", "channel_routing", "content_brief", "compliance_guard"],
+  "properties": {
+    "campaign_metadata": {
+      "type": "object",
+      "required": ["campaign_id", "objective", "product", "budget"],
+      "properties": {
+        "campaign_id": {"type": "string"},
+        "objective": {"type": "string"},
+        "product": {"type": "string"},
+        "budget": {"type": "number"},
+        "start_time": {"type": "string"},
+        "end_time": {"type": "string"}
+      }
+    },
+    "audience_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["segment_id", "segment_name", "size", "priority"],
+        "properties": {
+          "segment_id": {"type": "string"},
+          "segment_name": {"type": "string"},
+          "size": {"type": "integer"},
+          "priority": {"type": "number"},
+          "features": {"type": "array", "items": {"type": "string"}},
+          "expected_conversion_rate": {"type": "number"},
+          "expected_roi": {"type": "number"}
+        }
+      }
+    },
+    "benefit_rule": {"type": "object"},
+    "channel_routing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["channel", "budget_ratio"],
+        "properties": {
+          "channel": {"type": "string"},
+          "budget_ratio": {"type": "number"},
+          "contact_order": {"type": "integer"},
+          "retry_rule": {"type": "string"}
+        }
+      }
+    },
+    "content_brief": {"type": "object"},
+    "compliance_guard": {"type": "object"},
+    "experiment_plan": {"type": "object"},
+    "callback_config": {"type": "object"}
+  }
+}

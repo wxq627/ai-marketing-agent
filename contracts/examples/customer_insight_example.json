@@ -1,0 +1,56 @@
+{
+  "campaign_id": "CMP20260715001",
+  "target_product": "credit_card_installment",
+  "customers": [
+    {
+      "customer_id": "C001",
+      "customer_profile": {
+        "age": 29,
+        "city_tier": 1,
+        "lifecycle_stage": "active",
+        "value_level": "high",
+        "credit_limit_usage": 0.68,
+        "monthly_spend": 12000,
+        "tags": ["高消费", "App活跃", "分期敏感"],
+        "marketing_consent": true,
+        "risk_level": "low",
+        "complaint_risk": 0.03,
+        "recent_contact_count": 1,
+        "preferred_channel": "app_push"
+      },
+      "intent_vector": {
+        "top_intents": [
+          {"name": "账单压力", "score": 0.82},
+          {"name": "分期咨询", "score": 0.76}
+        ],
+        "updated_at": "2026-07-15T10:00:00+08:00"
+      },
+      "event_sequence": [
+        {
+          "event_type": "app_search",
+          "event_name": "搜索分期费率",
+          "event_time": "2026-07-14T20:31:00+08:00"
+        }
+      ]
+    }
+  ],
+  "domain_knowledge": {
+    "product_rules": ["分期活动不可承诺收益", "短信文案必须包含退订方式"],
+    "permission_rules": ["marketing_consent=false 的客户不可触达"],
+    "frequency_rules": ["近7天触达超过2次的客户不得再次短信触达"],
+    "compliance_rules": ["不得使用稳赚、保证、省钱无忧等绝对化表述"]
+  },
+  "channel_context": {
+    "available_channels": ["app_push", "sms", "wechat"],
+    "channel_cost": {
+      "app_push": 0.02,
+      "sms": 0.06,
+      "wechat": 0.3
+    },
+    "channel_status": {
+      "app_push": "available",
+      "sms": "available",
+      "wechat": "available"
+    }
+  }
+}

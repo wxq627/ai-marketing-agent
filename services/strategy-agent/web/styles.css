@@ -1,0 +1,294 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f8f6;
+  --surface: #ffffff;
+  --text: #1f2933;
+  --muted: #667085;
+  --line: #d8ded6;
+  --primary: #1e6f5c;
+  --primary-strong: #145346;
+  --accent: #e7f2ef;
+  --warn: #946200;
+  --danger: #a63a3a;
+  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  padding: 24px 32px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 650;
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 32px 32px;
+}
+
+.workspace,
+.dashboard section,
+.metrics article {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.workspace {
+  padding: 18px;
+  align-self: start;
+  display: grid;
+  gap: 16px;
+}
+
+.dashboard {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-head span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+textarea,
+select,
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  padding: 10px;
+}
+
+textarea {
+  min-height: 128px;
+  resize: vertical;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.primary-button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  padding: 11px 18px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  background: var(--primary-strong);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics article {
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.metrics span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metrics strong {
+  font-size: 24px;
+}
+
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pipeline div {
+  border-left: 3px solid var(--primary);
+  background: var(--accent);
+  padding: 12px;
+}
+
+.pipeline b,
+.pipeline span {
+  display: block;
+}
+
+.pipeline span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard section {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.row strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pill {
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--primary-strong);
+  padding: 5px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.content-box {
+  display: grid;
+  gap: 10px;
+}
+
+.copy-item {
+  background: var(--accent);
+  border-left: 3px solid var(--primary);
+  padding: 12px;
+}
+
+.copy-item b {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.bar-bg {
+  fill: #dfe7e3;
+}
+
+.bar {
+  fill: var(--primary);
+}
+
+.chart-text {
+  fill: var(--text);
+  font-size: 13px;
+}
+
+.chart-muted {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .layout,
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .topbar,
+  .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .layout {
+    padding: 14px;
+  }
+  .metrics,
+  .pipeline,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
