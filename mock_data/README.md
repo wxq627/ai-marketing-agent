@@ -172,7 +172,7 @@ mock_data/
 | 2 | `device_id` | VARCHAR(32) | 设备ID |
 | 3 | `open_id` | VARCHAR(64) | 微信OpenID |
 | 4 | `event_type` | VARCHAR(32) | 事件类型: 页面浏览 / 点击 / 搜索 / 停留 / 分享 / 退出 |
-| 5 | `page_name` | VARCHAR(64) | 页面名称 (对应掌上生活APP真实页面) |
+| 5 | `page_name` | VARCHAR(64) | 页面名称 (对应APP真实页面) |
 | 6 | `search_keyword` | VARCHAR(128) | 搜索关键词(可为空) |
 | 7 | `duration_sec` | INT | 停留/浏览时长(秒) |
 | 8 | `timestamp` | DATETIME | 事件时间 |
@@ -299,7 +299,7 @@ mock_data/
 | 渠道 | 单次成本 | 日容量 | 打开率 | 点击率 | 状态 |
 |------|:---:|:---:|:---:|:---:|:--:|
 | APP Push | ¥0.02 | 500K | 18% | 6% | active |
-| 掌上生活APP内消息 | ¥0.01 | 800K | 25% | 10% | active |
+| APP内消息 | ¥0.01 | 800K | 25% | 10% | active |
 | 短信 | ¥0.06 | 200K | 8% | 2% | active |
 | 微信公众号 | ¥0.03 | 300K | 12% | 4% | active |
 | 邮件 | ¥0.01 | 100K | 5% | 1% | active |
@@ -631,7 +631,7 @@ python run_all.py
 ### 分步生成
 
 ```bash
-# 1. 先生成产品/权益/活动 (无依赖, 基于招行真实体系)
+# 1. 先生成产品/权益/活动 (无依赖, 基于真实体系)
 python generate_products.py
 
 # 2. 生成客户和信用卡 (依赖产品)
@@ -659,7 +659,7 @@ python sync_names.py
 ### 依赖关系
 
 ```
-generate_products.py         ← 无依赖, 先跑. 生成15款招行产品+90项权益+25个活动
+generate_products.py         ← 无依赖, 先跑. 生成15款产品+90项权益+25个活动
 generate_customers.py        ← 依赖 products, 根据卡等级分配真实产品ID
 generate_transactions.py     ← 依赖 customers (信用卡)
 generate_crm.py              ← 依赖 customers + cards
@@ -692,7 +692,7 @@ RANDOM_SEED = 42  # 改为其他值
 
 ## 六、数据一致性说明
 
-为确保多表关联查询的完整性, 所有数据基于XX银行信用卡中心真实产品体系构建, 请关注以下关键关联字段:
+为确保多表关联查询的完整性, 所有数据基于真实产品体系构建, 请关注以下关键关联字段:
 
 | 关联 | 字段 | 说明 |
 |------|------|------|
@@ -702,7 +702,7 @@ RANDOM_SEED = 42  # 改为其他值
 | customer_basic ↔ crm_customer | `cust_id` | 一对一关系 |
 | customer_basic ↔ app_events | 通过 `device_id` / `open_id` (内存中映射) | 多设备 |
 | customer_basic ↔ asr_transcripts | `cust_id` | 可能多条通话 |
-| product_catalog ↔ credit_card | `product_id` | 15款招行真实产品 |
+| product_catalog ↔ credit_card | `product_id` | 15款真实产品 |
 | customer_basic ↔ customer_consent | `cust_id` | 8,000条, 含18字段(授权+退订+投诉+风险+价值) |
 | customer_basic ↔ contact_history | `cust_id` | 120,000条近90天触达记录 |
 | product_catalog ↔ product_eligibility | `product_id` | 15条办理资格规则 |
@@ -723,12 +723,12 @@ RANDOM_SEED = 42  # 改为其他值
 
 | 数据层 | 真实来源参考 |
 |--------|------------|
-| **产品体系** | XX银行信用卡官网公告 (2025-2026年度高端信用卡礼遇)、掌上生活APP产品目录 |
+| **产品体系** | XX银行信用卡官网公告 (2025-2026年度高端信用卡礼遇)、APP产品目录 |
 | **权益体系** | 官网权益说明页、机场贵宾厅/300精选酒店/积分兑换等官方说明 |
 | **营销活动** | Apple Pay返现活动(2025.7-2026.3)、周三5折饭票、9元观影等常态化活动 |
 | **卡等级** | 校园卡/普卡/金卡/白金卡/钻石卡/无限卡 — XX银行六级卡等体系 |
-| **商户/渠道** | 招行合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
-| **APP页面** | 掌上生活APP实际页面结构(账单详情/分期计算器/权益商城/积分兑换等) |
+| **商户/渠道** | 合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
+| **APP页面** | APP实际页面结构(账单详情/分期计算器/权益商城/积分兑换等) |
 
 > 数据中的客户个人信息为随机生成并已脱敏, 与实际招行客户无任何关联。
 
