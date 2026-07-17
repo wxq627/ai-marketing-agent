@@ -32,6 +32,7 @@ FEATURE_NAMES = [
     "\u8fd1\u671f\u76f8\u5173\u884c\u4e3a",
     "\u6295\u8bc9\u98ce\u9669",
 ]
+DEFAULT_CLUSTER_COUNT = 5
 
 
 @dataclass(frozen=True)
@@ -56,13 +57,13 @@ def kmeans_available() -> bool:
 
 
 def cluster_priority_candidates(
-    customers: list[Customer], request: CampaignRequest, n_clusters: int = 4
+    customers: list[Customer], request: CampaignRequest, n_clusters: int = DEFAULT_CLUSTER_COUNT
 ) -> PersonaClusteringResult | None:
     """Cluster compliant candidates before score-based selection and budget allocation."""
     if not kmeans_available() or len(customers) < n_clusters:
         return None
 
-    feature_rows = [_feature_row(customer, request.product) for customer in customers]
+    feature_rows = build_persona_feature_rows(customers, request.product)
     scaled_rows = StandardScaler().fit_transform(feature_rows)
     labels = KMeans(n_clusters=n_clusters, n_init=20, random_state=42).fit_predict(scaled_rows)
 
@@ -82,6 +83,11 @@ def cluster_priority_candidates(
         assignments.update({customer.customer_id: profile for customer in cluster_customers})
 
     return PersonaClusteringResult(assignments=assignments, profiles=profiles, feature_names=FEATURE_NAMES)
+
+
+def build_persona_feature_rows(customers: list[Customer], product: str) -> list[list[float]]:
+    """Return the exact feature matrix used by online and batch KMeans clustering."""
+    return [_feature_row(customer, product) for customer in customers]
 
 
 def summarize_selected_personas(

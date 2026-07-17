@@ -4,7 +4,7 @@ from ai_marketing.strategy_package import build_strategy_package, summarize_feed
 from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
-from ai_marketing.persona import kmeans_available
+from ai_marketing.persona import DEFAULT_CLUSTER_COUNT, kmeans_available
 from ai_marketing.personalization import PersonalizedStrategyService
 
 
@@ -296,12 +296,12 @@ def test_kmeans_personas_cover_the_selected_audience_when_dependency_is_availabl
     )
 
     assert plan.persona_method == "kmeans"
-    assert len(plan.segments) == 4
+    assert len(plan.segments) == DEFAULT_CLUSTER_COUNT
     assert sum(segment.size for segment in plan.segments) == plan.audience_size
     assert plan.persona_feature_names
     assert all(segment.strategy["content_direction"] for segment in plan.segments)
     package = build_strategy_package(plan)
-    assert len(package["content_brief"]["persona_content_briefs"]) == 4
+    assert len(package["content_brief"]["persona_content_briefs"]) == DEFAULT_CLUSTER_COUNT
 
 
 def test_online_personalization_returns_recommendations_and_chat_strategy():
