@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Any
 
 from .models import CampaignRequest, Customer, CustomerScore, SegmentRecommendation
 from .predictor import expected_customer_value, predict_conversion, predict_response
@@ -17,20 +18,41 @@ PRODUCT_EVENT_KEYWORDS = {
     "travel": ["\u51fa\u884c", "\u5883\u5916", "\u9152\u5e97", "\u673a\u7968"],
 }
 
+DEFAULT_SCORE_WEIGHTS = {
+    "intent": 0.35,
+    "behavior": 0.20,
+    "value": 0.15,
+    "activity": 0.10,
+    "response": 0.10,
+    "limit_usage": 0.00,
+    "risk": 0.10,
+}
 
-def score_customers(customers: list[Customer], request: CampaignRequest) -> list[CustomerScore]:
-    scored: list[CustomerScore] = []
+
+def filter_priority_candidates(customers: list[Customer], request: CampaignRequest) -> list[Customer]:
     risk_ceiling = {1: 0.08, 2: 0.14, 3: 0.22}.get(request.risk_level, 0.14)
-    for customer in customers:
-        if not customer.has_marketing_consent:
-            continue
-        if customer.complaint_risk > risk_ceiling:
-            continue
+    return [
+        customer
+        for customer in customers
+        if customer.has_marketing_consent and customer.complaint_risk <= risk_ceiling
+    ]
+
+
+def score_customers(
+    customers: list[Customer], request: CampaignRequest, persona_assignments: dict[str, Any] | None = None
+) -> list[CustomerScore]:
+    scored: list[CustomerScore] = []
+    for customer in filter_priority_candidates(customers, request):
+        persona = (persona_assignments or {}).get(customer.customer_id)
 
         response, reasons, segment = predict_response(customer, request.product)
         conversion = predict_conversion(response, request.channel_mode)
         value = expected_customer_value(customer, request.product, conversion)
-        priority_score, priority_reason = calculate_priority(customer, request.product, response)
+        weights = getattr(persona, "score_weights", None)
+        priority_score, priority_reason = calculate_priority(customer, request.product, response, weights)
+        if persona is not None:
+            segment = persona.name
+            reasons = [f"\u7fa4\u50cf\u8bc4\u5206\u4fa7\u91cd\uff1a{persona.strategy['scoring_focus']}", *reasons]
         reasons = [priority_reason, *reasons]
         scored.append(
             CustomerScore(
@@ -47,7 +69,7 @@ def score_customers(customers: list[Customer], request: CampaignRequest) -> list
 
     scored.sort(key=lambda item: (item.priority_score, item.expected_value), reverse=True)
     max_size = min(len(scored), int(320 + request.budget_wan * 9))
-    return scored[:max_size]
+    return _select_with_persona_allocation(scored, max_size, persona_assignments)
 
 
 def summarize_segments(scored: list[CustomerScore]) -> list[SegmentRecommendation]:
@@ -80,20 +102,28 @@ def summarize_segments(scored: list[CustomerScore]) -> list[SegmentRecommendatio
     return result[:3]
 
 
-def calculate_priority(customer: Customer, product: str, response_prob: float) -> tuple[float, str]:
+def calculate_priority(
+    customer: Customer,
+    product: str,
+    response_prob: float,
+    weights: dict[str, float] | None = None,
+) -> tuple[float, str]:
     """Score intent, recent behavior, value, activity, response and risk on a 0-100 scale."""
     intent_name = PRODUCT_INTENTS.get(product, PRODUCT_INTENTS["installment"])
     intent_score = customer.intent_scores.get(intent_name, 0.0)
     behavior_score = _behavior_score(customer.recent_events, product)
     value_score = min(customer.monthly_spend / 15000, 1.0)
     activity_score = min(customer.app_active_days / 30, 1.0)
+    limit_usage_score = customer.credit_limit_usage
+    score_weights = weights or DEFAULT_SCORE_WEIGHTS
     raw = (
-        0.35 * intent_score
-        + 0.20 * behavior_score
-        + 0.15 * value_score
-        + 0.10 * activity_score
-        + 0.10 * response_prob
-        - 0.10 * customer.complaint_risk
+        score_weights["intent"] * intent_score
+        + score_weights["behavior"] * behavior_score
+        + score_weights["value"] * value_score
+        + score_weights["activity"] * activity_score
+        + score_weights["response"] * response_prob
+        + score_weights["limit_usage"] * limit_usage_score
+        - score_weights["risk"] * customer.complaint_risk
     )
     score = max(0.0, min(100.0, raw * 100))
     return score, f"intent_priority:{round(intent_score * 100)}"
@@ -110,3 +140,45 @@ def _behavior_score(events: list[dict[str, str]], product: str) -> float:
         if "campaign_click" in name or "\u70b9\u51fb" in name:
             campaign_clicks += 1
     return min(1.0, matches * 0.25 + campaign_clicks * 0.3)
+
+
+def _select_with_persona_allocation(
+    scored: list[CustomerScore], max_size: int, persona_assignments: dict[str, Any] | None
+) -> list[CustomerScore]:
+    """Reserve campaign capacity by persona, then rank within each persona."""
+    if not persona_assignments:
+        return scored[:max_size]
+
+    grouped: dict[str, list[CustomerScore]] = defaultdict(list)
+    profiles: dict[str, Any] = {}
+    for item in scored:
+        profile = persona_assignments.get(item.customer.customer_id)
+        if profile is None:
+            continue
+        grouped[profile.name].append(item)
+        profiles[profile.name] = profile
+    if not grouped:
+        return scored[:max_size]
+
+    total_weight = sum(profile.allocation_weight for profile in profiles.values())
+    quotas: dict[str, int] = {}
+    fractions: list[tuple[float, str]] = []
+    for name, rows in grouped.items():
+        desired = max_size * profiles[name].allocation_weight / total_weight
+        quotas[name] = min(len(rows), int(desired))
+        fractions.append((desired - int(desired), name))
+
+    remaining = max_size - sum(quotas.values())
+    for _fraction, name in sorted(fractions, reverse=True):
+        if remaining <= 0:
+            break
+        if quotas[name] < len(grouped[name]):
+            quotas[name] += 1
+            remaining -= 1
+
+    selected = [item for name, rows in grouped.items() for item in rows[: quotas[name]]]
+    if remaining > 0:
+        selected_ids = {item.customer.customer_id for item in selected}
+        selected.extend(item for item in scored if item.customer.customer_id not in selected_ids)
+    selected.sort(key=lambda item: (item.priority_score, item.expected_value), reverse=True)
+    return selected[:max_size]

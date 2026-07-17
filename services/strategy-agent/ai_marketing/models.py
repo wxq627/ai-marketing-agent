@@ -64,6 +64,7 @@ class SegmentRecommendation:
     conversion_rate: float
     expected_value_wan: float
     reasons: list[str]
+    strategy: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

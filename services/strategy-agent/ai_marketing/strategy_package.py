@@ -57,6 +57,7 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
                 "features": segment.reasons,
                 "expected_conversion_rate": round(segment.conversion_rate / 100, 4),
                 "expected_roi": plan.predicted_roi,
+                "strategy": segment.strategy,
             }
             for index, segment in enumerate(plan.segments, start=1)
         ],
@@ -92,6 +93,16 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
             "channel_copy": plan.content,
             "personalization_fields": ["customer_name", "available_benefit", "valid_period"],
             "required_disclosure": ["活动规则以页面展示为准", "短信需包含退订方式"],
+            "persona_content_briefs": [
+                {
+                    "segment_name": segment.name,
+                    "scoring_focus": segment.strategy.get("scoring_focus", ""),
+                    "channel_strategy": segment.strategy.get("channel_strategy", ""),
+                    "offer_direction": segment.strategy.get("offer_direction", ""),
+                    "content_direction": segment.strategy.get("content_direction", ""),
+                }
+                for segment in plan.segments
+            ],
         },
         "compliance_guard": {
             "blocked_words": ["稳赚", "保证", "无条件通过", "最高收益"],

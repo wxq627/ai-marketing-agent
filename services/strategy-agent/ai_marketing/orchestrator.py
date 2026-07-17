@@ -12,8 +12,8 @@ from .knowledge_adapter import customers_from_knowledge_insight
 from .intent import parse_intent
 from .models import CampaignRequest, MarketingPlan
 from .optimizer import build_channel_plan, build_channel_plan_from_context, forecast_effect
-from .persona import build_kmeans_personas
-from .recommender import score_customers, summarize_segments
+from .persona import cluster_priority_candidates, summarize_selected_personas
+from .recommender import filter_priority_candidates, score_customers, summarize_segments
 
 
 class MarketingDecisionEngine:
@@ -61,9 +61,16 @@ class MarketingDecisionEngine:
             risk_level=request.risk_level,
             frequency_level=request.frequency_level,
         )
-        scored = score_customers(customers, normalized)
-        persona_result = build_kmeans_personas(scored, normalized)
-        segments = persona_result.segments if persona_result else summarize_segments(scored)
+        priority_candidates = filter_priority_candidates(customers, normalized)
+        persona_result = cluster_priority_candidates(priority_candidates, normalized)
+        scored = score_customers(
+            customers,
+            normalized,
+            persona_assignments=persona_result.assignments if persona_result else None,
+        )
+        segments = (
+            summarize_selected_personas(scored, persona_result.assignments) if persona_result else summarize_segments(scored)
+        )
         if channel_context:
             channels = build_channel_plan_from_context(
                 normalized, len(scored), channel_context, allowed_channels=allowed_channels
