@@ -12,6 +12,7 @@ from .knowledge_adapter import customers_from_knowledge_insight
 from .intent import parse_intent
 from .models import CampaignRequest, MarketingPlan
 from .optimizer import build_channel_plan, build_channel_plan_from_context, forecast_effect
+from .persona import build_kmeans_personas
 from .recommender import score_customers, summarize_segments
 
 
@@ -61,7 +62,8 @@ class MarketingDecisionEngine:
             frequency_level=request.frequency_level,
         )
         scored = score_customers(customers, normalized)
-        segments = summarize_segments(scored)
+        persona_result = build_kmeans_personas(scored, normalized)
+        segments = persona_result.segments if persona_result else summarize_segments(scored)
         if channel_context:
             channels = build_channel_plan_from_context(
                 normalized, len(scored), channel_context, allowed_channels=allowed_channels
@@ -86,6 +88,8 @@ class MarketingDecisionEngine:
             compliance=compliance,
             experiment=experiment,
             effect_forecast=effect,
+            persona_method="kmeans" if persona_result else "rule_based",
+            persona_feature_names=persona_result.feature_names if persona_result else [],
             next_actions=[
                 "运营确认活动目标、权益成本和投放窗口",
                 "灰度投放后回收响应、转化、投诉与核销数据",

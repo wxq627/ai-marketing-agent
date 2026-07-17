@@ -4,6 +4,7 @@ from ai_marketing.strategy_package import build_strategy_package, summarize_feed
 from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
+from ai_marketing.persona import kmeans_available
 
 
 def test_generate_installment_plan():
@@ -281,6 +282,20 @@ def test_real_project_one_data_generates_a_selected_strategy_package():
     assert plan.channels[0].unit_cost > 0
     assert len(plan.customer_channel_constraints) == plan.audience_size
     assert package["channel_routing"]
+
+
+def test_kmeans_personas_cover_the_selected_audience_when_dependency_is_available():
+    if not kmeans_available():
+        return
+
+    plan = MarketingDecisionEngine().generate_plan(
+        CampaignRequest(goal="installment conversion", product="installment", budget_wan=20)
+    )
+
+    assert plan.persona_method == "kmeans"
+    assert len(plan.segments) == 4
+    assert sum(segment.size for segment in plan.segments) == plan.audience_size
+    assert plan.persona_feature_names
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

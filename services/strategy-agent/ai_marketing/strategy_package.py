@@ -60,6 +60,11 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
             }
             for index, segment in enumerate(plan.segments, start=1)
         ],
+        "audience_persona": {
+            "method": plan.persona_method,
+            "feature_names": plan.persona_feature_names,
+            "cluster_count": len(plan.segments),
+        },
         "benefit_rule": BENEFIT_RULES.get(request.product, BENEFIT_RULES["installment"]),
         "channel_routing": [
             {
