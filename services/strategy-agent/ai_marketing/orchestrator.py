@@ -11,7 +11,7 @@ from .eligibility import EligibilityReport, evaluate_customer_insight, filter_to
 from .knowledge_adapter import customers_from_knowledge_insight
 from .intent import parse_intent
 from .models import CampaignRequest, MarketingPlan
-from .optimizer import build_channel_plan, forecast_effect
+from .optimizer import build_channel_plan, build_channel_plan_from_context, forecast_effect
 from .recommender import score_customers, summarize_segments
 
 
@@ -30,16 +30,27 @@ class MarketingDecisionEngine:
         eligible_payload = filter_to_eligible_customers(payload, eligibility)
         customers = customers_from_knowledge_insight(eligible_payload)
         allowed_channels = {channel for channel, count in eligibility.channel_coverage.items() if count}
-        plan = self._generate_plan_with_customers(request, customers, allowed_channels=allowed_channels)
+        plan, selected_customer_ids = self._generate_plan_with_customers(
+            request,
+            customers,
+            allowed_channels=allowed_channels,
+            channel_context=payload.get("channel_context"),
+            return_selected_customer_ids=True,
+        )
         return replace(
             plan,
             eligibility_summary=_eligibility_summary(eligibility),
-            customer_channel_constraints=_customer_channel_constraints(eligibility),
+            customer_channel_constraints=_customer_channel_constraints(eligibility, selected_customer_ids),
         )
 
     def _generate_plan_with_customers(
-        self, request: CampaignRequest, customers, allowed_channels: set[str] | None = None
-    ) -> MarketingPlan:
+        self,
+        request: CampaignRequest,
+        customers,
+        allowed_channels: set[str] | None = None,
+        channel_context: dict | None = None,
+        return_selected_customer_ids: bool = False,
+    ) -> MarketingPlan | tuple[MarketingPlan, set[str]]:
         intent = parse_intent(request)
         normalized = CampaignRequest(
             goal=request.goal,
@@ -51,13 +62,18 @@ class MarketingDecisionEngine:
         )
         scored = score_customers(customers, normalized)
         segments = summarize_segments(scored)
-        channels = build_channel_plan(normalized, len(scored), allowed_channels=allowed_channels)
+        if channel_context:
+            channels = build_channel_plan_from_context(
+                normalized, len(scored), channel_context, allowed_channels=allowed_channels
+            )
+        else:
+            channels = build_channel_plan(normalized, len(scored), allowed_channels=allowed_channels)
         content = generate_content(normalized, intent, segments)
         compliance = run_compliance_checks(normalized, scored, content)
-        uplift, roi, effect, experiment = forecast_effect(normalized, scored, segments)
+        uplift, roi, effect, experiment = forecast_effect(normalized, scored, segments, channels)
         campaign_id = self._campaign_id(normalized)
 
-        return MarketingPlan(
+        plan = MarketingPlan(
             campaign_id=campaign_id,
             request=normalized,
             intent=intent,
@@ -76,6 +92,9 @@ class MarketingDecisionEngine:
                 "用真实活动结果更新响应模型与策略约束",
             ],
         )
+        if return_selected_customer_ids:
+            return plan, {row.customer.customer_id for row in scored}
+        return plan
 
     @staticmethod
     def _campaign_id(request: CampaignRequest) -> str:
@@ -99,7 +118,9 @@ def _eligibility_summary(report: EligibilityReport) -> dict:
     }
 
 
-def _customer_channel_constraints(report: EligibilityReport) -> list[dict]:
+def _customer_channel_constraints(
+    report: EligibilityReport, selected_customer_ids: set[str] | None = None
+) -> list[dict]:
     return [
         {
             "customer_id": decision.customer_id,
@@ -112,5 +133,5 @@ def _customer_channel_constraints(report: EligibilityReport) -> list[dict]:
             "rule_trace": [trace.rule_id for trace in decision.rule_trace],
         }
         for decision in report.decisions
-        if decision.eligible
+        if decision.eligible and (selected_customer_ids is None or decision.customer_id in selected_customer_ids)
     ]

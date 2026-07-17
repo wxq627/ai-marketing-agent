@@ -258,6 +258,26 @@ def test_real_project_one_csv_data_can_run_through_eligibility():
     assert report.exclusion_summary
 
 
+def test_real_project_one_data_generates_a_selected_strategy_package():
+    payload = LocalKnowledgeData().build_customer_insight(
+        campaign_id="REAL_STRATEGY_TEST",
+        target_product="installment",
+        evaluation_time="2026-07-17T12:00:00+08:00",
+        limit=500,
+    )
+    plan = MarketingDecisionEngine().generate_plan_from_knowledge_insight(
+        CampaignRequest(goal="installment conversion", product="installment", budget_wan=20),
+        payload,
+    )
+    package = build_strategy_package(plan)
+
+    assert plan.audience_size > 0
+    assert plan.audience_size <= plan.eligibility_summary["eligible_count"]
+    assert plan.channels[0].unit_cost > 0
+    assert len(plan.customer_channel_constraints) == plan.audience_size
+    assert package["channel_routing"]
+
+
 def test_business_suppression_is_distinct_from_compliance_block():
     payload = {
         "campaign_id": "CMP001",

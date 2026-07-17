@@ -39,10 +39,63 @@ def build_channel_plan(
     ]
 
 
+def build_channel_plan_from_context(
+    request: CampaignRequest,
+    audience_size: int,
+    channel_context: dict[str, object],
+    allowed_channels: set[str] | None = None,
+) -> list[ChannelPlan]:
+    """Allocate the selected audience with Project A channel cost and performance data."""
+    metrics = channel_context.get("channel_metrics", {})
+    if not isinstance(metrics, dict):
+        return build_channel_plan(request, audience_size, allowed_channels=allowed_channels)
+
+    preferred = {
+        "omni": ["app_push", "sms", "wechat"],
+        "app": ["app_push"],
+        "sms": ["sms"],
+    }.get(request.channel_mode, ["app_push", "sms", "wechat"])
+    display = {"app_push": "App Push", "sms": "SMS", "wechat": "WeChat"}
+    roles = {
+        "app_push": "primary reach",
+        "sms": "timely recall",
+        "wechat": "high-value follow-up",
+    }
+    rows: list[tuple[str, dict[str, object], float]] = []
+    for channel in preferred:
+        if allowed_channels is not None and channel not in allowed_channels:
+            continue
+        metric = metrics.get(channel)
+        if not isinstance(metric, dict):
+            continue
+        cost = float(metric.get("cost_per_send", 0) or 0)
+        click_rate = float(metric.get("avg_click_rate", 0) or 0)
+        utility = click_rate / max(cost, 0.01)
+        rows.append((channel, metric, utility))
+    if not rows:
+        return build_channel_plan(request, audience_size, allowed_channels=allowed_channels)
+
+    utility_total = sum(row[2] for row in rows)
+    return [
+        ChannelPlan(
+            channel=display[channel],
+            budget_share=round(utility / utility_total, 2),
+            expected_reach=min(
+                int(metric.get("daily_capacity", audience_size) or audience_size),
+                max(1, int(audience_size * (0.65 + utility / utility_total * 0.3))),
+            ),
+            role=roles[channel],
+            unit_cost=round(float(metric.get("cost_per_send", 0) or 0), 4),
+        )
+        for channel, metric, utility in rows
+    ]
+
+
 def forecast_effect(
     request: CampaignRequest,
     scored: list[CustomerScore],
     segments: list[SegmentRecommendation],
+    channels: list[ChannelPlan] | None = None,
 ) -> tuple[float, float, dict[str, float], dict[str, object]]:
     if not scored:
         return 0.0, 0.0, {"ctr": 0.0, "conversion": 0.0, "complaint": 0.0, "net_value_wan": 0.0}, {}
@@ -51,7 +104,8 @@ def forecast_effect(
     avg_response = sum(row.response_prob for row in scored) / len(scored)
     avg_risk = sum(row.risk_penalty for row in scored) / len(scored)
     net_value_wan = sum(row.expected_value for row in scored) / 10000
-    cost_wan = request.budget_wan * 0.72
+    channel_cost_wan = sum(channel.expected_reach * channel.unit_cost for channel in channels or []) / 10000
+    cost_wan = channel_cost_wan or request.budget_wan * 0.72
     roi = net_value_wan / max(cost_wan, 1)
     baseline_conversion = max(0.01, conversion_rate * 0.78)
     uplift = (conversion_rate - baseline_conversion) / baseline_conversion

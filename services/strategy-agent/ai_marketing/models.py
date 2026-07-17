@@ -69,6 +69,7 @@ class ChannelPlan:
     budget_share: float
     expected_reach: int
     role: str
+    unit_cost: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -53,6 +53,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/eligibility/real-data":
             self._handle_real_data_eligibility()
             return
+        if path == "/api/strategy/generate/real-data":
+            self._handle_real_data_strategy_generate()
+            return
         if path == "/api/strategy/parse-goal":
             self._handle_strategy_parse_goal()
             return
@@ -159,6 +162,32 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 
+    def _handle_real_data_strategy_generate(self) -> None:
+        try:
+            payload = self._read_json_body()
+            request = _campaign_request_from_payload(payload)
+            parsed_goal = parse_campaign_goal(request.goal, request)
+            insight = local_knowledge_data.build_customer_insight(
+                campaign_id="LOCAL_REAL_DATA",
+                target_product=parsed_goal.campaign_request.product,
+                evaluation_time=payload.get("evaluation_time"),
+            )
+            plan = engine.generate_plan_from_knowledge_insight(parsed_goal.campaign_request, insight)
+            repo.save(plan)
+            self._json_response(
+                {
+                    "source": insight["source"],
+                    "data_version": insight["data_version"],
+                    "goal_parsing": parsed_goal.to_dict(),
+                    "plan": plan.to_dict(),
+                    "strategy_package": build_strategy_package(plan),
+                }
+            )
+        except ValueError as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
     def _handle_strategy_parse_goal(self) -> None:
         try:
             defaults = self._read_campaign_request()
@@ -190,14 +219,7 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def _read_campaign_request(self) -> CampaignRequest:
         payload = self._read_json_body()
-        return CampaignRequest(
-            goal=str(payload.get("goal", "")),
-            product=str(payload.get("product", "installment")),
-            channel_mode=str(payload.get("channel_mode", "omni")),
-            budget_wan=int(payload.get("budget_wan", 80)),
-            risk_level=int(payload.get("risk_level", 2)),
-            frequency_level=int(payload.get("frequency_level", 2)),
-        )
+        return _campaign_request_from_payload(payload)
 
     def _read_json_body(self) -> dict:
         body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
@@ -219,6 +241,17 @@ def _optional_int(value: object) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _campaign_request_from_payload(payload: dict) -> CampaignRequest:
+    return CampaignRequest(
+        goal=str(payload.get("goal", "")),
+        product=str(payload.get("product", "installment")),
+        channel_mode=str(payload.get("channel_mode", "omni")),
+        budget_wan=int(payload.get("budget_wan", 80)),
+        risk_level=int(payload.get("risk_level", 2)),
+        frequency_level=int(payload.get("frequency_level", 2)),
+    )
 
 
 def main() -> None:

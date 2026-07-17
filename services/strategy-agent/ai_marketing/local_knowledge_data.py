@@ -96,6 +96,7 @@ class LocalKnowledgeData:
             row["channel_name"].strip(): row for row in _read_csv(self.structured_dir / "channel_config.csv")
         }
         statuses: dict[str, str] = {}
+        channel_metrics: dict[str, dict[str, float]] = {}
         available_channels: list[str] = []
         for canonical, definition in CHANNELS.items():
             source = config_by_name.get(definition["source_name"])
@@ -103,9 +104,16 @@ class LocalKnowledgeData:
             statuses[canonical] = "available" if available else "unavailable"
             if available:
                 available_channels.append(canonical)
+                channel_metrics[canonical] = {
+                    "cost_per_send": _as_float(source.get("cost_per_send")),
+                    "daily_capacity": _as_int(source.get("daily_capacity")),
+                    "avg_open_rate": _as_float(source.get("avg_open_rate")),
+                    "avg_click_rate": _as_float(source.get("avg_click_rate")),
+                }
         self._channel_context = {
             "available_channels": available_channels,
             "channel_status": statuses,
+            "channel_metrics": channel_metrics,
         }
         return self._channel_context
 
@@ -146,6 +154,10 @@ class LocalKnowledgeData:
         complaint_count = _as_int(consent.get("complaint_count_90d"))
         credit_amount = _as_float(profile.get("account_total_credit_amount"))
         monthly_spend = _as_float(profile.get("value_monthly_avg_consumption"))
+        installment_contribution = _as_float(profile.get("value_installment_contribution_12m"))
+        long_term_active_days = _as_int(profile.get("long_term_90d_active_days"))
+        short_term_active_days = _as_int(profile.get("short_term_7d_active_days"))
+        activity_score = _as_float(profile.get("long_term_90d_activity_score"))
 
         customer_profile = {
             "oneid": profile.get("oneid", ""),
@@ -153,6 +165,12 @@ class LocalKnowledgeData:
             "city_tier": CITY_TIERS.get(profile.get("demographics_city", ""), 3),
             "monthly_spend": monthly_spend,
             "credit_limit_usage": min(1.0, monthly_spend / credit_amount) if credit_amount else 0.0,
+            "app_active_days": min(30, max(short_term_active_days * 3, long_term_active_days // 3)),
+            "dining_txn": _as_int(profile.get("short_term_7d_txn_count")),
+            "travel_txn": 1 if profile.get("demographics_city") in CITY_TIERS else 0,
+            "online_txn": _as_int(profile.get("mid_term_30d_txn_count")),
+            "coupon_response": min(0.9, max(0.05, activity_score / 100)),
+            "installment_history": _installment_history_level(installment_contribution),
             "marketing_consent": _as_bool(consent.get("marketing_consent")),
             "personalization_consent": _as_bool(consent.get("personalization_consent")),
             "dnc_list": _as_bool(consent.get("dnc_list")),
@@ -225,3 +243,13 @@ def _build_tags(profile: dict[str, str], consent: dict[str, str]) -> list[str]:
     if profile.get("long_term_90d_dormancy_risk") == "high":
         tags.append("dormant_risk")
     return [tag for tag in tags if tag]
+
+
+def _installment_history_level(value: float) -> int:
+    if value <= 0:
+        return 0
+    if value < 3000:
+        return 1
+    if value < 10000:
+        return 2
+    return 3

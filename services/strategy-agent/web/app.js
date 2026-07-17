@@ -24,14 +24,14 @@ async function generatePlan() {
   els.generate.disabled = true;
   try {
     const request = await parseGoalWithLlm();
-    const response = await fetch("/api/generate", {
+    const response = await fetch("/api/strategy/generate/real-data", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(request),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "生成失败");
-    renderPlan(data);
+    renderPlan(data.plan || data);
     els.status.textContent = "方案已生成";
   } catch (error) {
     els.status.textContent = error.message;
