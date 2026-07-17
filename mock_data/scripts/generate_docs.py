@@ -198,7 +198,7 @@ POSTER_DEFS = [
         "activity_name": "春节境外消费返现季",
         "campaign_id": "CAMP_2026_SPRINGFEST",
         "start_date": "2026-01-15", "end_date": "2026-02-15",
-        "main_title": "春节出境游，刷招行卡返现8%！",
+        "main_title": "春节出境游，刷XX银行卡返现8%！",
         "sub_title": "港澳日韩东南亚通用",
         "visual_description": "红色春节主题背景，灯笼和福字装饰，中央展示东京、曼谷、新加坡等城市地标剪影。左下有金色'8%返现'图标。底部有活动时间和条款简要。",
         "rules_summary": [
@@ -234,7 +234,7 @@ POSTER_DEFS = [
         "start_date": "2026-04-01", "end_date": "2026-12-31",
         "main_title": "好久不见，回来刷一笔领50元！",
         "sub_title": "你的信用卡想你啦~",
-        "visual_description": "温暖橙色背景，中央有一只可爱的招行猫吉祥物挥手。下方有红包图标'50元'。整体风格温馨、友好。",
+        "visual_description": "温暖橙色背景，中央有一只可爱的XX银行猫吉祥物挥手。下方有红包图标'50元'。整体风格温馨、友好。",
         "rules_summary": [
             "30天内任意消费1笔即赠50元刷卡金",
             "消费满500元额外赠送5000积分",
@@ -248,7 +248,7 @@ POSTER_DEFS = [
         "activity_name": "暑期出行季",
         "campaign_id": "CAMP_2026_SUMMER",
         "start_date": "2026-07-01", "end_date": "2026-08-31",
-        "main_title": "放暑假了！机票酒店刷招行卡",
+        "main_title": "放暑假了！机票酒店刷XX银行卡",
         "sub_title": "机票满1000减100 | 酒店连住8折 | WiFi首日1元",
         "visual_description": "蓝天海滩背景，中央展示飞机和度假酒店图标。右上有'SUMMER'艺术字。底部三个图标分别对应机票/酒店/WiFi优惠。",
         "rules_summary": [
@@ -282,7 +282,7 @@ POSTER_DEFS = [
         "activity_name": "618购物节返现",
         "campaign_id": "CAMP_2026_618",
         "start_date": "2026-06-01", "end_date": "2026-06-18",
-        "main_title": "618年中大促·刷招行返现5%",
+        "main_title": "618年中大促·刷XX银行返现5%",
         "sub_title": "天猫/京东满500返50 · 6期免息",
         "visual_description": "紫色电商主题背景，中央'618'大字。周围有购物车、优惠券、快递盒等图标。底部有倒计时组件和适用商户logo。",
         "rules_summary": [
@@ -422,7 +422,7 @@ def generate_all_docs_and_posters():
 
     # 额外生成几个通用海报
     extras = [
-        {"image_file": "weekend_promo.png", "activity_name": "周末消费狂欢", "main_title": "周末刷招行·随机立减最高99元", "sub_title": "每周六日 · 不限商户", "rules_summary":["每周六日任意消费随机立减","每单最高99元","每日限1次"]},
+        {"image_file": "weekend_promo.png", "activity_name": "周末消费狂欢", "main_title": "周末刷XX银行·随机立减最高99元", "sub_title": "每周六日 · 不限商户", "rules_summary":["每周六日任意消费随机立减","每单最高99元","每日限1次"]},
         {"image_file": "points_boost.png", "activity_name": "积分膨胀季", "main_title": "积分兑换膨胀1.2倍！", "sub_title": "限时活动 · 兑完即止", "rules_summary":["积分商城兑换指定商品享1.2倍价值","含航空里程/视频会员/实物礼品","活动期间每人限兑3次"]},
     ]
     for ep in extras:

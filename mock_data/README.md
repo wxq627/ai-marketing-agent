@@ -37,7 +37,7 @@ mock_data/
 │   └── compliance_rules.json           # 营销合规规则 🆕
 └── scripts/                            ← 生成 + 运维脚本
     ├── config.py                       # 全局配置
-    ├── generate_products.py            # 产品/权益/活动 (基于招行真实体系)
+    ├── generate_products.py            # 产品/权益/活动 (基于XX银行真实体系)
     ├── generate_customers.py           # 客户+信用卡
     ├── generate_transactions.py        # 交易+账单
     ├── generate_crm.py                 # CRM数据
@@ -46,7 +46,7 @@ mock_data/
     ├── generate_docs.py                # 文档+海报
     ├── generate_supplementary.py       # 项目二所需补充数据 🆕
     ├── generate_attribution.py         # 活动效果归因数据生成 🆕
-    ├── migrate_to_real_cmb.py          # 数据迁移脚本
+    ├── migrate_to_demo_bank.py         # 数据迁移脚本
     ├── sync_names.py                   # 非结构化数据名称同步
     ├── check_all.py                    # 数据完整性全量检查
     └── run_all.py                      # 一键生成
@@ -106,13 +106,13 @@ mock_data/
 
 | 序号 | 字段名 | 类型 | 说明 |
 |:--:|--------|------|------|
-| 1 | `card_no` | VARCHAR(32) | 卡号(脱敏, BIN前缀使用招行真实BIN) |
+| 1 | `card_no` | VARCHAR(32) | 卡号(脱敏, BIN前缀使用XX银行真实BIN) |
 | 2 | `cust_id` | VARCHAR(32) | 客户ID (外键→customer_basic) |
 | 3 | `card_level` | VARCHAR(16) | 卡等级: 校园卡 / 普卡 / 金卡 / 白金卡 / 钻石卡 / 无限卡 |
 | 4 | `credit_amount` | DECIMAL(12,2) | 授信额度 |
 | 5 | `open_date` | DATE | 开卡日期 |
 | 6 | `card_status` | VARCHAR(16) | 卡片状态: 正常 / 冻结 / 销卡 |
-| 7 | `product_id` | VARCHAR(32) | 产品ID (外键→product_catalog, 对应15款真实招行产品) |
+| 7 | `product_id` | VARCHAR(32) | 产品ID (外键→product_catalog, 对应15款真实XX银行产品) |
 | 8 | `is_primary` | BOOLEAN | 是否主卡 |
 
 ---
@@ -631,7 +631,7 @@ python run_all.py
 ### 分步生成
 
 ```bash
-# 1. 先生成产品/权益/活动 (无依赖, 基于招行真实体系)
+# 1. 先生成产品/权益/活动 (无依赖, 基于XX银行真实体系)
 python generate_products.py
 
 # 2. 生成客户和信用卡 (依赖产品)
@@ -659,7 +659,7 @@ python sync_names.py
 ### 依赖关系
 
 ```
-generate_products.py         ← 无依赖, 先跑. 生成15款招行产品+90项权益+25个活动
+generate_products.py         ← 无依赖, 先跑. 生成15款XX银行产品+90项权益+25个活动
 generate_customers.py        ← 依赖 products, 根据卡等级分配真实产品ID
 generate_transactions.py     ← 依赖 customers (信用卡)
 generate_crm.py              ← 依赖 customers + cards
@@ -702,7 +702,7 @@ RANDOM_SEED = 42  # 改为其他值
 | customer_basic ↔ crm_customer | `cust_id` | 一对一关系 |
 | customer_basic ↔ app_events | 通过 `device_id` / `open_id` (内存中映射) | 多设备 |
 | customer_basic ↔ asr_transcripts | `cust_id` | 可能多条通话 |
-| product_catalog ↔ credit_card | `product_id` | 15款招行真实产品 |
+| product_catalog ↔ credit_card | `product_id` | 15款XX银行真实产品 |
 | customer_basic ↔ customer_consent | `cust_id` | 8,000条, 含18字段(授权+退订+投诉+风险+价值) |
 | customer_basic ↔ contact_history | `cust_id` | 120,000条近90天触达记录 |
 | product_catalog ↔ product_eligibility | `product_id` | 15条办理资格规则 |
@@ -727,10 +727,10 @@ RANDOM_SEED = 42  # 改为其他值
 | **权益体系** | 官网权益说明页、机场贵宾厅/300精选酒店/积分兑换等官方说明 |
 | **营销活动** | Apple Pay返现活动(2025.7-2026.3)、周三5折饭票、9元观影等常态化活动 |
 | **卡等级** | 校园卡/普卡/金卡/白金卡/钻石卡/无限卡 — XX银行六级卡等体系 |
-| **商户/渠道** | 招行合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
+| **商户/渠道** | XX银行合作商户品牌(海底捞/西贝/星巴克/喜茶等) + 主流支付渠道分布 |
 | **APP页面** | 掌上生活APP实际页面结构(账单详情/分期计算器/权益商城/积分兑换等) |
 
-> 数据中的客户个人信息为随机生成并已脱敏, 与实际招行客户无任何关联。
+> 数据中的客户个人信息为随机生成并已脱敏, 与实际XX银行客户无任何关联。
 
 ---
 

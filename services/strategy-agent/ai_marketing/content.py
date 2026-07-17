@@ -25,7 +25,7 @@ def generate_content(
 
     return {
         "app_popup": f"{product_name}专属方案：{value_point}。进入 App 查看详情，领取后可按页面规则使用。",
-        "sms": f"【招商银行】您有一份{product_name}活动提醒，{value_point}。请登录招商银行App查看，退订回复TD。",
+        "sms": f"【信用卡服务】您有一份{product_name}活动提醒，{value_point}。请登录App查看，退订回复TD。",
         "wechat": f"建议对{segment_name}采用权益价值解释 + 使用路径引导，重点说明适用条件、成本和有效期。",
         "explain": f"文案依据：{intent.objective}；重点客群：{segment_name}；合规处理：避免收益承诺、夸大优惠和过度打扰。",
     }

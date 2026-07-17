@@ -7,7 +7,7 @@
   1. 收入等级与卡等级正相关（高收入 → 高等级卡概率更高）
   2. 年龄与卡等级相关（校园卡仅限<28岁，高端卡偏向30+）
   3. 一人可持多张卡（1-4张），主卡等级通常最高
-  4. 城市分布按招行实际业务重点城市加权
+  4. 城市分布按XX银行实际业务重点城市加权
   5. 身份证号、手机号、卡号均需脱敏处理
 """
 
@@ -74,7 +74,7 @@ def generate_masked_phone() -> str:
 def generate_masked_card_number(bin_prefix: str = None) -> str:
     """生成脱敏银行卡号（16-19位，银联标准BIN前缀）"""
     if bin_prefix is None:
-        bin_prefix = random.choice(CMB_BIN_PREFIXES)
+        bin_prefix = random.choice(BANK_BIN_PREFIXES)
     # 卡号长度：16或19位
     card_length = random.choice([16, 16, 16, 19])
     remaining = card_length - len(bin_prefix)

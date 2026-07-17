@@ -84,7 +84,7 @@ print("4. SCRIPTS")
 print("=" * 60)
 scripts = ["config.py","generate_products.py","generate_customers.py","generate_transactions.py",
            "generate_crm.py","generate_app_events.py","generate_asr.py","generate_docs.py",
-           "run_all.py","migrate_to_real_cmb.py","sync_names.py"]
+           "run_all.py","migrate_to_demo_bank.py","sync_names.py"]
 for s in scripts:
     ok = os.path.exists(os.path.join(BASE, "scripts", s))
     print(f"  {'OK' if ok else 'MISSING'}: {s}")
