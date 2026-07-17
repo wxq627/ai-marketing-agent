@@ -282,6 +282,8 @@ def test_real_project_one_data_generates_a_selected_strategy_package():
     assert plan.channels[0].unit_cost > 0
     assert len(plan.customer_channel_constraints) == plan.audience_size
     assert package["channel_routing"]
+    customer_mapping = package["audience_delivery_constraints"]["customer_channel_constraints"]
+    assert all(item["persona_name"] and item["segment_id"] for item in customer_mapping)
 
 
 def test_kmeans_personas_cover_the_selected_audience_when_dependency_is_available():

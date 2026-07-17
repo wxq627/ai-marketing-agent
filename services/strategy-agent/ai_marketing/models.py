@@ -100,6 +100,7 @@ class MarketingPlan:
     next_actions: list[str] = field(default_factory=list)
     eligibility_summary: dict[str, Any] = field(default_factory=dict)
     customer_channel_constraints: list[dict[str, Any]] = field(default_factory=list)
+    customer_persona_assignments: list[dict[str, str]] = field(default_factory=list)
     persona_method: str = "rule_based"
     persona_feature_names: list[str] = field(default_factory=list)
 

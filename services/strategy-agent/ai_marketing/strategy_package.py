@@ -41,6 +41,10 @@ FREQUENCY_LIMITS = {
 def build_strategy_package(plan: MarketingPlan) -> dict:
     request = plan.request
     product_code = PRODUCT_CODES.get(request.product, request.product)
+    segment_id_by_name = {segment.name: f"SEG{index:03d}" for index, segment in enumerate(plan.segments, start=1)}
+    persona_by_customer = {
+        item["customer_id"]: item["persona_name"] for item in plan.customer_persona_assignments
+    }
     return {
         "campaign_metadata": {
             "campaign_id": plan.campaign_id,
@@ -80,7 +84,16 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
             "channel_coverage": plan.eligibility_summary.get("channel_coverage", {}),
             "channel_block_by_layer": plan.eligibility_summary.get("channel_block_by_layer", {}),
             "data_quality_warning_summary": plan.eligibility_summary.get("data_quality_warning_summary", {}),
-            "customer_channel_constraints": plan.customer_channel_constraints,
+            "customer_channel_constraints": [
+                {
+                    **constraint,
+                    "persona_name": persona_by_customer.get(constraint["customer_id"], ""),
+                    "segment_id": segment_id_by_name.get(
+                        persona_by_customer.get(constraint["customer_id"], ""), ""
+                    ),
+                }
+                for constraint in plan.customer_channel_constraints
+            ],
         },
         "budget_allocation": {
             "total_budget": request.budget_wan * 10000,

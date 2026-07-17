@@ -95,6 +95,10 @@ class MarketingDecisionEngine:
             compliance=compliance,
             experiment=experiment,
             effect_forecast=effect,
+            customer_persona_assignments=[
+                {"customer_id": row.customer.customer_id, "persona_name": row.segment}
+                for row in scored
+            ],
             persona_method="kmeans" if persona_result else "rule_based",
             persona_feature_names=persona_result.feature_names if persona_result else [],
             next_actions=[
