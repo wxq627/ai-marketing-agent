@@ -9,6 +9,7 @@ from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 STRUCTURED_DATA_DIR = REPOSITORY_ROOT / "mock_data" / "structured"
+DERIVED_DATA_DIR = REPOSITORY_ROOT / "mock_data" / "derived"
 
 CHANNELS = {
     "app_push": {"consent_field": "push_consent", "source_name": "APP Push"},
@@ -38,6 +39,9 @@ class LocalKnowledgeData:
         self._consents: dict[str, dict[str, str]] | None = None
         self._contacts: dict[str, list[dict[str, str]]] | None = None
         self._channel_context: dict[str, Any] | None = None
+        self._snapshots: dict[str, dict[str, str]] | None = None
+        self._intents: dict[str, dict[str, str]] | None = None
+        self._events: dict[str, list[dict[str, str]]] | None = None
 
     def build_customer_insight(
         self,
@@ -48,9 +52,12 @@ class LocalKnowledgeData:
         limit: int | None = None,
     ) -> dict[str, Any]:
         profiles = self._load_profiles()
+        snapshots = self._load_snapshots()
+        intents = self._load_intents()
+        events = self._load_events()
         consents = self._load_consents()
         contacts = self._load_contacts()
-        customer_ids = sorted(profiles)
+        customer_ids = sorted(snapshots or profiles)
         if limit is not None:
             customer_ids = customer_ids[: max(0, limit)]
 
@@ -64,8 +71,11 @@ class LocalKnowledgeData:
             "customers": [
                 self._to_insight_customer(
                     profile=profiles[customer_id],
+                    snapshot=snapshots.get(customer_id, {}),
                     consent=consents.get(customer_id, {}),
                     contacts=contacts.get(customer_id, []),
+                    intent=intents.get(customer_id, {}),
+                    events=events.get(customer_id, []),
                 )
                 for customer_id in customer_ids
             ],
@@ -80,6 +90,28 @@ class LocalKnowledgeData:
         if self._consents is None:
             self._consents = _read_csv_indexed(self.structured_dir / "customer_consent.csv", "cust_id")
         return self._consents
+
+    def _load_snapshots(self) -> dict[str, dict[str, str]]:
+        if self._snapshots is None:
+            path = DERIVED_DATA_DIR / "customer_snapshot.csv"
+            self._snapshots = _read_csv_indexed(path, "cust_id") if path.exists() else {}
+        return self._snapshots
+
+    def _load_intents(self) -> dict[str, dict[str, str]]:
+        if self._intents is None:
+            path = DERIVED_DATA_DIR / "intent_vector.csv"
+            self._intents = _read_csv_indexed(path, "cust_id") if path.exists() else {}
+        return self._intents
+
+    def _load_events(self) -> dict[str, list[dict[str, str]]]:
+        if self._events is None:
+            grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+            path = DERIVED_DATA_DIR / "event_sequence_per_customer.csv"
+            if path.exists():
+                for row in _read_csv(path):
+                    grouped[row["cust_id"]].append(row)
+            self._events = dict(grouped)
+        return self._events
 
     def _load_contacts(self) -> dict[str, list[dict[str, str]]]:
         if self._contacts is None:
@@ -121,17 +153,21 @@ class LocalKnowledgeData:
         self,
         *,
         profile: dict[str, str],
+        snapshot: dict[str, str],
         consent: dict[str, str],
         contacts: list[dict[str, str]],
+        intent: dict[str, str],
+        events: list[dict[str, str]],
     ) -> dict[str, Any]:
-        unsubscribed = _split_csv_values(consent.get("unsubscribe_channels", ""))
+        source = snapshot or profile
+        unsubscribed = _split_csv_values(_value(snapshot, consent, "unsubscribe_channels"))
         channel_consents = {
-            canonical: _as_bool(consent.get(definition["consent_field"]))
+            canonical: _as_bool(_value(snapshot, consent, definition["consent_field"]))
             and definition["source_name"] not in unsubscribed
             for canonical, definition in CHANNELS.items()
         }
-        consent_risk = consent.get("risk_level") or profile.get("risk_risk_level", "low")
-        blacklist = _as_bool(consent.get("blacklist_flag")) or _as_bool(profile.get("risk_blacklist_flag"))
+        consent_risk = _value(snapshot, consent, "risk_level") or profile.get("risk_risk_level", "low")
+        blacklist = _as_bool(_value(snapshot, consent, "blacklist_flag")) or _as_bool(profile.get("risk_blacklist_flag"))
         if blacklist:
             consent_risk = "blacklist"
         contact_history = [
@@ -151,18 +187,20 @@ class LocalKnowledgeData:
             )
             for channel in CHANNELS
         }
-        complaint_count = _as_int(consent.get("complaint_count_90d"))
-        credit_amount = _as_float(profile.get("account_total_credit_amount"))
-        monthly_spend = _as_float(profile.get("value_monthly_avg_consumption"))
-        installment_contribution = _as_float(profile.get("value_installment_contribution_12m"))
-        long_term_active_days = _as_int(profile.get("long_term_90d_active_days"))
-        short_term_active_days = _as_int(profile.get("short_term_7d_active_days"))
-        activity_score = _as_float(profile.get("long_term_90d_activity_score"))
+        complaint_count = _as_int(_value(snapshot, consent, "complaint_count_90d"))
+        credit_amount = _as_float(_field(source, "total_credit_amount", "account_total_credit_amount"))
+        monthly_spend = _as_float(_field(source, "monthly_avg_consumption", "value_monthly_avg_consumption"))
+        installment_contribution = _as_float(
+            _field(source, "installment_contribution", "value_installment_contribution_12m")
+        )
+        long_term_active_days = _as_int(_field(source, "active_days_90d", "long_term_90d_active_days"))
+        short_term_active_days = _as_int(_field(source, "active_days_7d", "short_term_7d_active_days"))
+        activity_score = _as_float(_field(source, "activity_score", "long_term_90d_activity_score"))
 
         customer_profile = {
-            "oneid": profile.get("oneid", ""),
-            "age": _as_int(profile.get("demographics_age"), default=35),
-            "city_tier": CITY_TIERS.get(profile.get("demographics_city", ""), 3),
+            "oneid": source.get("oneid", ""),
+            "age": _as_int(_field(source, "age", "demographics_age"), default=35),
+            "city_tier": CITY_TIERS.get(_field(source, "city", "demographics_city"), 3),
             "monthly_spend": monthly_spend,
             "credit_limit_usage": min(1.0, monthly_spend / credit_amount) if credit_amount else 0.0,
             "app_active_days": min(30, max(short_term_active_days * 3, long_term_active_days // 3)),
@@ -171,29 +209,31 @@ class LocalKnowledgeData:
             "online_txn": _as_int(profile.get("mid_term_30d_txn_count")),
             "coupon_response": min(0.9, max(0.05, activity_score / 100)),
             "installment_history": _installment_history_level(installment_contribution),
-            "marketing_consent": _as_bool(consent.get("marketing_consent")),
-            "personalization_consent": _as_bool(consent.get("personalization_consent")),
-            "dnc_list": _as_bool(consent.get("dnc_list")),
-            "do_not_contact_signal": _as_bool(consent.get("do_not_contact_signal")),
+            "marketing_consent": _as_bool(_value(snapshot, consent, "marketing_consent")),
+            "personalization_consent": _as_bool(_value(snapshot, consent, "personalization_consent")),
+            "dnc_list": _as_bool(_value(snapshot, consent, "dnc_list")),
+            "do_not_contact_signal": _as_bool(_value(snapshot, consent, "do_not_contact")),
             "blacklist_flag": blacklist,
             "risk_level": consent_risk,
             "complaint_count_90d": complaint_count,
             "complaint_risk": min(1.0, complaint_count / 3),
-            "value_level": consent.get("value_level") or profile.get("value_value_level", ""),
-            "lifecycle_stage": profile.get("lifecycle_stage", ""),
-            "churn_risk_score": _as_int(profile.get("risk_churn_risk_score")),
-            "owned_products": [profile["account_product_name"]] if profile.get("account_product_name") else [],
+            "value_level": _value(snapshot, consent, "value_level") or profile.get("value_value_level", ""),
+            "lifecycle_stage": source.get("lifecycle_stage", ""),
+            "churn_risk_score": _as_int(_field(source, "churn_risk_score", "risk_churn_risk_score")),
+            "owned_products": [_field(source, "product_name", "account_product_name")]
+            if _field(source, "product_name", "account_product_name")
+            else [],
             "channel_consents": channel_consents,
             "recent_contact_count": len(contact_history),
             "recent_contact_count_by_channel": recent_counts,
-            "tags": _build_tags(profile, consent),
+            "tags": _build_tags(source, consent),
         }
         return {
-            "customer_id": profile["cust_id"],
+            "customer_id": source["cust_id"],
             "customer_profile": customer_profile,
             "contact_history": contact_history,
-            "intent_vector": {"top_intents": []},
-            "event_sequence": [],
+            "intent_vector": {"top_intents": _top_intents(intent)},
+            "event_sequence": _recent_events(events),
         }
 
 
@@ -243,6 +283,38 @@ def _build_tags(profile: dict[str, str], consent: dict[str, str]) -> list[str]:
     if profile.get("long_term_90d_dormancy_risk") == "high":
         tags.append("dormant_risk")
     return [tag for tag in tags if tag]
+
+
+def _value(primary: dict[str, str], fallback: dict[str, str], field: str) -> str:
+    return primary.get(field, fallback.get(field, ""))
+
+
+def _field(row: dict[str, str], primary: str, fallback: str) -> str:
+    return row.get(primary, row.get(fallback, ""))
+
+
+def _top_intents(intent: dict[str, str]) -> list[dict[str, object]]:
+    rows = [
+        {"name": _intent_name(key.removeprefix("intent_")), "score": _as_float(value)}
+        for key, value in intent.items()
+        if key.startswith("intent_")
+    ]
+    return sorted(rows, key=lambda row: float(row["score"]), reverse=True)[:3]
+
+
+def _intent_name(value: str) -> str:
+    return value.replace("_", "/", 1)
+
+
+def _recent_events(events: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {
+            "event_name": event.get("event_detail") or event.get("event_type", ""),
+            "event_type": event.get("event_type", ""),
+            "event_time": event.get("event_time", ""),
+        }
+        for event in events[-20:]
+    ]
 
 
 def _installment_history_level(value: float) -> int:

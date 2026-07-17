@@ -19,6 +19,19 @@ def customers_from_knowledge_insight(payload: dict) -> list[Customer]:
             for event in item.get("event_sequence", [])
             if isinstance(event, dict)
         }
+        intent_scores = {
+            str(intent.get("name", "")): _normalize_intent_score(intent.get("score"))
+            for intent in item.get("intent_vector", {}).get("top_intents", [])
+            if isinstance(intent, dict) and intent.get("name")
+        }
+        recent_events = [
+            {
+                "event_name": str(event.get("event_name") or event.get("event_detail") or event.get("event_type") or ""),
+                "event_time": str(event.get("event_time") or event.get("timestamp") or ""),
+            }
+            for event in item.get("event_sequence", [])
+            if isinstance(event, dict)
+        ]
         customers.append(
             Customer(
                 customer_id=str(item.get("customer_id") or f"KC{index:06d}"),
@@ -37,6 +50,8 @@ def customers_from_knowledge_insight(payload: dict) -> list[Customer]:
                 recent_contacts=int(profile.get("recent_contact_count", 0)),
                 complaint_risk=float(profile.get("complaint_risk", 0.05)),
                 has_marketing_consent=bool(profile.get("marketing_consent", False)),
+                intent_scores=intent_scores,
+                recent_events=recent_events,
             )
         )
     return customers
@@ -91,3 +106,11 @@ def estimate_app_active_days(tags: set[str], profile: dict) -> int:
     if "App活跃" in tags:
         return 24
     return 12
+
+
+def _normalize_intent_score(value: object) -> float:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return min(1.0, max(0.0, score / 100 if score > 1 else score))

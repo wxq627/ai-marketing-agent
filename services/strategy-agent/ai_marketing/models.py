@@ -20,6 +20,8 @@ class Customer:
     recent_contacts: int
     complaint_risk: float
     has_marketing_consent: bool
+    intent_scores: dict[str, float] = field(default_factory=dict)
+    recent_events: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,7 @@ class CustomerScore:
     conversion_prob: float
     expected_value: float
     risk_penalty: float
+    priority_score: float
     segment: str
     reasons: list[str]
 

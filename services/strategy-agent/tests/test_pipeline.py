@@ -256,6 +256,11 @@ def test_real_project_one_csv_data_can_run_through_eligibility():
     assert report.candidate_count == 8000
     assert 0 < report.eligible_count < report.candidate_count
     assert report.exclusion_summary
+    customer = next(item for item in payload["customers"] if item["customer_id"] == "C000001")
+    assert customer["intent_vector"]["top_intents"][0] == {
+        "name": "\u5206\u671f/\u501f\u8d37\u9700\u6c42",
+        "score": 90.0,
+    }
 
 
 def test_real_project_one_data_generates_a_selected_strategy_package():
