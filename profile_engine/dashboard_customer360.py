@@ -201,19 +201,56 @@ def render_intent(oneid,row):
         for s in p["sub_signals"][:5]:
             st.caption(f"  • {s['signal']}: 实际值={s['value']}, 触发阈值={s['threshold']}, 贡献={s['weight']}分")
 
-    # 情感分析
+    # 情感分析 — 基于客户真实数据动态生成
     st.markdown("---")
     st.markdown("### 情感分析")
     from intent_engine.llm_classifier import SentimentAnalyzer
     analyzer=SentimentAnalyzer(mock_mode=True)
-    sim_conv="客户近期有分期相关搜索和浏览行为。"
-    llm_result={"sentiment":"中性"}
+
+    # 基于客户真实数据构建动态对话摘要
+    search_kw = g(row,"short_term_7d_top_search_keywords","")
+    overdue_cnt = int(g(row,"risk_history_overdue_count_6m",0))
+    complaint_cnt = int(g(row,"risk_overdue_status","0")!="M0")  # 用逾期状态近似
+    churn_score = int(g(row,"risk_churn_risk_score",0))
+    risk_level = g(row,"risk_risk_level","low")
+    lifecycle = g(row,"lifecycle_stage","")
+    value_level = g(row,"value_value_level","medium")
+
+    # 构建反映客户真实状态的对话摘要
+    conv_parts = []
+    if "注销" in search_kw or "销户" in search_kw:
+        conv_parts.append("客户搜索了销户相关内容")
+    if "投诉" in search_kw:
+        conv_parts.append("客户表达了不满情绪")
+    if "分期" in search_kw or "手续费" in search_kw:
+        conv_parts.append("客户在咨询分期方案,对费用表示关注")
+    if overdue_cnt >= 2:
+        conv_parts.append("客户近期有多次逾期记录,还款压力较大")
+    if risk_level == "high":
+        conv_parts.append("客户风险等级较高")
+    if lifecycle == "沉睡期":
+        conv_parts.append("客户长期未使用卡片")
+    if lifecycle == "新户":
+        conv_parts.append("客户刚开卡,对权益和功能充满好奇")
+    if value_level == "high" and risk_level == "low":
+        conv_parts.append("客户消费活跃,对服务体验满意")
+    if churn_score >= 50:
+        conv_parts.append("客户流失风险较高,需要重点关注")
+
+    if not conv_parts:
+        conv_parts.append("客户日常正常使用信用卡")
+
+    sim_conv = "。".join(conv_parts) + "。"
+
+    # 用动态对话文本做LLM分类
+    llm_result = {"sentiment":"中性"}
     try:
         from intent_engine.llm_classifier import LLMClassifier
-        clf=LLMClassifier(mock_mode=True)
-        llm_result=clf.classify(sim_conv)
+        clf = LLMClassifier(mock_mode=True)
+        llm_result = clf.classify(sim_conv)
     except: pass
-    sentiment=analyzer.analyze(llm_result.get("sentiment","中性"))
+
+    sentiment = analyzer.analyze(llm_result.get("sentiment","中性"), sim_conv[:60])
     c1,c2=st.columns(2)
     with c1:
         st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:center">'
