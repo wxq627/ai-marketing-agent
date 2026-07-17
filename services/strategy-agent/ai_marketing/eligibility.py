@@ -315,6 +315,8 @@ def _matches_profile_rule(profile: dict[str, Any], rule: dict[str, Any]) -> bool
     operator = rule["operator"]
     if operator == "not_true":
         return value is not True
+    if operator == "is_true":
+        return value is True
     if operator == "in":
         return str(value).lower() in {str(item).lower() for item in rule["values"]}
     if operator == "gte":

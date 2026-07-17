@@ -3,6 +3,7 @@ from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
 from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
+from ai_marketing.local_knowledge_data import LocalKnowledgeData
 
 
 def test_generate_installment_plan():
@@ -240,6 +241,21 @@ def test_goal_parser_uses_deepseek_json_response():
     assert result.campaign_request.channel_mode == "app"
     assert result.campaign_request.budget_wan == 30
     assert result.audience_hints == ["high_spend"]
+
+
+def test_real_project_one_csv_data_can_run_through_eligibility():
+    payload = LocalKnowledgeData().build_customer_insight(
+        campaign_id="REAL_DATA_TEST",
+        target_product="installment",
+        evaluation_time="2026-07-17T12:00:00+08:00",
+    )
+    report = evaluate_customer_insight(payload)
+
+    assert payload["source"] == "project1_local_csv"
+    assert len(payload["customers"]) == 8000
+    assert report.candidate_count == 8000
+    assert 0 < report.eligible_count < report.candidate_count
+    assert report.exclusion_summary
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

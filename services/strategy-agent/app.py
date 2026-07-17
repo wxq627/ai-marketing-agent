@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from ai_marketing.models import CampaignRequest
+from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.storage import PlanRepository
@@ -17,6 +18,7 @@ WEB_DIR = BASE_DIR / "web"
 DATA_DIR = BASE_DIR / "data"
 
 engine = MarketingDecisionEngine()
+local_knowledge_data = LocalKnowledgeData()
 repo = PlanRepository(DATA_DIR / "marketing_demo.sqlite3")
 
 
@@ -47,6 +49,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/strategy/eligibility":
             self._handle_strategy_eligibility()
+            return
+        if path == "/api/strategy/eligibility/real-data":
+            self._handle_real_data_eligibility()
             return
         if path == "/api/strategy/parse-goal":
             self._handle_strategy_parse_goal()
@@ -127,6 +132,33 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=400)
 
+    def _handle_real_data_eligibility(self) -> None:
+        try:
+            payload = self._read_json_body()
+            insight = local_knowledge_data.build_customer_insight(
+                campaign_id=str(payload.get("campaign_id", "LOCAL_REAL_DATA")),
+                target_product=str(payload.get("target_product", "installment")),
+                evaluation_time=payload.get("evaluation_time"),
+                limit=_optional_int(payload.get("limit")),
+            )
+            report = engine.assess_knowledge_insight(insight)
+            report_payload = report.to_dict()
+            decisions = report_payload.pop("decisions")
+            include_decisions = payload.get("include_decisions") is True
+            report_payload["decision_sample"] = decisions if include_decisions else decisions[:20]
+            report_payload["decision_total"] = len(decisions)
+            self._json_response(
+                {
+                    "source": insight["source"],
+                    "data_version": insight["data_version"],
+                    "report": report_payload,
+                }
+            )
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
     def _handle_strategy_parse_goal(self) -> None:
         try:
             defaults = self._read_campaign_request()
@@ -181,6 +213,12 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
+
+
+def _optional_int(value: object) -> int | None:
+    if value is None:
+        return None
+    return int(value)
 
 
 def main() -> None:

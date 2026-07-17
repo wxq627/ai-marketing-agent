@@ -27,6 +27,42 @@
       "configurable": false
     },
     {
+      "rule_id": "DNC_LIST_001",
+      "layer": "compliance",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "dnc_list",
+      "operator": "is_true",
+      "action": "BLOCK",
+      "reason_code": "dnc_listed",
+      "owner": "compliance",
+      "configurable": false
+    },
+    {
+      "rule_id": "DO_NOT_CONTACT_001",
+      "layer": "compliance",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "do_not_contact_signal",
+      "operator": "is_true",
+      "action": "BLOCK",
+      "reason_code": "do_not_contact",
+      "owner": "compliance",
+      "configurable": false
+    },
+    {
+      "rule_id": "BLACKLIST_FLAG_001",
+      "layer": "compliance",
+      "scope": "customer",
+      "rule_type": "profile",
+      "field": "blacklist_flag",
+      "operator": "is_true",
+      "action": "BLOCK",
+      "reason_code": "blacklisted_customer",
+      "owner": "risk_control",
+      "configurable": false
+    },
+    {
       "rule_id": "CONSENT_CHANNEL_001",
       "layer": "compliance",
       "scope": "channel",
