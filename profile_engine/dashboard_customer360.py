@@ -19,15 +19,30 @@ NOW = datetime.now().strftime("%Y-%m-%d %H:%M")
 if "delta" not in st.session_state: st.session_state.delta = {}
 if "log" not in st.session_state: st.session_state.log = []
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=30)  # 30秒刷新, 新增数据立即可见
 def load():
-    p = pd.read_csv(os.path.join(DATA, "customer_profile.csv"))
-    mp = pd.read_csv(os.path.join(DATA, "id_mapping.csv"))
+    """从SQLite数据库加载 (替换CSV)。"""
+    import sqlite3
+    conn = sqlite3.connect(os.path.join(os.path.dirname(DATA), "knowledge_agent.db"))
+    conn.row_factory = sqlite3.Row
+
+    p = pd.read_sql("SELECT * FROM customer_profile", conn)
+    mp = pd.read_sql("SELECT * FROM id_mapping", conn)
     mc = mp[mp["id_type"]=="cust_id"]
+
+    # 同时加载DB统计 (侧边栏显示)
+    stats = {}
+    for t in ["customers","products","benefits","campaigns","transactions","feedback_events"]:
+        try: stats[t] = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+        except: stats[t] = 0
+    stats["db_size_mb"] = round(os.path.getsize(os.path.join(os.path.dirname(DATA), "knowledge_agent.db"))/1024/1024, 1)
+    conn.close()
+
     return {"p": p, "idx": dict(zip(p["oneid"], range(len(p)))),
         "c2u": dict(zip(mc["id_value"], mc["oneid"])),
         "p2u": dict(zip(mp[mp["id_type"]=="phone"]["id_value"], mp[mp["id_type"]=="phone"]["oneid"])),
-        "n2u": {str(r["demographics_name"]):r["oneid"] for _,r in p.iterrows() if str(r.get("demographics_name",""))!="nan"}}
+        "n2u": {str(r["demographics_name"]):r["oneid"] for _,r in p.iterrows() if str(r.get("demographics_name",""))!="nan"},
+        "db_stats": stats}
 
 def search(q,t,d):
     if t=="OneID" and q in d["idx"]: return q
@@ -411,12 +426,64 @@ def main():
     st.caption(f"{NOW} | 5 Tab: 画像/动态/意图/归因/更新 | 打开网页即最新数据")
 
     data=load()
-    cq,ct,cb=st.columns([3,1,1])
+    cq,ct,cb,cr=st.columns([3,1,1,1])
     with cq: query=st.text_input("搜索",placeholder="UID000001 / cust_id / 手机号 / 姓名")
     with ct: stype=st.selectbox("方式",["OneID","cust_id","手机号","姓名"])
     with cb:
         st.markdown("<br>",unsafe_allow_html=True)
         btn=st.button("搜索",use_container_width=True)
+    with cr:
+        st.markdown("<br>",unsafe_allow_html=True)
+        if st.button("清空缓存",use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+    # 侧边栏: 数据库状态 + 模拟输入
+    with st.sidebar:
+        st.markdown("###  数据库状态 (SQLite)")
+        db_info = data.get("db_stats", {})
+        if db_info:
+            st.metric("客户", f"{db_info.get('customers',8000):,}")
+            st.metric("交易", f"{db_info.get('transactions',0):,}")
+            st.metric("回传事件", db_info.get('feedback_events',0))
+            st.caption(f"DB大小: {db_info.get('db_size_mb',0)}MB")
+            st.caption("后端: SQLite (PG兼容SQL)")
+            st.caption("大屏/API/回传 统一走DB")
+
+        st.markdown("---")
+        st.markdown("###  模拟数据输入→实时可见")
+        with st.expander("新增客户(DB INSERT)"):
+            name = st.text_input("姓名","测试客户",key="s_name")
+            city = st.selectbox("城市",["深圳","上海","北京","广州","杭州"],key="s_city")
+            age = st.number_input("年龄",18,65,30,key="s_age")
+            inc = st.selectbox("收入",["H","M","L"],key="s_inc")
+            card = st.selectbox("卡等级",["金卡","白金卡","普卡","钻石卡","校园卡"],key="s_card")
+            if st.button("INSERT到数据库",key="s_insert"):
+                import sqlite3, time
+                conn = sqlite3.connect(os.path.join(os.path.dirname(DATA),"knowledge_agent.db"))
+                new_id = int(conn.execute("SELECT MAX(CAST(SUBSTR(cust_id,2) AS INTEGER)) FROM customer_profile").fetchone()[0] or 8000) + 1
+                oneid = f"UID{new_id:06d}"
+                conn.execute("""INSERT INTO customer_profile (oneid,cust_id,demographics_name,demographics_gender,demographics_age,demographics_city,demographics_income_level,demographics_education,account_primary_card_level,account_total_credit_amount,account_used_amount,account_usage_rate,account_card_count,account_active_cards,account_tenure_months,lifecycle_stage,lifecycle_months_since_open,lifecycle_vip_tier,value_annual_consumption,value_monthly_avg_consumption,value_value_level,risk_risk_level,risk_overdue_status,risk_history_overdue_count_6m,risk_churn_risk_score,long_term_90d_activity_score,long_term_90d_dormancy_risk,generated_at,update_type)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    [oneid,f'C{new_id:06d}',name,'M',age,city,inc,'本科',card,100000,30000,0.3,2,2,24,'成长期',18,'金卡',50000,4166,'medium','low','M0',0,10,45,'medium','2026-07-18','manual_insert'])
+                conn.commit(); conn.close()
+                st.success(f"已INSERT: {oneid} (C{new_id:06d})")
+                st.info("点击顶部'清空缓存'按钮 → 搜索新OneID → 大屏立即可见新客户!")
+                st.caption("生产环境: INSERT → 大屏SELECT → 实时可见 (无需重启)")
+
+        with st.expander("模拟项目三回传(DML)"):
+            oid = st.text_input("目标OneID","UID000001",key="s_oid")
+            amt = st.number_input("转化金额",0,100000,5000,key="s_amt")
+            if st.button("回传转化→DB UPDATE",key="s_fb"):
+                import sqlite3
+                conn = sqlite3.connect(os.path.join(os.path.dirname(DATA),"knowledge_agent.db"))
+                conn.execute("INSERT INTO feedback_events (oneid,event_type,campaign_id,channel,detail,timestamp) VALUES (?,?,?,?,?,datetime('now'))",
+                    [oid,'conversion','DEMO','APP Push',str(amt)])
+                conn.execute("UPDATE customer_profile SET value_annual_consumption=value_annual_consumption+?, value_monthly_avg_consumption=value_monthly_avg_consumption+? WHERE oneid=?",
+                    [amt, amt/12, oid])
+                conn.commit(); conn.close()
+                st.success(f"回传+画像更新: {oid} 年消费+{amt}")
+                st.info("搜索该OneID → 年消费已实时更新! C→A回传闭环完成")
+
     if not btn and not query: query,stype="UID000001","OneID"
     if query:
         oneid=search(query,stype,data)

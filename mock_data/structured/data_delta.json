@@ -1,0 +1,49 @@
+{
+  "last_updated": "2026-07-18T12:38:58.300196",
+  "new_customers": [
+    {
+      "oneid": "UID008001",
+      "cust_id": "C008001",
+      "data": {
+        "name": "张测试",
+        "age": 28,
+        "city": "上海",
+        "amount": 3000,
+        "event_type": "conversion",
+        "merchant": "麦当劳"
+      },
+      "added_at": "2026-07-18T12:37:55.488173",
+      "source": "manual_input"
+    },
+    {
+      "oneid": "UID008002",
+      "cust_id": "C008002",
+      "data": {
+        "name": "张天",
+        "age": 30,
+        "city": "深圳",
+        "income": "H",
+        "event_type": "new_customer"
+      },
+      "added_at": "2026-07-18T12:38:58.300196",
+      "source": "manual_input"
+    }
+  ],
+  "new_transactions": [
+    {
+      "oneid": "UID008001",
+      "amount": 3000,
+      "merchant": "麦当劳",
+      "category": "购物",
+      "time": "2026-07-18T12:37:55.488173"
+    }
+  ],
+  "new_documents": [
+    {
+      "type": "产品",
+      "title": "测试新卡",
+      "content": "这是一张测试用的新信用卡",
+      "added_at": "2026-07-18T12:37:55.498500"
+    }
+  ]
+}
