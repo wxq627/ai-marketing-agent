@@ -195,7 +195,9 @@ def render_intent(oneid, row):
 def render_roi(oneid, row):
     st.subheader("活动效果 & 归因")
     try:
-        conn=get_db(); attr=pd.read_sql(f"SELECT * FROM campaign_attribution WHERE cust_id='{row.get(\"cust_id\",\"\")}'",conn); conn.close()
+        cust_id_val = row.get("cust_id","")
+        sql = "SELECT * FROM campaign_attribution WHERE cust_id=?"
+        conn=get_db(); attr=pd.read_sql(sql, conn, params=[cust_id_val]); conn.close()
         conv=attr[attr["converted"]==True]; rev=conv["conversion_amount"].sum() if len(conv)>0 else 0; cost=attr["touch_cost"].sum() if len(attr)>0 else 1
         c1,c2,c3,c4=st.columns(4)
         c1.metric("触达",f"{len(attr)}次"); c2.metric("转化",f"{len(conv)}次"); c3.metric("归因收入",f"{rev:,.0f}"); c4.metric("ROI",f"{(rev-cost)/cost:.1f}x" if cost>0 else "N/A")
@@ -203,7 +205,8 @@ def render_roi(oneid, row):
     except: st.info("暂无活动数据")
 
 def render_input(oneid, row):
-    st.subheader("手动输入 & 实时更新 (Session内存, T+1写入DB)")
+    st.subheader("手动输入 & 实时更新")
+    st.caption("此Tab为Session临时更新(页面内存, 刷新消失)。永久持久化请使用左侧边栏'项目三回传'(写DB)。")
     if "delta" not in st.session_state: st.session_state.delta = {}
     if "log" not in st.session_state: st.session_state.log = []
     c1,_=st.columns([1,5])
@@ -274,7 +277,10 @@ def main():
             conn.commit(); conn.close(); st.cache_data.clear()
             st.success(f"回传: {oid} 年消费+{amt}")
         st.caption("项目三: POST /api/v1/db/feedback/import")
-        st.caption("OneID = 客户唯一标识 | cust_id = 银行客户号")
+        st.caption("---")
+        st.caption("  DB持久化: 写入SQLite, 点击清空缓存后大屏可见")
+        st.caption("  Tab5 Session: 仅当前页面内存, 刷新后消失")
+        st.caption("OneID=唯一标识 | cust_id=银行客户号")
 
     # === 主面板 ===
     cq,ct,cb,cr=st.columns([3,1,1,1])
