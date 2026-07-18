@@ -72,7 +72,7 @@ def main():
     st.title("  知识图谱 & 知识检索 v4")
     st.caption("DeepSeek 语义向量 | 交互式力导向图 | Neo4j 可导出 | XX银行知识库")
 
-    tab1, tab2, tab3 = st.tabs(["  交互式知识图谱", "  产品 & 权益关系树", "  知识全文检索"])
+    tab1, tab2, tab3, tab4 = st.tabs(["  交互式知识图谱", "  产品 & 权益关系树", "  知识全文检索", "   多模态检索"])
 
     # ====== Tab 1: 交互式图谱 ======
     with tab1:
@@ -168,5 +168,34 @@ def main():
                                f'<b>{r["title"]}</b> <span style="color:#889;font-size:0.7rem">[{r["type"]}] score={r["score"]}</span>'
                                f'<p style="font-size:0.85rem;margin:4px 0">{r["snippet"]}</p></div>', unsafe_allow_html=True)
             else: st.warning("未找到")
+
+    # ====== Tab 4: 多模态检索 (海报+图片) ======
+    with tab4:
+        st.markdown("###  多模态检索 — 海报 & 图片")
+        st.caption("搜索海报图片(已生成12张PNG) | 图像信息提取 | 生产环境: Qwen2.5-VL视觉理解")
+        q = st.text_input("搜索海报", placeholder="如: 双十一 / 新户 / 出行 / 唤醒", key="mm_query")
+        if q:
+            from multimodal_engine import multimodal_search
+            results = multimodal_search(q, top_k=8)
+            if results:
+                st.success(f"找到 {len(results)} 条")
+                for r in results:
+                    img_path = r.get("image_path","")
+                    c1, c2 = st.columns([1, 3])
+                    with c1:
+                        if img_path and os.path.exists(img_path):
+                            st.image(img_path, width=200, caption=r.get("title",""))
+                        else:
+                            st.markdown(f"[{r.get('source_type','')}]")
+                    with c2:
+                        st.markdown(f"**{r['title']}**")
+                        st.caption(r.get("content",""))
+                        if r.get("rules"):
+                            for rule in r["rules"][:3]:
+                                st.caption(f"  {rule}")
+                        if r.get("visual_style"):
+                            st.caption(f"风格: {r['visual_style']}")
+            else:
+                st.info("无匹配海报, 尝试其他关键词")
 
 if __name__ == "__main__": main()
