@@ -201,10 +201,14 @@ def render_intent(oneid,row):
         for s in p["sub_signals"][:5]:
             st.caption(f"  • {s['signal']}: 实际值={s['value']}, 触发阈值={s['threshold']}, 贡献={s['weight']}分")
 
-    # 情感分析 — 直接基于客户真实数据计算(不再经过LLM丢失信号)
+    # 情感分析 — 优先 DeepSeek, 降级7因子计算
     st.markdown("---")
     st.markdown("### 情感分析")
-    st.caption("基于客户逾期次数/流失分/风险等级/搜索词/生命周期/活跃度 综合计算")
+    try:
+        from llm_client import is_available as llm_ok
+        if llm_ok(): st.caption("DeepSeek 实时语义分析")
+        else: st.caption("本地7因子计算 (设置 DEEPSEEK_API_KEY 启用 DeepSeek)")
+    except: st.caption("基于客户逾期/流失/风险/搜索/生命周期/活跃度综合计算")
 
     # === 焦虑度计算 (0-100) ===
     anxiety = 20  # 基础焦虑
