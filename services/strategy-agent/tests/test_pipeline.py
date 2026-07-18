@@ -301,6 +301,8 @@ def test_kmeans_personas_cover_the_selected_audience_when_dependency_is_availabl
     assert sum(segment.size for segment in plan.segments) == plan.audience_size
     assert plan.persona_feature_names
     assert all(segment.strategy["content_direction"] for segment in plan.segments)
+    assert all(segment.strategy["cluster_feature_priorities"] for segment in plan.segments)
+    assert all("数据驱动群像" in segment.name for segment in plan.segments)
     package = build_strategy_package(plan)
     assert len(package["content_brief"]["persona_content_briefs"]) == DEFAULT_CLUSTER_COUNT
 
