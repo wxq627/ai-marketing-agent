@@ -3,10 +3,12 @@
 ==================================
 ① 文档加载 (TXT/JSON/CSV)
 ② 文本切片 (RecursiveCharacterTextSplitter风格, chunk_size=800, overlap=100)
-③ 向量化 (TF-IDF, 生产环境替换为 Qwen3-Embedding-0.6B)
+③ 向量化 (DeepSeek Embedding, 降级为 TF-IDF)
 """
-import os, json, glob, re, numpy as np
+import os, sys, json, glob, re, numpy as np
 from typing import List, Dict, Any
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from llm_client import embed as deepseek_embed, is_available as deepseek_available
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -46,12 +48,20 @@ class DocPipeline:
 
         print(f"Loaded {len(self.chunks)} chunks from {len(txt_files)} documents + CSV")
 
-        # 3. 向量化
+        # 3. 向量化 — 优先 DeepSeek, 降级 TF-IDF
         if self.chunks:
             texts = [c["text"] for c in self.chunks]
-            self.vectorizer = TfidfVectorizer(max_features=2000, ngram_range=(1,2))
-            self.embeddings = self.vectorizer.fit_transform(texts)
-            print(f"TF-IDF vectorized: {self.embeddings.shape[1]} dimensions")
+            if deepseek_available():
+                print("Using DeepSeek Embedding...")
+                self.embeddings = deepseek_embed(texts)
+                self._use_deepseek = True
+                print(f"DeepSeek vectorized: {self.embeddings.shape[1]} dimensions")
+            else:
+                print("DeepSeek unavailable, using TF-IDF fallback...")
+                self.vectorizer = TfidfVectorizer(max_features=2000, ngram_range=(1,2))
+                self.embeddings = self.vectorizer.fit_transform(texts)
+                self._use_deepseek = False
+                print(f"TF-IDF vectorized: {self.embeddings.shape[1]} dimensions")
 
         return self
 
@@ -98,11 +108,20 @@ class DocPipeline:
                         })
 
     def search(self, query: str, top_k: int = 5) -> List[Dict]:
-        """TF-IDF 向量相似检索。"""
-        if self.vectorizer is None or self.embeddings is None:
+        """向量相似检索 — DeepSeek Embedding 或 TF-IDF。"""
+        if self.embeddings is None:
             return []
-        q_vec = self.vectorizer.transform([query])
-        scores = cosine_similarity(q_vec, self.embeddings)[0]
+
+        if getattr(self, '_use_deepseek', False):
+            # DeepSeek: numpy 数组, 直接算余弦相似度
+            q_vec = deepseek_embed(query)
+            if q_vec.ndim == 1: q_vec = q_vec.reshape(1, -1)
+            scores = cosine_similarity(q_vec, self.embeddings)[0]
+        else:
+            # TF-IDF: 稀疏矩阵
+            if self.vectorizer is None: return []
+            q_vec = self.vectorizer.transform([query])
+            scores = cosine_similarity(q_vec, self.embeddings)[0]
         top_indices = np.argsort(scores)[-top_k:][::-1]
         results = []
         for idx in top_indices:

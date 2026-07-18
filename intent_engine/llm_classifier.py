@@ -1,20 +1,24 @@
 """
 LLM语义分类 + 情感分析 — llm_classifier.py
 =============================================
-第二层: 对ASR对话文本等需深度理解的信号, 用LLM做语义分析。
+第二层: 对ASR对话文本等需深度理解的信号, 用DeepSeek做语义分析。
 
-当前Mock阶段: 基于规则+关键词模拟LLM输出。
-生产环境: 替换为 Qwen3-8B API 调用。
+DeepSeek可用时: 调用 classify_intent() / analyze_sentiment()
+DeepSeek不可用时: 降级为本地关键词规则匹配
 """
 
-import os, json, re, random
+import os, sys, json, re, random
 from typing import Dict, List, Any
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from llm_client import classify_intent as deepseek_classify, analyze_sentiment as deepseek_sentiment, is_available
 
 
 class LLMClassifier:
-    """第二层: LLM语义分类器 (Mock版用规则模拟, 生产版替换为Qwen3-8B)。"""
+    """第二层: LLM语义分类器 (DeepSeek优先, 降级关键词规则)。"""
 
-    def __init__(self, mock_mode: bool = True):
+    def __init__(self, mock_mode: bool = None):
+        if mock_mode is None:
+            mock_mode = not is_available()
         self.mock_mode = mock_mode
         self.intent_keywords = {
             "分期/借贷需求": ["分期", "手续费", "账单", "还不上", "压力", "最低还款", "12期"],
@@ -34,14 +38,23 @@ class LLMClassifier:
     def classify(self, conversation_text: str) -> Dict:
         """
         分析客服对话/智能体对话, 识别意图和情感。
-
-        输入: ASR对话全文或项目三回传的对话摘要
-        输出: {primary_intent, intent_score, sentiment, urgency, key_phrases}
+        DeepSeek可用→直接调用API; 不可用→关键词规则降级。
         """
-        if self.mock_mode:
-            return self._mock_classify(conversation_text)
-        else:
-            return self._llm_classify(conversation_text)
+        if not self.mock_mode:
+            try:
+                result = deepseek_classify(conversation_text)
+                # 标准化输出格式
+                return {
+                    "primary_intent": result.get("primary_intent", "分期借贷需求"),
+                    "intent_score": result.get("intent_score", 50),
+                    "sentiment": result.get("sentiment", "中性"),
+                    "urgency": result.get("urgency", "中"),
+                    "key_phrases": result.get("key_phrases", []),
+                    "all_intents": result.get("all_intents", {}),
+                }
+            except:
+                pass
+        return self._mock_classify(conversation_text)
 
     def _mock_classify(self, text: str) -> Dict:
         """Mock: 基于关键词规则模拟LLM分类"""
