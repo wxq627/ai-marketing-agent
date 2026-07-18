@@ -165,22 +165,70 @@ def extract_from_image(image_path: str, use_llm: bool = False) -> Dict:
     }
 
 
-def multimodal_search(query: str, top_k: int = 5) -> List[Dict]:
+def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
     """
     多模态搜索: 同时搜索文档+海报图片。
 
-    输入: "双十一有什么活动" → 搜索文档 + 匹配海报JSON/图片
+    算法: 两步匹配
+      Step1: 关键词匹配 (滑动窗口n-gram, 阈值自适应查询长度)
+      Step2: DeepSeek Embedding语义匹配 (可选, 理解"返现≈返利")
+
+    输入: "返现" → 搜索所有海报JSON字段(含rules/target_segment等)
     """
     results = []
 
-    # 1. 搜索海报JSON
+    # 自适应阈值: 短词降低门槛
+    qlen = len(query)
+    if qlen <= 2: threshold = 2   # "返现"=2字→阈值为2
+    elif qlen <= 4: threshold = 5 # "618购物"=4字→阈值为5
+    else: threshold = 8            # 长句→阈值为8
+
+    # === Step1: 全文关键词匹配 ===
     json_files = glob.glob(os.path.join(POSTERS_DIR, "*.json"))
     for fp in json_files:
         with open(fp, "r", encoding="utf-8") as f:
             data = json.load(f)
-        text = json.dumps(data, ensure_ascii=False)
-        score = sum(text.count(q) * (i + 1) for i, q in enumerate([query[i:i+L] for L in [4, 3, 2] for i in range(len(query) - L + 1)]))
-        if score > 5:
+
+        # 搜索所有字段 (不只是title): 活动名+标题+副标题+每条规则+客群+视觉描述
+        all_texts = [
+            data.get("activity_name", ""),
+            data.get("main_title", ""),
+            data.get("sub_title", ""),
+            data.get("visual_description", ""),
+            data.get("target_segment", ""),
+            data.get("cta_text", ""),
+        ]
+        all_texts.extend(data.get("rules_summary", []))
+        full_text = " ".join(all_texts)
+
+        # 滑动窗口n-gram评分
+        score = 0
+        terms = set()
+        for L in [min(4, qlen), min(3, qlen), 2]:
+            for i in range(max(1, qlen - L + 1)):
+                term = query[i:i+L]
+                if term and len(term) >= 2 and term not in terms:
+                    terms.add(term)
+                    cnt = full_text.count(term)
+                    score += cnt * len(term)
+
+        # DeepSeek Embedding 语义相似度 (可选增强)
+        semantic_bonus = 0
+        try:
+            from llm_client import embed as ds_embed, is_available
+            if is_available():
+                q_vec = ds_embed(query)
+                # 对海报主要文本做embedding
+                main_text = data.get("main_title","") + " " + data.get("sub_title","") + " " + " ".join(data.get("rules_summary",[])[:3])
+                if main_text.strip():
+                    t_vec = ds_embed(main_text)
+                    sim = float(np.dot(q_vec, t_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(t_vec) + 1e-8))
+                    semantic_bonus = int(sim * 20)  # 0-20分
+        except:
+            import numpy as np  # 确保numpy可用
+
+        total_score = score + semantic_bonus
+        if total_score >= threshold:
             img_file = data.get("image_file", "")
             img_path = os.path.join(POSTERS_IMG_DIR, img_file) if img_file else ""
             results.append({
@@ -189,32 +237,38 @@ def multimodal_search(query: str, top_k: int = 5) -> List[Dict]:
                 "content": f"{data.get('main_title','')} | {data.get('sub_title','')}",
                 "rules": data.get("rules_summary", [])[:3],
                 "image_path": img_path if os.path.exists(img_path) else "",
-                "score": score,
+                "score": total_score,
+                "keyword_match": score,
+                "semantic_match": semantic_bonus,
+                "method": "keyword_ngram" + (" + DeepSeek" if semantic_bonus > 0 else ""),
             })
 
-    # 2. 如果有图片, 提取信息
+    # === Step2: 图像文本提取匹配 ===
     img_files = glob.glob(os.path.join(POSTERS_IMG_DIR, "*.png"))
     for fp in img_files:
         info = extract_from_image(fp)
         extracted = info.get("extracted", {})
-        content = f"{extracted.get('activity_name','')} {extracted.get('main_title','')} {extracted.get('sub_title','')}"
-        score = sum(content.count(q) for q in query.split() if len(q) >= 2)
-        if score > 3:
+        content = f"{extracted.get('activity_name','')} {extracted.get('main_title','')} {extracted.get('sub_title','')} {' '.join(extracted.get('rules',[]))}"
+        score = 0
+        for L in [min(3, qlen), 2]:
+            for i in range(max(1, qlen - L + 1)):
+                term = query[i:i+L]
+                if len(term) >= 2:
+                    score += content.count(term) * len(term)
+        if score >= threshold:
             results.append({
                 "source_type": "poster_image",
                 "title": extracted.get("activity_name", ""),
-                "content": content,
+                "content": content[:150],
                 "rules": extracted.get("rules", [])[:3],
                 "image_path": fp,
                 "visual_style": extracted.get("visual_style", ""),
                 "score": score,
-                "method": info.get("method", ""),
+                "method": info.get("method", "keyword"),
             })
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    # 去重
-    seen = set()
-    unique = []
+    seen = set(); unique = []
     for r in results:
         k = r["title"][:30]
         if k not in seen: seen.add(k); unique.append(r)
