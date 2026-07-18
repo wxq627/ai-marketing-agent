@@ -14,3 +14,5 @@ build/
 .DS_Store
 Thumbs.db
 *.log
+services/strategy-agent/artifacts/
+services/strategy-agent/data/
