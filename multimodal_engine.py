@@ -113,6 +113,32 @@ def ocr_extract(image_path: str) -> str:
 # ================================================================
 # 多模态搜索 (OCR + 字符级匹配 + DeepSeek语义)
 # ================================================================
+# === 内置中文同义词词典 (严格版: 仅高置信度同义词) ===
+SYNONYM_DICT = {
+    "返现": ["返利","立减","满减"],
+    "天猫": ["淘宝","电商"],
+    "大促": ["促销","特价","狂欢"],
+    "分期": ["免息","账单分期","消费分期"],
+    "出行": ["旅游","旅行","度假"],
+    "优惠": ["折扣","立减","特价"],
+    "购物": ["电商","网购"],
+    "贵宾厅": ["lounge","候机"],
+    "接送机": ["接机","送机","专车"],
+    "延误险": ["航班延误","赔付"],
+    "唤醒": ["召回","重激活"],
+    "毕业生": ["转卡"],
+    "新户": ["首刷","开卡礼"],
+}
+
+def _expand_query(query: str) -> str:
+    """用同义词词典扩展查询, 让'快乐'也能搜到'开心'/'愉快'。"""
+    expanded = query
+    for word, synonyms in SYNONYM_DICT.items():
+        if word in query:
+            expanded += " " + " ".join(synonyms)
+    return expanded
+
+
 def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
     """
     多模态搜索 — 对任意长度关键词都有效。
@@ -123,6 +149,8 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
       Step3: 排序去重, 返回Top-K
     """
     results = []
+    # 同义词扩展: "快乐" → "快乐 开心 高兴 愉快 欢乐 喜悦 幸福"
+    expanded_query = _expand_query(query)
     qlen = len(query)
 
     # 自适应阈值: 短词降低门槛
@@ -136,9 +164,10 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
         ocr_text = ocr_extract(fp)
         if not ocr_text: continue
 
-        # Step1: 字符级精准匹配
+        # Step1: 字符级精准匹配 (对扩展后的查询做匹配, 提高召回)
         kw_score = 0
         matched = set()
+        search_terms = expanded_query.split()  # 扩展后的所有词
         # 提取查询中的1-4字子串, 在OCR文本中计数
         for L in [min(4, qlen), min(3, qlen), min(2, qlen), 1]:
             for i in range(max(1, qlen - L + 1)):
@@ -148,6 +177,13 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
                     cnt = ocr_text.count(term)
                     if cnt > 0:
                         kw_score += cnt * len(term)  # 长词匹配权重更高
+
+        # 同义词匹配加分
+        for syn_term in search_terms[1:]:  # 跳过第一个(是原词)
+            cnt = ocr_text.count(syn_term)
+            if cnt > 0:
+                kw_score += cnt * len(syn_term)
+                matched.add(syn_term)
 
         # 查重: 搜索词和海报标题的精准匹配度
         info = _poster_info(fp)
@@ -179,7 +215,7 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
                 "method": "OCR+CharMatch" + ("+DeepSeek语义" if sem_score > 0 else ""),
             })
 
-    # === 也搜JSON ===
+    # === 也搜JSON (扩展查询) ===
     for fp in glob.glob(os.path.join(POSTERS_DIR, "*.json")):
         with open(fp, "r", encoding="utf-8") as f: data = json.load(f)
         text = _all_text(data)
@@ -188,6 +224,10 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
             for i in range(max(1, qlen - L + 1)):
                 term = query[i:i+L]
                 if term: kw_score += text.count(term) * len(term)
+        # 同义词加分
+        for syn_term in expanded_query.split()[1:]:
+            cnt = text.count(syn_term)
+            if cnt > 0: kw_score += cnt * len(syn_term)
         if kw_score >= threshold:
             img_file = data.get("image_file", "")
             img_path = os.path.join(POSTERS_IMG_DIR, img_file) if img_file else ""
@@ -201,12 +241,18 @@ def multimodal_search(query: str, top_k: int = 8) -> List[Dict]:
                 "method": "JSON+CharMatch",
             })
 
-    # 排序去重
+    # 排序去重 + 相关性过滤
     results.sort(key=lambda x: x["score"], reverse=True)
+    # 计算最高分, 过滤掉分数太低的 (不超过最高分的15%就不显示)
+    max_score = max((r["score"] for r in results), default=0)
     seen = set(); unique = []
     for r in results:
         k = r["title"][:30]
-        if k not in seen: seen.add(k); unique.append(r)
+        if k in seen: continue
+        # 相关性过滤: 分数低于最高分15%的不显示
+        if r["score"] < max_score * 0.20:
+            continue
+        seen.add(k); unique.append(r)
     return unique[:top_k]
 
 
