@@ -43,15 +43,13 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "mock_data", "structured")
 
 # 每层深度各类型最大节点数（防止可视化爆炸）
-# 设计原则: depth=1 展示核心关联, depth>=2 只展示最有价值的间接关联
 DEPTH_LIMITS = {
-    1: {"customer": 5, "card": 4, "product": 6, "benefit": 18, "campaign": 6, "document": 3, "installment_rule": 3},
-    2: {"customer": 3, "card": 2, "product": 4, "benefit": 8,  "campaign": 3, "document": 0, "installment_rule": 0},
-    3: {"customer": 2, "card": 1, "product": 2, "benefit": 4,  "campaign": 2, "document": 0, "installment_rule": 0},
+    1: {"customer": 5, "card": 3, "product": 5, "benefit": 15, "campaign": 5, "document": 2, "installment_rule": 3},
+    2: {"customer": 2, "card": 1, "product": 3, "benefit": 5,  "campaign": 2, "document": 0, "installment_rule": 0},
+    3: {"customer": 1, "card": 1, "product": 2, "benefit": 3,  "campaign": 1, "document": 0, "installment_rule": 0},
 }
-# depth=1 总节点上限
-MAX_NODES_DEPTH1 = 55
-MAX_NODES_DEPTH2 = 80
+MAX_NODES_DEPTH1 = 45
+MAX_NODES_DEPTH2 = 55
 
 
 class KnowledgeGraph:

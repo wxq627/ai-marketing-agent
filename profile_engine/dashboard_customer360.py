@@ -93,7 +93,7 @@ def render_static(row, oneid):
         vl=g(row,'value_value_level',''); vc={"high":"cg","medium":"#64b5f6","low":"#889"}.get(vl,"gray")
         st.markdown(f'等级:<span style="color:{vc};font-weight:bold">{vl}</span>',unsafe_allow_html=True)
 
-def render_dynamic(row, oneid):
+def render_dynamic(row, oneid, intent_data=None):
     st.subheader("动态记忆 — 五类信号")
     kw=str(g(row,"short_term_7d_top_search_keywords","")); words=[x.strip().split("×")[0] for x in kw.split(",") if x.strip()] if kw and kw!="nan" else []
     br=str(g(row,"mid_term_30d_browse_preferences","")); browses=[x.strip() for x in br.split(",") if x.strip()] if br and br!="nan" else []
@@ -124,38 +124,133 @@ def render_dynamic(row, oneid):
         st.plotly_chart(fig,use_container_width=True)
     with c2:
         st.subheader("意图雷达")
-        intents={"分期":random.randint(20,90),"出行":random.randint(10,60),"升级":random.randint(10,50),"权益":random.randint(15,70),"流失":random.randint(5,40),"激活":random.randint(5,30)}
-        fig2=go.Figure(data=go.Scatterpolar(r=list(intents.values()),theta=list(intents.keys()),fill='toself',marker=dict(color='#64b5f6')))
-        fig2.update_layout(height=250,margin=dict(l=40,r=40,t=10,b=10),polar=dict(radialaxis=dict(range=[0,100])),paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',font=dict(color='#aaa'))
-        st.plotly_chart(fig2,use_container_width=True)
+        if intent_data and intent_data.get("radar"):
+            radar = intent_data["radar"]
+            fig2 = go.Figure(data=go.Scatterpolar(
+                r=list(radar.values()), theta=list(radar.keys()),
+                fill='toself', marker=dict(color='#64b5f6')
+            ))
+        else:
+            fig2 = go.Figure(data=go.Scatterpolar(
+                r=[0,0,0,0,0,0], theta=["分期","出行","升级","权益","流失","激活"],
+                fill='toself', marker=dict(color='#555')
+            ))
+        fig2.update_layout(height=250, margin=dict(l=40,r=40,t=10,b=10),
+                          polar=dict(radialaxis=dict(range=[0,100])),
+                          paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                          font=dict(color='#aaa'))
+        st.plotly_chart(fig2, use_container_width=True)
 
-def render_intent(oneid, row):
-    st.subheader("  意图识别 & 情感分析")
-    search_kw = str(g(row,"short_term_7d_top_search_keywords",""))
-    overdue_cnt = int(g(row,"risk_history_overdue_count_6m",0))
-    churn_score = int(g(row,"risk_churn_risk_score",0))
-    risk_level = g(row,"risk_risk_level","low")
-    lifecycle = g(row,"lifecycle_stage","")
-    # 六类意图评分
+
+# ═══════════════════════════════════════
+# 统一意图计算 (DeepSeek → RuleScorer → CSV)
+# ═══════════════════════════════════════
+@st.cache_data(ttl=300, show_spinner=False)
+def compute_intent(oneid: str, lifecycle: str, card_level: str,
+                   search_kw: str, browse_prefs: str,
+                   overdue_cnt: int, risk_level: str,
+                   usage_rate: float, income_level: str) -> dict:
+    """统一意图数据源 — Tab2雷达图 + Tab3意图评分 共用此结果。"""
+    result = {"intents": [], "primary_intent": "无", "radar": {}, "ds_used": False}
+
+    # 方案1: DeepSeek
+    try:
+        from llm_client import classify_intent, is_available
+        if is_available():
+            conv_text = (f"客户: 生命周期={lifecycle}, 卡={card_level}, "
+                        f"搜索={search_kw[:100]}, 浏览={browse_prefs[:100]}")
+            ds = classify_intent(conv_text)
+            if ds and isinstance(ds, dict):
+                intent_map = {
+                    "分期借贷需求": "分期需求", "跨境出行需求": "出行需求",
+                    "额度升级需求": "额度升级", "权益优惠需求": "权益需求",
+                    "沉睡流失风险": "流失风险", "新户激活引导": "激活引导",
+                }
+                raw = ds.get("primary_intent", "")
+                name = intent_map.get(raw, raw[:6] if raw else "其他")
+                score = ds.get("intent_score", 50)
+                result["intents"].append({
+                    "type": name, "score": score,
+                    "confidence": "high" if score >= 70 else ("medium" if score >= 40 else "low"),
+                    "sub_signals": [{"signal": s, "weight": 10}
+                                    for s in ds.get("key_phrases", [])[:3]],
+                })
+                result["primary_intent"] = name
+                result["radar"] = {
+                    "分期": min(score if "分期" in raw else 30, 100),
+                    "出行": min(score if "出行" in raw else 20, 100),
+                    "升级": min(score if "升级" in raw else 20, 100),
+                    "权益": min(score if "权益" in raw else 25, 100),
+                    "流失": min(ds.get("anxiety_score", 20), 100),
+                    "激活": min(100 - ds.get("anxiety_score", 20), 100),
+                }
+                result["ds_used"] = True
+                return result
+    except Exception:
+        pass
+
+    # 方案2: RuleScorer
     try:
         from intent_engine.rule_scorer import RuleScorer
-        scorer=RuleScorer()
-        profile={"lifecycle_stage":lifecycle,"usage_rate":float(g(row,"account_usage_rate",0)),"income_level":g(row,"demographics_income_level",""),"card_level":g(row,"account_primary_card_level","")}
-        events={"search_keywords":search_kw,"browse_pages":str(g(row,"mid_term_30d_browse_preferences","")),"overdue_count":overdue_cnt,"min_payment_count":int(g(row,"risk_min_payment_frequency_6m",0)),"complaint_count":1 if risk_level=="high" else 0}
-        result=scorer.score_all(profile,events)
-    except:
-        result={"intents":[],"primary_intent":"无"}
-        try:
-            iv=pd.read_csv(os.path.join(BASE,"mock_data","structured","intent_vector.csv"))
-            ir=iv[iv["cust_id"]==row.get("cust_id","")]
-            if len(ir)>0:
-                scores=json.loads(ir.iloc[0]["intent_json"]) if isinstance(ir.iloc[0]["intent_json"],str) else {}
-                for t,s in scores.items():
-                    conf="high" if s>=70 else ("medium" if s>=40 else "low")
-                    result["intents"].append({"type":t,"score":s,"confidence":conf,"sub_signals":[]})
-                result["primary_intent"]=ir.iloc[0]["primary_intent"]
-        except: pass
-    if not result["intents"]: st.info("暂无意图数据"); return
+        scorer = RuleScorer()
+        profile = {"lifecycle_stage": lifecycle, "usage_rate": usage_rate,
+                   "income_level": income_level, "card_level": card_level}
+        events = {"search_keywords": search_kw, "browse_pages": browse_prefs,
+                  "overdue_count": overdue_cnt,
+                  "min_payment_count": 0, "complaint_count": 1 if risk_level == "high" else 0}
+        result = scorer.score_all(profile, events)
+        if result.get("intents"):
+            radar = {}
+            for it in result["intents"]:
+                radar[it["type"][:4]] = it["score"]
+            result["radar"] = radar
+        return result
+    except Exception:
+        pass
+
+    # 方案3: CSV
+    result["radar"] = {"分期": 0, "出行": 0, "升级": 0, "权益": 0, "流失": 0, "激活": 0}
+    return result
+
+
+def render_intent(oneid, row, intent_data=None):
+    """意图识别 & 情感分析 — 使用预计算的 intent_data。"""
+    st.subheader("  意图识别 & 情感分析")
+
+    if intent_data is None:
+        intent_data = {}
+
+    search_kw = str(g(row, "short_term_7d_top_search_keywords", ""))
+    overdue_cnt = int(g(row, "risk_history_overdue_count_6m", 0))
+    churn_score = int(g(row, "risk_churn_risk_score", 0))
+    risk_level = g(row, "risk_risk_level", "low")
+    result = intent_data
+    ds_used = result.get("ds_used", False)
+
+    # ── 六类意图评分 ──
+    if not result.get("intents"):
+        st.info("暂无意图数据 (设置 DEEPSEEK_API_KEY 启用 LLM 实时分析)")
+    else:
+        src_tag = "  DeepSeek 实时分析" if ds_used else "  规则引擎"
+        st.markdown(f"### 六类意图评分{src_tag}")
+        cols = st.columns(min(6, len(result["intents"])))
+        for i, intent in enumerate(result["intents"]):
+            with cols[i % 6]:
+                s = intent["score"]
+                bg = "#ef5350" if s >= 70 else ("#ffa726" if s >= 40 else "#64b5f6")
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;text-align:center;border-left:3px solid {bg}">'
+                    f'<p style="font-size:0.6rem;color:#889;margin:0">{intent["type"][:6]}</p>'
+                    f'<h2 style="color:{bg};margin:4px 0">{s}</h2>'
+                    f'<p style="font-size:0.6rem;color:#889;margin:0">{intent["confidence"]}</p></div>',
+                    unsafe_allow_html=True,
+                )
+        # 主意图
+        primary = [i for i in result["intents"] if i["type"] == result.get("primary_intent")]
+        if primary and primary[0].get("sub_signals"):
+            p = primary[0]
+            st.markdown(f"**主意图: {result.get('primary_intent','')}** ({p['score']}分)")
+            st.caption(" + ".join([f"{s['signal'][:12]}({s['weight']}分)" for s in p["sub_signals"]]) if p["sub_signals"] else "")
     st.markdown("### 六类意图评分")
     cols=st.columns(6)
     for i,intent in enumerate(result["intents"]):
@@ -339,33 +434,91 @@ def main():
         s = data.get("stats",{})
         st.metric("客户",f"{s.get('customer_profile',8000):,}"); st.metric("回传",s.get('feedback_events',0)); st.caption(s.get('db_size',''))
         st.markdown("---")
-        st.markdown("###  新增客户(DB INSERT)")
-        name=st.text_input("姓名","Demo",key="s1"); city=st.selectbox("城市",["深圳","上海","北京","广州","杭州"],key="s2")
-        age=st.number_input("年龄",18,65,30,key="s3"); inc=st.selectbox("收入",["H","M","L"],key="s4")
-        card=st.selectbox("卡等级",["金卡","白金卡","普卡","钻石卡","校园卡"],key="s5"); annual=st.number_input("年消费",0,500000,80000,key="s6")
-        if st.button("INSERT到DB",use_container_width=True):
-            conn=get_db()
-            max_id=conn.execute("SELECT MAX(CAST(SUBSTR(cust_id,2) AS INTEGER)) FROM customer_profile WHERE cust_id LIKE 'C%'").fetchone()[0] or 8000
-            conn.close(); new_id=max_id+1; oneid=f"UID{new_id:06d}"
-            conn=get_db()
-            conn.execute("""INSERT INTO customer_profile (oneid,cust_id,demographics_name,demographics_gender,demographics_age,demographics_city,demographics_occupation,demographics_income_level,demographics_education,account_primary_card_level,account_total_credit_amount,account_used_amount,account_usage_rate,account_card_count,account_active_cards,account_tenure_months,lifecycle_stage,lifecycle_months_since_open,lifecycle_vip_tier,value_annual_consumption,value_monthly_avg_consumption,value_value_level,risk_risk_level,risk_overdue_status,risk_history_overdue_count_6m,risk_churn_risk_score,long_term_90d_activity_score,long_term_90d_dormancy_risk,generated_at,update_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                [oneid,f"C{new_id:06d}",name,'M',age,city,'IT',inc,'本科',card,200000,50000,0.25,2,2,12,'成长期',12,'金卡',annual,annual/12,'medium','low','M0',0,5,50,'medium',datetime.now().strftime("%Y-%m-%d"),'manual'])
-            conn.commit(); conn.close(); st.cache_data.clear()
-            st.success(f"INSERT: {oneid} (C{new_id:06d}) | 姓名={name}")
-            st.info(f"搜索框输入 {name} 或 {oneid} → 立即可见!")
+        st.markdown("###  新增客户 (全新开户)")
+        st.caption("从未办卡·无历史·生命周期=新户")
+        name  = st.text_input("姓名*", key="s1", placeholder="必填")
+        c1, c2 = st.columns(2)
+        with c1: gender = st.selectbox("性别", ["M","F"], key="s1g", format_func=lambda x: "男" if x=="M" else "女")
+        with c2: age    = st.number_input("年龄", 18, 65, 25, key="s3")
+        city = st.selectbox("城市", ["深圳","上海","北京","广州","杭州","成都","武汉","南京"], key="s2")
+        c1, c2 = st.columns(2)
+        with c1: edu  = st.selectbox("学历", ["本科","硕士","博士","大专","高中"], key="s1e")
+        with c2: occ  = st.selectbox("职业", ["IT/互联网","金融/银行","企业/贸易","公务员/事业","学生","其他"], key="s1o")
+        c1, c2 = st.columns(2)
+        with c1: inc  = st.selectbox("收入等级", ["H","M","L"], key="s4", format_func=lambda x: {"H":"高","M":"中","L":"低"}.get(x,x))
+        with c2: card = st.selectbox("办卡等级", ["金卡","白金卡","普卡","钻石卡","校园卡"], key="s5")
+        credit = st.number_input("授信额度", 5000, 500000, 50000, 10000, key="s5c")
+        if st.button("  开户入网", use_container_width=True, type="primary"):
+            if not name:
+                st.error("请输入姓名")
+            else:
+                try:
+                    conn = get_db()
+                    max_id = conn.execute(
+                        "SELECT MAX(CAST(SUBSTR(cust_id,2) AS INTEGER)) FROM customer_profile WHERE cust_id LIKE 'C%'"
+                    ).fetchone()[0] or 8000
+                    conn.close()
+                    new_id = max_id + 1
+                    oneid = f"UID{new_id:06d}"
+                    cust_id = f"C{new_id:06d}"
+
+                    from db_store import customer_insert
+                    r = customer_insert({
+                        "oneid": oneid, "cust_id": cust_id,
+                        "demographics_name": name, "demographics_gender": gender,
+                        "demographics_age": age, "demographics_city": city,
+                        "demographics_education": edu, "demographics_occupation": occ,
+                        "demographics_income_level": inc,
+                        "account_primary_card_level": card,
+                        "account_total_credit_amount": credit,
+                    })
+                    if r.get("status") == "ok":
+                        st.cache_data.clear()
+                        st.success("  新户开户成功!")
+                        st.markdown(f"**{name}** | `{oneid}` | {cust_id}")
+                        st.caption(f"学历={edu} 职业={occ} | 卡={card} 授信={credit:,} | 生命周期=新户 | 历史=空")
+                        st.info(f"搜索框输入 {name} 或 {oneid} → 查看客户360")
+                    else:
+                        st.error(f"开户失败: {r.get('message','未知错误')}")
+                except Exception as e:
+                    st.error(f"开户异常: {e}")
+
         st.markdown("---")
-        st.markdown("###  项目三回传")
-        oid=st.text_input("OneID","UID000001",key="s7"); amt=st.number_input("金额",0,100000,5000,key="s8")
-        if st.button("回传→UPDATE DB",use_container_width=True):
-            conn=get_db()
-            conn.execute("INSERT INTO feedback_events (oneid,event_type,campaign_id,channel,detail,timestamp) VALUES (?,?,?,?,?,datetime('now'))",[oid,'conversion','DEMO','APP Push',str(amt)])
-            conn.execute("UPDATE customer_profile SET value_annual_consumption=value_annual_consumption+?, value_monthly_avg_consumption=value_monthly_avg_consumption+? WHERE oneid=?",[float(amt),float(amt)/12,oid])
-            conn.commit(); conn.close(); st.cache_data.clear()
-            st.success(f"回传: {oid} 年消费+{amt}")
-        st.caption("项目三: POST /api/v1/db/feedback/import")
+        st.markdown("###  模拟回传 (测试)")
+        evt_type = st.selectbox("事件类型", ["click","reject","conversation","conversion"], key="s7t",
+                                format_func=lambda x: {"click":"点击感兴趣","reject":"拒绝","conversation":"对话","conversion":"消费转化"}.get(x,x))
+        oid = st.text_input("OneID", "UID000001", key="s7")
+        if evt_type == "conversation":
+            summary = st.text_input("对话摘要", "咨询分期费率", key="s7s")
+            intent = st.selectbox("意图", ["分期需求","权益咨询","额度升级","账户问题","销户咨询","其他"], key="s7i")
+            sentiment = st.selectbox("情绪", ["中性","满意","焦虑","不满"], key="s7se")
+            concerns = st.text_input("关注话题(逗号分隔)", "分期费率,手续费", key="s7c")
+        elif evt_type == "conversion":
+            amt = st.number_input("金额", 0, 100000, 5000, key="s8")
+        else:
+            campaign = st.text_input("活动ID", "CAMP_2026_DOUBLE11", key="s7ca")
+
+        if st.button("  发送回传", use_container_width=True):
+            from db_store import feedback_insert
+            event = {"oneid": oid, "event_type": evt_type, "channel": "APP Push", "campaign_id": ""}
+            if evt_type == "conversation":
+                event.update({"summary": summary, "intent": intent, "sentiment": sentiment,
+                              "top_concerns": [c.strip() for c in concerns.split(",") if c.strip()]})
+            elif evt_type == "conversion":
+                event["amount"] = amt; event["detail"] = {"amount": amt}
+            elif evt_type in ("click","reject"):
+                event["campaign_id"] = campaign
+            r = feedback_insert(event)
+            st.cache_data.clear()
+            st.success(f"回传成功: {r.get('event_type')} | {oid}")
+            if r.get("profile_updated"):
+                st.caption(f"画像更新: {r['profile_updated']}")
+            if r.get("signals"):
+                st.caption(f"信号: {r['signals']}")
+        st.caption("生产: POST /api/v1/db/feedback/import")
         st.caption("---")
         st.caption("  DB持久化: 写入SQLite, 点击清空缓存后大屏可见")
-        st.caption("  Tab5 Session: 仅当前页面内存, 刷新后消失")
+        st.caption("  Tab5 Session: 仅页面内存, 刷新消失")
         st.caption("OneID=唯一标识 | cust_id=银行客户号")
 
     # === 主面板 ===
@@ -385,12 +538,25 @@ def main():
         name=g(row,"demographics_name"); cid=row.get("cust_id","")
         st.markdown(f"## {name} | `{oneid}` | {cid}")
         st.caption(f"OneID=系统唯一标识 | cust_id=银行客户号 | 搜索支持: 姓名/手机号/OneID/cust_id")
-        tabs=st.tabs(["静态画像","动态记忆","意图识别","活动效果&归因","实时更新&公式"])
-        with tabs[0]: render_static(row,oneid)
-        with tabs[1]: render_dynamic(row,oneid)
-        with tabs[2]: render_intent(oneid,row)
-        with tabs[3]: render_roi(oneid,row)
-        with tabs[4]: render_input(oneid,row)
+        # 预计算意图 (Tab2雷达 + Tab3评分 共享)
+        intent_data = compute_intent(
+            oneid,
+            str(g(row, "lifecycle_stage", "")),
+            str(g(row, "account_primary_card_level", "")),
+            str(g(row, "short_term_7d_top_search_keywords", "")),
+            str(g(row, "mid_term_30d_browse_preferences", "")),
+            int(g(row, "risk_history_overdue_count_6m", 0)),
+            str(g(row, "risk_risk_level", "low")),
+            float(g(row, "account_usage_rate", 0)),
+            str(g(row, "demographics_income_level", "")),
+        )
+
+        tabs = st.tabs(["静态画像", "动态记忆", "意图识别", "活动效果&归因", "实时更新&公式"])
+        with tabs[0]: render_static(row, oneid)
+        with tabs[1]: render_dynamic(row, oneid, intent_data)
+        with tabs[2]: render_intent(oneid, row, intent_data)
+        with tabs[3]: render_roi(oneid, row)
+        with tabs[4]: render_input(oneid, row)
         st.markdown("---")
         st.caption("DB实时 | 15秒刷新 | INSERT/UPDATE→清空缓存→立即可见 | T+1批量(03:00) | 微批(每小时) | 事件(<100ms)")
 
