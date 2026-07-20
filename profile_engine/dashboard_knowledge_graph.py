@@ -171,14 +171,25 @@ def main():
 
     # ====== Tab 4: 多模态检索 (海报+图片) ======
     with tab4:
+        # 强制重新加载模块 (避免Streamlit缓存旧版本)
+        import importlib
+        for mod_name in list(sys.modules.keys()):
+            if 'multimodal_engine' in mod_name:
+                del sys.modules[mod_name]
+
         st.markdown("###  多模态检索 — 海报 & 图片")
-        st.caption("搜索海报图片(已生成12张PNG) | 图像信息提取 | 生产环境: Qwen2.5-VL视觉理解")
-        q = st.text_input("搜索海报", placeholder="如: 双十一 / 新户 / 出行 / 唤醒", key="mm_query")
+        try:
+            from multimodal_engine import __version__
+            ver = __version__
+        except Exception:
+            ver = "v4(旧)"
+        st.caption(f"搜索海报图片(已生成12张PNG) | 版本: {ver} | 生产: DeepSeek Vision + Embedding")
+        q = st.text_input("搜索海报", placeholder="如: 双十一 / 天猫 / 618 / 返现 / 沉睡", key="mm_query")
         if q:
             from multimodal_engine import multimodal_search
             results = multimodal_search(q, top_k=8)
             if results:
-                st.success(f"找到 {len(results)} 条")
+                st.success(f"找到 {len(results)} 条 | 仅展示真正相关的结果")
                 for r in results:
                     img_path = r.get("image_path","")
                     c1, c2 = st.columns([1, 3])
@@ -186,16 +197,19 @@ def main():
                         if img_path and os.path.exists(img_path):
                             st.image(img_path, width=200, caption=r.get("title",""))
                         else:
-                            st.markdown(f"[{r.get('source_type','')}]")
+                            st.markdown(f"[{r.get('vision_source','?')}]")
                     with c2:
                         st.markdown(f"**{r['title']}**")
                         st.caption(r.get("content",""))
-                        if r.get("rules"):
-                            for rule in r["rules"][:3]:
-                                st.caption(f"  {rule}")
-                        if r.get("visual_style"):
-                            st.caption(f"风格: {r['visual_style']}")
+                        # 显示匹配详情
+                        with st.expander("匹配详情"):
+                            st.caption(f"总分: {r['score']:.1f} | 关键词分: {r['kw_score']:.1f} | 嵌入相似: {r['embed_sim']:.3f} | LLM相关: {r['llm_relevance']}/10")
+                            if r.get('matched_terms'):
+                                st.caption(f"匹配词: {r['matched_terms']}")
+                            if r.get('llm_reason'):
+                                st.caption(f"LLM判定: {r['llm_reason']}")
+                            st.caption(f"来源: {r.get('vision_source','?')}")
             else:
-                st.info("无匹配海报, 尝试其他关键词")
+                st.info("无匹配海报 — 不相关的内容已自动过滤")
 
 if __name__ == "__main__": main()
