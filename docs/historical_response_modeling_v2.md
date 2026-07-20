@@ -37,9 +37,46 @@ The figures come from a chronological 70% train, 15% validation gap, and 15% hel
 | Conversion | 9,095 | 24.82% | 0.3399 | 0.5441 |
 | Unsubscribe | 15,882 | 12.27% | 0.1674 | 0.4321 |
 
-## Next Integration Step
+## Strategy Agent Integration
 
-For each eligible `customer x product x channel` candidate, the Strategy Agent should call the V2 artifacts and return:
+The V2 artifacts are now integrated into the Strategy Agent as an optional
+candidate-stage scoring service. It reconstructs the same pre-touch feature
+windows used in training, then returns the four probabilities for a specified
+`customer x campaign x channel` touch. `campaign_id` is required because the
+model uses the campaign's historical offer context as a feature.
+
+```text
+POST /api/strategy/model-scores/real-data
+{
+  "customer_id": "C000001",
+  "campaign_id": "CAMP_2026_DOUBLE11",
+  "channel": "app_push",
+  "evaluation_time": "2026-07-17 12:00:00"
+}
+```
+
+Candidates can also carry their own model scores:
+
+```text
+POST /api/strategy/candidates/real-data
+{
+  "customer_limit": 200,
+  "sample_limit": 100,
+  "campaign_id": "CAMP_2026_DOUBLE11",
+  "include_model_scores": true,
+  "evaluation_time": "2026-07-17 12:00:00"
+}
+```
+
+The artifact directory is intentionally ignored by Git. On a fresh clone, run
+the following once before starting the service:
+
+```powershell
+cd services\strategy-agent
+C:\Python314\python.exe scripts\train_historical_response_models.py --output-dir artifacts\historical_modeling_v2
+```
+
+Each successful response returns:
 
 ```text
 p_open, p_click, p_conversion, p_unsubscribe, model_version

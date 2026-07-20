@@ -7,6 +7,7 @@ from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.persona import DEFAULT_CLUSTER_COUNT, kmeans_available
 from ai_marketing.personalization import PersonalizedStrategyService
 from ai_marketing.candidates import StrategyCandidateService
+from ai_marketing.historical_model_scoring import HistoricalModelScoreProvider
 
 
 def test_generate_installment_plan():
@@ -338,6 +339,38 @@ def test_real_data_candidate_generation_outputs_only_eligible_product_channel_pa
     assert all(item["channel"] in {"app_push", "sms", "wechat"} for item in result["candidate_sample"])
     assert all(item["contact_cost"] > 0 for item in result["candidate_sample"])
     assert result["blocked_sample"]
+
+
+def test_historical_model_score_provider_handles_missing_artifacts(tmp_path):
+    provider = HistoricalModelScoreProvider(artifact_dir=tmp_path / "missing")
+
+    result = provider.score(
+        customer_id="C000001",
+        campaign_id="CAMP_2026_DOUBLE11",
+        channel="app_push",
+        touch_time="2026-07-17 12:00:00",
+    )
+
+    assert result["model_available"] is False
+    assert result["reason"].startswith("missing_artifacts:")
+
+
+def test_historical_model_score_provider_uses_v2_artifacts_when_available():
+    provider = HistoricalModelScoreProvider()
+    if not provider.available:
+        return
+
+    result = provider.score(
+        customer_id="C000001",
+        campaign_id="CAMP_2026_DOUBLE11",
+        channel="app_push",
+        touch_time="2026-07-17 12:00:00",
+    )
+
+    assert result["model_available"] is True
+    assert result["feature_source"] == "project1_pre_touch_raw_data"
+    assert set(result["probabilities"]) == {"p_open", "p_click", "p_conversion", "p_unsubscribe"}
+    assert all(0 <= value <= 1 for value in result["probabilities"].values())
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, unquote
 
 from ai_marketing.models import CampaignRequest
 from ai_marketing.candidates import StrategyCandidateService
+from ai_marketing.historical_model_scoring import HistoricalModelScoreProvider
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
@@ -25,6 +26,7 @@ local_knowledge_data = LocalKnowledgeData()
 repo = PlanRepository(DATA_DIR / "marketing_demo.sqlite3")
 personalization = PersonalizedStrategyService(local_knowledge_data, engine)
 candidates = StrategyCandidateService(local_knowledge_data, engine)
+historical_model_scores = HistoricalModelScoreProvider()
 
 
 class MarketingHandler(SimpleHTTPRequestHandler):
@@ -51,6 +53,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/strategy/candidates/real-data":
             self._handle_real_data_candidates()
+            return
+        if path == "/api/strategy/model-scores/real-data":
+            self._handle_real_data_model_scores()
             return
         if path == "/api/generate":
             self._handle_legacy_generate()
@@ -141,8 +146,41 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 customer_limit=_optional_int(customer_limit),
                 sample_limit=int(payload.get("sample_limit", 100)),
                 include_blocked=payload.get("include_blocked") is True,
+                campaign_id=_optional_text(payload.get("campaign_id")),
+                include_model_scores=payload.get("include_model_scores") is True,
+                evaluation_time=_optional_text(payload.get("evaluation_time")),
             )
             self._json_response(result)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_real_data_model_scores(self) -> None:
+        try:
+            payload = self._read_json_body()
+            customer_id = _optional_text(payload.get("customer_id"))
+            oneid = _optional_text(payload.get("oneid"))
+            if not customer_id and oneid:
+                customer_id = local_knowledge_data.customer_id_for_oneid(oneid)
+            if not customer_id:
+                self._json_response({"error": "customer_id or oneid is required"}, status=400)
+                return
+            campaign_id = _optional_text(payload.get("campaign_id"))
+            if not campaign_id:
+                self._json_response({"error": "campaign_id is required"}, status=400)
+                return
+            channel = _optional_text(payload.get("channel")) or "app_push"
+            self._json_response(
+                historical_model_scores.score(
+                    customer_id=customer_id,
+                    campaign_id=campaign_id,
+                    channel=channel,
+                    touch_time=_optional_text(payload.get("evaluation_time")),
+                )
+            )
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
         except (TypeError, ValueError) as exc:
             self._json_response({"error": str(exc)}, status=400)
         except Exception as exc:
@@ -336,6 +374,11 @@ def _optional_int(value: object) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _optional_text(value: object) -> str | None:
+    text = str(value or "").strip()
+    return text or None
 
 
 def _campaign_request_from_payload(payload: dict) -> CampaignRequest:
