@@ -8,8 +8,8 @@
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <p class="eyebrow">信用卡算法类课题 MVP</p>
+      <div class="brand-lockup">
+        <p class="eyebrow">策略运营工作台</p>
         <h1>AI 全链路智能营销决策系统</h1>
       </div>
       <div class="topbar-actions">
@@ -20,10 +20,10 @@
     </header>
 
     <main class="layout">
-      <section class="workspace" aria-label="营销配置">
-        <div class="section-head">
-          <h2>运营输入</h2>
-          <span id="statusText">等待生成</span>
+      <aside class="workspace" aria-label="运营输入">
+        <div class="workspace-head">
+          <span class="workspace-index">01</span>
+          <div><h2>运营输入</h2><span id="statusText">等待生成</span></div>
         </div>
         <div class="form-grid">
           <label>
@@ -39,46 +39,42 @@
             <input id="budgetInput" type="number" min="30" max="160" value="80">
           </label>
         </div>
-      </section>
+      </aside>
 
-      <section class="dashboard" aria-label="方案结果">
-        <div class="metrics">
-          <article><span>推荐客群</span><strong id="audienceMetric">-</strong></article>
-          <article><span>预计转化率</span><strong id="upliftMetric">-</strong></article>
-          <article><span>预计净价值</span><strong id="roiMetric">-</strong></article>
-          <article><span>预算使用率</span><strong id="riskMetric">-</strong></article>
-        </div>
+      <section class="dashboard" aria-label="策略结果">
+        <section class="metric-band" aria-label="核心指标">
+          <article class="metric-card metric-audience"><span>推荐客群</span><strong id="audienceMetric">-</strong></article>
+          <article class="metric-card metric-conversion"><span>预计转化率</span><strong id="upliftMetric">-</strong></article>
+          <article class="metric-card metric-value"><span>预计净价值</span><strong id="roiMetric">-</strong></article>
+          <article class="metric-card metric-budget"><span>预算使用率</span><strong id="riskMetric">-</strong></article>
+        </section>
 
-        <div class="section-head">
-          <h2>AI 决策链路</h2>
-          <span id="campaignId">尚未生成</span>
-        </div>
-        <div class="pipeline" aria-label="AI 决策链路">
-          <div><b>合规</b><span>授权/频控/容量</span></div>
-          <div><b>预测</b><span>打开/点击/转化/退订</span></div>
-          <div><b>价值</b><span>收益/LTV/成本/风险</span></div>
-          <div><b>优选</b><span>预算/去重/渠道</span></div>
-        </div>
-
-        <section aria-label="策略生成结果">
-          <div class="section-head">
-            <h2>策略生成结果</h2>
-            <span id="optimizationStatus">等待生成</span>
+        <section class="decision-band" aria-label="AI 决策链路">
+          <div class="section-head"><h2>AI 决策链路</h2><span id="campaignId">尚未生成</span></div>
+          <div class="pipeline">
+            <div class="stage stage-compliance"><b>合规</b><span>授权 / 频控 / 容量</span></div>
+            <div class="stage stage-predict"><b>预测</b><span>打开 / 点击 / 转化 / 退订</span></div>
+            <div class="stage stage-value"><b>价值</b><span>收益 / LTV / 成本 / 风险</span></div>
+            <div class="stage stage-select"><b>优选</b><span>预算 / 去重 / 渠道</span></div>
           </div>
+        </section>
+
+        <section class="strategy-focus" aria-label="策略生成结果">
+          <div class="section-head"><h2>策略生成结果</h2><span id="optimizationStatus">等待生成</span></div>
           <div id="optimizationSummary" class="optimization-summary">尚未基于预算进行候选筛选。</div>
           <div id="selectedCandidates" class="list"></div>
         </section>
 
         <div class="two-column">
-          <section><h2>推荐客群</h2><div id="segments" class="list"></div></section>
-          <section><h2>投放策略</h2><div id="channels" class="list"></div></section>
+          <section class="result-panel audience-panel"><h2>推荐客群</h2><div id="segments" class="list"></div></section>
+          <section class="result-panel channel-panel"><h2>投放策略</h2><div id="channels" class="list"></div></section>
         </div>
 
-        <section><h2>内容生成</h2><div id="contentBox" class="content-box"></div></section>
+        <section class="result-panel content-panel"><h2>内容生成</h2><div id="contentBox" class="content-box"></div></section>
 
         <div class="two-column">
-          <section><h2>合规校验</h2><div id="compliance" class="list"></div></section>
-          <section><h2>效果预测</h2><svg id="forecastChart" viewBox="0 0 520 220" role="img" aria-label="效果预测柱状图"></svg></section>
+          <section class="result-panel compliance-panel"><h2>合规校验</h2><div id="compliance" class="list"></div></section>
+          <section class="result-panel forecast-panel"><h2>效果预测</h2><svg id="forecastChart" viewBox="0 0 520 220" role="img" aria-label="效果预测柱状图"></svg></section>
         </div>
       </section>
     </main>
