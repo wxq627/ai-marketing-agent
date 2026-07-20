@@ -1,4 +1,4 @@
-"""客户360视图 v12 — DB版全功能"""
+"""客户360视图 v14 — 渠道策略优化版 (contact_preference + app_active_days)"""
 import os, sys, sqlite3, pandas as pd, numpy as np, json, random, re, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
@@ -75,6 +75,8 @@ def render_static(row, oneid):
         tag="cr" if rate>0.8 else ("co" if rate>0.6 else "cg")
         st.write(f"主卡:{g(row,'account_primary_card_level')}"); st.markdown(f'授信:<b>{credit:,.0f}</b> | 已用:<b>{used:,.0f}</b> | 率:<span class="{tag}">{rate:.0%}</span>',unsafe_allow_html=True)
         st.write(f"持卡{int(g(row,'account_card_count',0))}张 | 开户{float(g(row,'account_tenure_months',0)):.0f}月")
+        pref = g(row, 'contact_preference', 'APP Push')
+        st.write(f"渠道偏好: {pref} | App活跃: {int(g(row,'long_term_90d_active_days',0))}天")
     with c3:
         st.caption("生命周期"); stage=g(row,'lifecycle_stage',''); sc={"新户":"#64b5f6","成长期":"#66bb6a","成熟期":"#ffa726","沉睡期":"#ef5350"}.get(stage,"gray")
         st.markdown(f'<span style="color:{sc};font-weight:bold;font-size:1.1rem">{stage}</span>',unsafe_allow_html=True)
@@ -93,8 +95,8 @@ def render_static(row, oneid):
         vl=g(row,'value_value_level',''); vc={"high":"cg","medium":"#64b5f6","low":"#889"}.get(vl,"gray")
         st.markdown(f'等级:<span style="color:{vc};font-weight:bold">{vl}</span>',unsafe_allow_html=True)
 
-def render_dynamic(row, oneid, intent_data=None):
-    st.subheader("动态记忆 — 五类信号")
+def render_dynamic(row, oneid):
+    st.subheader("动态记忆 — 五类信号 + 消费雷达")
     kw=str(g(row,"short_term_7d_top_search_keywords","")); words=[x.strip().split("×")[0] for x in kw.split(",") if x.strip()] if kw and kw!="nan" else []
     br=str(g(row,"mid_term_30d_browse_preferences","")); browses=[x.strip() for x in br.split(",") if x.strip()] if br and br!="nan" else []
     ms=str(g(row,"key_milestones","")); milestones=[x.strip() for x in ms.split("|") if x.strip()] if ms and ms!="nan" else []
@@ -123,20 +125,31 @@ def render_dynamic(row, oneid, intent_data=None):
         fig.update_layout(height=250,margin=dict(l=20,r=20,t=10,b=10),paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',font=dict(color='#aaa'))
         st.plotly_chart(fig,use_container_width=True)
     with c2:
-        st.subheader("意图雷达")
-        if intent_data and intent_data.get("radar"):
-            radar = intent_data["radar"]
-            fig2 = go.Figure(data=go.Scatterpolar(
-                r=list(radar.values()), theta=list(radar.keys()),
-                fill='toself', marker=dict(color='#64b5f6')
-            ))
-        else:
-            fig2 = go.Figure(data=go.Scatterpolar(
-                r=[0,0,0,0,0,0], theta=["分期","出行","升级","权益","流失","激活"],
-                fill='toself', marker=dict(color='#555')
-            ))
-        fig2.update_layout(height=250, margin=dict(l=40,r=40,t=10,b=10),
-                          polar=dict(radialaxis=dict(range=[0,100])),
+        st.subheader("消费行为雷达")
+        # 从真实数据构建六维消费画像 (归一化到0-100)
+        raw_annual = float(g(row, 'value_annual_consumption', 0))
+        raw_txn = int(g(row, 'value_transaction_count_12m', 0))
+        raw_active = int(g(row, 'long_term_90d_active_days', 0))
+        raw_install = float(g(row, 'value_installment_contribution_12m', 0))
+        raw_max = float(g(row, 'value_max_single_transaction', 0))
+        raw_monthly = float(g(row, 'value_monthly_avg_consumption', 0))
+
+        # 归一化：max values for scaling
+        radar_vals = {
+            "年消费": min(raw_annual / 500000 * 100, 100),
+            "交易笔数": min(raw_txn / 500 * 100, 100),
+            "活跃天数": min(raw_active / 90 * 100, 100),
+            "分期贡献": min(raw_install / 50000 * 100, 100),
+            "单笔最大": min(raw_max / 100000 * 100, 100),
+            "月均消费": min(raw_monthly / 50000 * 100, 100),
+        }
+        fig2 = go.Figure(data=go.Scatterpolar(
+            r=list(radar_vals.values()), theta=list(radar_vals.keys()),
+            fill='toself', marker=dict(color='#66bb6a'),
+            hovertemplate='%{theta}: %{r:.0f}分<extra></extra>'
+        ))
+        fig2.update_layout(height=250, margin=dict(l=40, r=40, t=10, b=10),
+                          polar=dict(radialaxis=dict(range=[0, 100])),
                           paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                           font=dict(color='#aaa'))
         st.plotly_chart(fig2, use_container_width=True)
@@ -224,6 +237,7 @@ def render_intent(oneid, row, intent_data=None):
     overdue_cnt = int(g(row, "risk_history_overdue_count_6m", 0))
     churn_score = int(g(row, "risk_churn_risk_score", 0))
     risk_level = g(row, "risk_risk_level", "low")
+    lifecycle = g(row, "lifecycle_stage", "")
     result = intent_data
     ds_used = result.get("ds_used", False)
 
@@ -245,47 +259,38 @@ def render_intent(oneid, row, intent_data=None):
                     f'<p style="font-size:0.6rem;color:#889;margin:0">{intent["confidence"]}</p></div>',
                     unsafe_allow_html=True,
                 )
-        # 主意图
         primary = [i for i in result["intents"] if i["type"] == result.get("primary_intent")]
         if primary and primary[0].get("sub_signals"):
             p = primary[0]
             st.markdown(f"**主意图: {result.get('primary_intent','')}** ({p['score']}分)")
             st.caption(" + ".join([f"{s['signal'][:12]}({s['weight']}分)" for s in p["sub_signals"]]) if p["sub_signals"] else "")
-    st.markdown("### 六类意图评分")
-    cols=st.columns(6)
-    for i,intent in enumerate(result["intents"]):
-        with cols[i]:
-            s=intent["score"]; bg="#ef5350" if s>=70 else ("#ffa726" if s>=40 else "#64b5f6")
-            st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;text-align:center;border-left:3px solid {bg}"><p style="font-size:0.6rem;color:#889;margin:0">{intent["type"][:6]}</p><h2 style="color:{bg};margin:4px 0">{s}</h2><p style="font-size:0.6rem;color:#889;margin:0">{intent["confidence"]}</p></div>',unsafe_allow_html=True)
-    # 主意图解释
-    primary=[i for i in result["intents"] if i["type"]==result["primary_intent"]]
-    st.markdown("---")
-    if primary and primary[0].get("sub_signals"):
-        p=primary[0]; st.markdown(f"### 主意图: {result['primary_intent']} ({p['score']}分)")
-        st.caption(" + ".join([f"{s['signal'][:12]}({s['weight']}分)" for s in p["sub_signals"]]) if p["sub_signals"] else "")
-    # 情感分析
+
+    # ── 情感分析 ──
     st.markdown("---"); st.markdown("### 情感分析")
-    anxiety=20; satisfaction=60; reasons=[]
-    if overdue_cnt>=3: anxiety+=35; reasons.append(f"逾期{overdue_cnt}次")
-    elif overdue_cnt>=2: anxiety+=25; reasons.append(f"逾期{overdue_cnt}次")
-    elif overdue_cnt>=1: anxiety+=15; reasons.append(f"逾期{overdue_cnt}次")
-    if churn_score>=70: anxiety+=20; reasons.append(f"高流失({churn_score})")
-    elif churn_score>=40: anxiety+=10
-    if risk_level=="high": anxiety+=20; reasons.append("高风险")
-    elif risk_level=="medium": anxiety+=8
-    if any(w in search_kw for w in["注销","销户","投诉"]): anxiety+=20; reasons.append("搜索销户/投诉")
-    if lifecycle=="沉睡期": anxiety+=10
-    anxiety=min(anxiety,100)
-    val_lvl=g(row,"value_value_level","medium")
-    if val_lvl=="high": satisfaction+=20; reasons.append("高价值")
-    act=int(g(row,"long_term_90d_activity_score",0))
-    if act>=60: satisfaction+=15
-    elif act>=30: satisfaction+=5
-    satisfaction=min(satisfaction,100)
-    overall="焦虑" if anxiety>=70 else ("轻微焦虑" if anxiety>=45 else ("满意" if satisfaction>=70 else "中性"))
-    c1,c2=st.columns(2)
-    with c1: st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:center"><h2>{overall}</h2><p>焦虑度:{anxiety}/100 | 满意度:{satisfaction}/100</p></div>',unsafe_allow_html=True)
-    with c2: st.caption("证据:"+";".join(reasons) if reasons else "日常正常使用"); st.caption("T+1批量每日03:00 | 事件驱动<100ms | DeepSeek可用时启用语义分析")
+    anxiety = 20; satisfaction = 60; reasons = []
+    if overdue_cnt >= 3: anxiety += 35; reasons.append(f"逾期{overdue_cnt}次")
+    elif overdue_cnt >= 2: anxiety += 25; reasons.append(f"逾期{overdue_cnt}次")
+    elif overdue_cnt >= 1: anxiety += 15; reasons.append(f"逾期{overdue_cnt}次")
+    if churn_score >= 70: anxiety += 20; reasons.append(f"高流失({churn_score})")
+    elif churn_score >= 40: anxiety += 10
+    if risk_level == "high": anxiety += 20; reasons.append("高风险")
+    elif risk_level == "medium": anxiety += 8
+    if any(w in search_kw for w in ["注销", "销户", "投诉"]): anxiety += 20; reasons.append("搜索销户/投诉")
+    if lifecycle == "沉睡期": anxiety += 10
+    anxiety = min(anxiety, 100)
+    val_lvl = g(row, "value_value_level", "medium")
+    if val_lvl == "high": satisfaction += 20; reasons.append("高价值")
+    act = int(g(row, "long_term_90d_activity_score", 0))
+    if act >= 60: satisfaction += 15
+    elif act >= 30: satisfaction += 5
+    satisfaction = min(satisfaction, 100)
+    overall = "焦虑" if anxiety >= 70 else ("轻微焦虑" if anxiety >= 45 else ("满意" if satisfaction >= 70 else "中性"))
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;text-align:center"><h2>{overall}</h2><p>焦虑度:{anxiety}/100 | 满意度:{satisfaction}/100</p></div>', unsafe_allow_html=True)
+    with c2:
+        st.caption("证据:" + ";".join(reasons) if reasons else "日常正常使用")
+        st.caption("T+1批量 | DeepSeek实时意图 | 事件驱动<100ms")
 
 def render_roi(oneid, row):
     st.subheader("活动效果 & 归因 (触达→点击→转化)")
@@ -553,7 +558,7 @@ def main():
 
         tabs = st.tabs(["静态画像", "动态记忆", "意图识别", "活动效果&归因", "实时更新&公式"])
         with tabs[0]: render_static(row, oneid)
-        with tabs[1]: render_dynamic(row, oneid, intent_data)
+        with tabs[1]: render_dynamic(row, oneid)
         with tabs[2]: render_intent(oneid, row, intent_data)
         with tabs[3]: render_roi(oneid, row)
         with tabs[4]: render_input(oneid, row)

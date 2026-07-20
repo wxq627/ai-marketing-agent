@@ -112,13 +112,59 @@ def customer_search(filters: Dict = None, page: int = 1, page_size: int = 50) ->
             "data_version":"db_v2.0","generated_at":datetime.now().isoformat()}
 
 def customer_insert(cust_data: Dict) -> Dict:
+    """新增客户 — 完全新用户(从未办卡, 无历史记录) → customer_profile 表。
+
+    强制默认:
+      - lifecycle_stage = '新户' (刚开户)
+      - 所有历史字段为空/零 (无搜索/浏览/消费/逾期记录)
+      - 开户时长=0, 活跃度=初始值10
+    """
     conn = db()
+    # 新用户强制默认值
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    defaults = {
+        "lifecycle_stage": "新户", "lifecycle_months_since_open": 0,
+        "account_tenure_months": 0, "account_card_count": 1, "account_active_cards": 1,
+        "account_usage_rate": 0.0, "account_used_amount": 0,
+        "value_annual_consumption": 0, "value_monthly_avg_consumption": 0,
+        "value_max_single_transaction": 0, "value_transaction_count_12m": 0,
+        "value_installment_contribution_12m": 0, "value_value_level": "low",
+        "risk_risk_level": "low", "risk_overdue_status": "M0",
+        "risk_history_overdue_count_6m": 0, "risk_min_payment_frequency_6m": 0,
+        "risk_churn_risk_score": 0, "risk_blacklist_flag": 0, "risk_do_not_contact": 0,
+        "risk_cash_advance_risk_score": 0,
+        "long_term_90d_total_consumption": 0, "long_term_90d_txn_count": 0,
+        "long_term_90d_active_days": 0, "long_term_90d_activity_score": 10,
+        "long_term_90d_dormancy_risk": "low", "long_term_90d_significant_signals": "新户开户",
+        "long_term_90d_monthly_avg_90d": 0,
+        "mid_term_30d_total_consumption": 0, "mid_term_30d_txn_count": 0,
+        "mid_term_30d_active_days": 0, "mid_term_30d_consumption_trend": "stable",
+        "mid_term_30d_trend_change_pct": 0, "mid_term_30d_browse_preferences": "",
+        "short_term_7d_total_consumption": 0, "short_term_7d_txn_count": 0,
+        "short_term_7d_active_days": 0, "short_term_7d_top_search_keywords": "",
+        "short_term_7d_avg_daily_spend": 0,
+        "realtime_signal_count": 0, "realtime_has_high_value_txn": 0,
+        "key_milestones": "新户开户",
+        "generated_at": now, "update_type": "manual_new",
+        "lifecycle_vip_tier": "普通", "lifecycle_customer_manager": "",
+        "demographics_gender": "M", "demographics_education": "本科",
+        "demographics_occupation": "其他", "account_product_name": "",
+    }
+    final = {**defaults, **cust_data}
+    # 强制锁死: 新用户必须是新户
+    for k in ("lifecycle_stage","lifecycle_months_since_open","account_tenure_months",
+              "risk_overdue_status","risk_risk_level"):
+        final[k] = defaults[k]
+    final["key_milestones"] = "新户开户"
+    final["long_term_90d_significant_signals"] = "新户开户"
+
     try:
-        cols = ", ".join(cust_data.keys())
-        placeholders = ", ".join(["?" for _ in cust_data])
-        conn.execute(f"INSERT OR REPLACE INTO customers ({cols}) VALUES ({placeholders})", list(cust_data.values()))
+        cols = ", ".join(final.keys())
+        placeholders = ", ".join(["?" for _ in final])
+        conn.execute(f"INSERT OR REPLACE INTO customer_profile ({cols}) VALUES ({placeholders})",
+                     list(final.values()))
         conn.commit()
-        return {"status":"ok","oneid":cust_data.get("oneid",""),"action":"insert"}
+        return {"status":"ok","oneid":final.get("oneid",""),"action":"insert_new_customer"}
     except Exception as e:
         return {"status":"error","message":str(e)}
 

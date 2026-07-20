@@ -163,6 +163,8 @@ def gen_finance(cust, cards, crm, consent, products):
             "lifecycle_stage": lfs,"lifecycle_months_since_open": round(months,1),
             "lifecycle_vip_tier": crm_r["vip_tier"] if crm_r is not None else "普通",
             "lifecycle_customer_manager": crm_r["customer_manager"] if crm_r is not None else "",
+            # 渠道偏好 (从CRM读取, 用于项目二渠道策略优化)
+            "contact_preference": crm_r["contact_preference"] if crm_r is not None else "APP Push",
             # 风险 (对齐技术方案: M0/M1/M2/M3+逾期 + 最低还款频率 + 套现风险)
             "risk_overdue_status": ol, "risk_history_overdue_count_6m": ovc,
             "risk_min_payment_frequency_6m": mpc, "risk_cash_advance_risk_score": cash_adv_risk,
