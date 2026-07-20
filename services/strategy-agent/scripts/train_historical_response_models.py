@@ -24,7 +24,7 @@ STRUCTURED_DIR = REPOSITORY_ROOT / "mock_data" / "structured"
 MAPPING_PATH = SERVICE_DIR / "config" / "campaign_offer_mapping.csv"
 DEFAULT_OUTPUT_DIR = SERVICE_DIR / "artifacts" / "historical_modeling_v1"
 
-DELIVERED_STATUSES = {"delivered", "opened", "clicked", "unsubscribed"}
+DELIVERED_STATUSES = {"sent", "delivered", "opened", "clicked", "unsubscribed"}
 OPEN_MEASURABLE_CHANNELS = {"APP Push", "掌上生活APP内消息", "微信公众号", "邮件"}
 
 
@@ -87,6 +87,14 @@ def load_customer_features() -> dict[str, dict[str, str | float]]:
             "max_credit_amount": max_credit,
         }
     return features
+
+
+def load_channel_costs() -> dict[str, float]:
+    """Read canonical channel costs when the touch-history extract omits a per-touch cost column."""
+    return {
+        row["channel_name"]: float(row["cost_per_send"])
+        for row in read_csv(STRUCTURED_DIR / "channel_config.csv")
+    }
 
 
 def load_pre_touch_series() -> tuple[
@@ -214,6 +222,7 @@ def make_feature_row(
     previous_clicks: dict[str, TimeSeries],
     previous_unsubscribes: dict[str, TimeSeries],
     attribution: dict[str, dict[str, str | float | bool]],
+    channel_costs: dict[str, float],
     observed_until: datetime,
 ) -> dict[str, str | float | int]:
     touch_time = parse_time(contact["contact_time"])
@@ -247,7 +256,7 @@ def make_feature_row(
         "benefit_category": mapping["benefit_category"],
         "objective": mapping["objective"],
         "benefit_unit_cost_proxy": float(mapping["benefit_unit_cost_proxy"]),
-        "touch_cost": float(contact["cost"]),
+        "touch_cost": float(contact.get("cost") or channel_costs.get(contact["channel"], 0.0)),
         "touch_hour": float(touch_time.hour),
         "touch_weekday": float(touch_time.weekday()),
         "touch_month": float(touch_time.month),
@@ -285,6 +294,7 @@ def build_training_data(output_dir: Path) -> tuple[Path, dict[str, int | str]]:
     contacts, previous_contacts, previous_clicks, previous_unsubscribes = load_contact_history()
     attribution = load_attribution()
     mapping = load_mapping()
+    channel_costs = load_channel_costs()
     observed_until = max(parse_time(row["contact_time"]) for row in contacts)
 
     output_path = output_dir / "marketing_touch_training_v1.csv"
@@ -315,6 +325,7 @@ def build_training_data(output_dir: Path) -> tuple[Path, dict[str, int | str]]:
                 previous_clicks=previous_clicks,
                 previous_unsubscribes=previous_unsubscribes,
                 attribution=attribution,
+                channel_costs=channel_costs,
                 observed_until=observed_until,
             )
             if writer is None:
@@ -328,7 +339,7 @@ def build_training_data(output_dir: Path) -> tuple[Path, dict[str, int | str]]:
         raise ValueError("No eligible delivered marketing contacts found")
     summary = {
         "training_rows": row_count,
-        "excluded_sent_or_bounced_rows": excluded_status_count,
+        "excluded_bounced_rows": excluded_status_count,
         "observed_until": observed_until.isoformat(sep=" "),
         "mapping_count": len(mapping),
     }
@@ -434,7 +445,7 @@ def write_report(output_dir: Path, summary: dict[str, int | str], model_results:
         "## Data Scope",
         "",
         f"- Delivered marketing contacts used for training: {summary['training_rows']}",
-        f"- Sent or bounced contacts excluded: {summary['excluded_sent_or_bounced_rows']}",
+        f"- Bounced contacts excluded: {summary['excluded_bounced_rows']}",
         f"- Historical campaign mappings: {summary['mapping_count']}",
         f"- Latest observed touch time: {summary['observed_until']}",
         "- All models use a chronological 70% train / 15% validation gap / 15% test split.",

@@ -17,7 +17,7 @@ The pipeline uses only features available before `touch_time`, then creates four
 | `y_conversion` | `1` when the same `touch_id` has `converted=True` within the campaign's 14-day attribution window. |
 | `y_unsubscribe` | `1` when the final status is `unsubscribed`. |
 
-`sent` and `bounced` touches are excluded from the model population because they do not confirm successful delivery.
+`bounced` touches are excluded from the model population. `sent` means a completed delivery in the V2 extract and is retained as a negative example for open and click prediction.
 
 ## Added Artifacts
 
