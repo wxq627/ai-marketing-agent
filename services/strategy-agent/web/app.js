@@ -7,7 +7,6 @@ const els = {
   risk: document.getElementById("riskInput"),
   freq: document.getElementById("freqInput"),
   generate: document.getElementById("generateBtn"),
-  optimize: document.getElementById("optimizeBtn"),
   publish: document.getElementById("publishBtn"),
   publishedStatus: document.getElementById("publishedStatus"),
   status: document.getElementById("statusText"),
@@ -27,30 +26,6 @@ const els = {
 };
 
 let currentCampaignId = "";
-
-async function generatePlan() {
-  els.status.textContent = "正在生成";
-  els.generate.disabled = true;
-  try {
-    const request = await parseGoalWithLlm();
-    request.goal_parsed = true;
-    const response = await fetch("/api/strategy/generate/real-data", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(request),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "生成失败");
-    renderPlan(data.plan || data);
-    currentCampaignId = (data.plan || data).campaign_id;
-    els.publish.disabled = !currentCampaignId;
-    els.publishedStatus.textContent = "草稿待发布";
-  } catch (error) {
-    els.status.textContent = error.message;
-  } finally {
-    els.generate.disabled = false;
-  }
-}
 
 async function publishPlan() {
   if (!currentCampaignId) return;
@@ -72,8 +47,9 @@ async function publishPlan() {
   }
 }
 
-async function optimizeStrategy() {
-  els.optimize.disabled = true;
+async function generateStrategy() {
+  els.generate.disabled = true;
+  els.status.textContent = "正在生成策略";
   els.optimizationStatus.textContent = "正在计算候选价值";
   try {
     const response = await fetch("/api/strategy/optimize/real-data", {
@@ -92,12 +68,13 @@ async function optimizeStrategy() {
     renderOptimization(data);
     currentCampaignId = data.strategy_draft.campaign_id;
     els.publish.disabled = false;
-    els.publishedStatus.textContent = "优化草稿待发布";
-    els.optimizationStatus.textContent = "优化草稿已生成";
+    els.publishedStatus.textContent = "策略草稿待发布";
+    els.optimizationStatus.textContent = "策略已生成";
+    els.status.textContent = "策略已生成，等待发布给 C 端";
   } catch (error) {
     els.optimizationStatus.textContent = error.message;
   } finally {
-    els.optimize.disabled = false;
+    els.generate.disabled = false;
   }
 }
 
@@ -238,7 +215,5 @@ function renderOptimization(data) {
   }).join("") || "<p>当前预算下没有正向价值候选</p>";
 }
 
-els.generate.addEventListener("click", generatePlan);
+els.generate.addEventListener("click", generateStrategy);
 els.publish.addEventListener("click", publishPlan);
-els.optimize.addEventListener("click", optimizeStrategy);
-generatePlan();

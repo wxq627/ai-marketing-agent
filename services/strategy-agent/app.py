@@ -75,12 +75,6 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/publications/archive":
             self._handle_strategy_archive()
             return
-        if path == "/api/generate":
-            self._handle_legacy_generate()
-            return
-        if path == "/api/strategy/generate":
-            self._handle_strategy_generate()
-            return
         if path == "/api/strategy/generate-from-insight":
             self._handle_strategy_generate_from_insight()
             return
@@ -324,36 +318,6 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._json_response({"error": str(exc)}, status=400)
         except RuntimeError as exc:
             self._json_response({"error": str(exc)}, status=503)
-        except Exception as exc:
-            self._json_response({"error": str(exc)}, status=500)
-
-    def _handle_legacy_generate(self) -> None:
-        try:
-            request = self._read_campaign_request()
-            if not request.goal.strip():
-                self._json_response({"error": "goal is required"}, status=400)
-                return
-            plan = engine.generate_plan(request)
-            repo.save(plan, build_strategy_package(plan))
-            self._json_response(plan.to_dict())
-        except Exception as exc:
-            self._json_response({"error": str(exc)}, status=500)
-
-    def _handle_strategy_generate(self) -> None:
-        try:
-            request = self._read_campaign_request()
-            if not request.goal.strip():
-                self._json_response({"error": "goal is required"}, status=400)
-                return
-            plan = engine.generate_plan(request)
-            package = build_strategy_package(plan)
-            repo.save(plan, package)
-            self._json_response(
-                {
-                    "plan": plan.to_dict(),
-                    "strategy_package": package,
-                }
-            )
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 
