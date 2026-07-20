@@ -1,0 +1,19 @@
+{
+  "image_file": "crossborder_campaign.png",
+  "activity_name": "跨境消费达人挑战",
+  "campaign_id": "CAMP_2026_CROSSBORDER",
+  "start_date": "2026-06-15",
+  "end_date": "2026-09-30",
+  "main_title": "跨境消费达人·阶梯返现最高1000元",
+  "sub_title": "满5000返200 → 满20000返1000",
+  "visual_description": "深蓝全球地图背景，中央展示阶梯式返现进度条。世界地标（埃菲尔铁塔/自由女神/大本钟）剪影装饰。金色'UP TO ¥1000'标识。",
+  "rules_summary": [
+    "境外消费满5000元返200元",
+    "满10000元返500元",
+    "满20000元返1000元",
+    "含港澳台地区",
+    "免货币转换费"
+  ],
+  "target_segment": "近3月有境外消费记录的客户",
+  "cta_text": "查看我的进度"
+}

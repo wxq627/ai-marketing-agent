@@ -1,0 +1,17 @@
+{
+  "image_file": "weekend_promo.png",
+  "activity_name": "周末消费狂欢",
+  "main_title": "周末刷XX银行·随机立减最高99元",
+  "sub_title": "每周六日 · 不限商户",
+  "rules_summary": [
+    "每周六日任意消费随机立减",
+    "每单最高99元",
+    "每日限1次"
+  ],
+  "campaign_id": "",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "visual_description": "通用营销海报风格",
+  "target_segment": "所有持卡人",
+  "cta_text": "了解更多"
+}

@@ -1,0 +1,16 @@
+﻿product_id,required_income,min_age,max_age,required_card_level,min_credit,special_conditions
+PROD_STANDARD_N,"L,M,H",21,65,-,0,无
+PROD_HELLOKITTY_N,"L,M,H",18,60,-,0,限女性申请(男性可办理附属卡)
+PROD_YOUNG_CAMPUS,L,18,28,-,0,需提供在校学生证明(学信网验证)
+PROD_STANDARD_G,"L,M,H",21,65,普卡及以上,10000,已有普卡客户可直接升级
+PROD_YOUNG_G,"L,M,H",21,30,-,5000,限30周岁(含)以下非学生客户申请
+PROD_JD_G,"L,M,H",21,60,-,5000,京东PLUS会员可享额外权益加成
+PROD_CTRIP_G,"M,H",21,60,-,10000,近6个月有出行记录的客户优先审批
+PROD_CLASSIC_W,"M,H",25,60,金卡及以上,50000,需年消费满8万元或10000永久积分兑换年费; 2025年4月起暂停新户申请
+PROD_FREELIFE_W,"M,H",23,55,-,30000,首年免年费，适合白金入门
+PROD_UNIONPAY_W,"M,H",23,60,-,30000,需年消费满5万元免次年年费
+PROD_GLOBAL_W,"M,H",23,60,-,30000,有效期内免年费; 适合有境外消费需求的客户
+PROD_REFINED_W,"M,H",23,55,-,30000,新户达标赠饮品券(星巴克/喜茶/奈雪三选一)
+PROD_CENTURION_W,H,28,60,金卡及以上,80000,刚性年费3600元; 需邀请或满足高净值条件
+PROD_DIAMOND,H,30,60,白金卡及以上,100000,刚性年费3600元; 亲子家庭优先(含儿童机票权益)
+PROD_WORLD,H,30,60,白金卡及以上,200000,刚性年费3600元; 邀请制，需私行或高净值客户

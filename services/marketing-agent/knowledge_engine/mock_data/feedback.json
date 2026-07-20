@@ -1,0 +1,4 @@
+{
+  "source": "contracts/examples/feedback_example.json",
+  "usage": "Marketing Agent 给 Strategy Agent 的第一版反馈 mock 数据"
+}

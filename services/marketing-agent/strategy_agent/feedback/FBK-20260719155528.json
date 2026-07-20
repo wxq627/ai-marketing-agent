@@ -1,0 +1,32 @@
+{
+  "campaign_id": "MKT-B249CB5F",
+  "feedback_metrics": {
+    "exposure_count": 0,
+    "click_count": 0,
+    "conversion_count": 0,
+    "reject_count": 0,
+    "complaint_count": 0,
+    "cost": 0.0,
+    "revenue": 0.0,
+    "roi": 0.0
+  },
+  "channel_attribution": [
+    {
+      "channel": "app_push",
+      "exposure_count": 0,
+      "click_count": 0,
+      "conversion_count": 0,
+      "cost": 0.0,
+      "roi": 0.0
+    }
+  ],
+  "segment_performance": [],
+  "conversation_outcome": {
+    "positive_intent_count": 0,
+    "negative_intent_count": 0,
+    "top_customer_questions": []
+  },
+  "session_id": "bb33a17c-626a-4b",
+  "oneid": "UID004404",
+  "timestamp": "2026-07-19T15:55:28.849042"
+}

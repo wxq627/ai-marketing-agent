@@ -1,0 +1,38 @@
+{
+  "call_id": "ASR000367",
+  "cust_id": "C002192",
+  "phone": "158****3190",
+  "timestamp": "2026-01-17T19:29:00Z",
+  "duration_sec": 488,
+  "call_direction": "outbound",
+  "call_reason": "跨境/出行需求",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "喂，我刚才收到短信说我在美国消费了一笔500美金的交易，但是我现在人在国内啊？"
+    },
+    {
+      "role": "agent",
+      "text": "您别着急，我先帮您核实一下。请问您的卡号后四位是？"
+    },
+    {
+      "role": "customer",
+      "text": "8801。"
+    },
+    {
+      "role": "agent",
+      "text": "好的，我查到这笔500美金的交易是在Apple.com美国官网的消费，时间是一小时前。您最近是否有在Apple美国官网购买过产品？"
+    },
+    {
+      "role": "customer",
+      "text": "哦对对对！我忘了，我刚在官网订了一个iPad，那应该就是这个。不好意思虚惊一场。"
+    },
+    {
+      "role": "agent",
+      "text": "没关系！我们也建议您下载手机银行APP开通交易实时提醒功能，这样每一笔消费都能在手机上即时看到明细。"
+    }
+  ],
+  "resolution": "确认交易为本人操作",
+  "sentiment_label": "anxious_to_relieved",
+  "intent_label": "跨境/出行需求"
+}

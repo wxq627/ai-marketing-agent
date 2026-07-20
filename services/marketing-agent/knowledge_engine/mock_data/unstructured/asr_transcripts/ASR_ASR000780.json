@@ -1,0 +1,34 @@
+{
+  "call_id": "ASR000780",
+  "cust_id": "C002082",
+  "phone": "152****7412",
+  "timestamp": "2026-05-13T21:49:00Z",
+  "duration_sec": 564,
+  "call_direction": "inbound",
+  "call_reason": "新户/激活引导",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "你好，我刚申请了XX银行信用卡，想问下开卡之后有什么福利？"
+    },
+    {
+      "role": "agent",
+      "text": "恭喜您成为XX银行信用卡持卡人！目前新户有三重礼：第一，开卡后30天内任意消费1笔送100元刷卡金；第二，首笔消费满99元可以选XX银行定制礼品（保温杯/蓝牙耳机/U盘三选一）；第三，首次绑定支付宝、微信和云闪付各送10元红包。"
+    },
+    {
+      "role": "customer",
+      "text": "这么多！那我需要怎么操作？"
+    },
+    {
+      "role": "agent",
+      "text": "很简单，您先下载手机银行APP用手机号登录，然后在APP里激活卡片。之后日常消费自动就会触发这些奖励。另外建议您开通自动还款功能，这样不会忘记还款，还额外送20元话费券。"
+    },
+    {
+      "role": "customer",
+      "text": "好的我马上去下载，谢谢你！"
+    }
+  ],
+  "resolution": "新户权益介绍",
+  "sentiment_label": "excited",
+  "intent_label": "新户/激活引导"
+}

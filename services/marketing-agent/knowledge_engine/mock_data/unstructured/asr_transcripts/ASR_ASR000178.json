@@ -1,0 +1,34 @@
+{
+  "call_id": "ASR000178",
+  "cust_id": "C002411",
+  "phone": "189****7489",
+  "timestamp": "2026-02-04T20:10:00Z",
+  "duration_sec": 417,
+  "call_direction": "inbound",
+  "call_reason": "分期/借贷需求",
+  "transcript": [
+    {
+      "role": "customer",
+      "text": "喂你好，我上周在京东买了台电脑花了12000，这个能不能分期还？"
+    },
+    {
+      "role": "agent",
+      "text": "您好！可以的，单笔消费满500元就可以申请消费分期。您这笔12000元的消费支持3/6/12/24期，24期的手续费率最低，只要0.35%/期。"
+    },
+    {
+      "role": "customer",
+      "text": "24期太长了，6期的手续费多少？"
+    },
+    {
+      "role": "agent",
+      "text": "6期的手续费率是0.5%/期，每期本金2000元加手续费60元，合计2060元。总计手续费360元。"
+    },
+    {
+      "role": "customer",
+      "text": "那就6期吧，帮我办一下。"
+    }
+  ],
+  "resolution": "成功办理消费分期(6期)",
+  "sentiment_label": "neutral_to_satisfied",
+  "intent_label": "分期/借贷需求"
+}
