@@ -11,7 +11,7 @@ API Key 从环境变量 DEEPSEEK_API_KEY 读取, 未设置时自动降级为本�
 """
 import os, json, hashlib, numpy as np
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")  # 设置环境变量启用
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
 # 检测是否可用
