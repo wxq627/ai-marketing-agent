@@ -1,5 +1,5 @@
 """
-文件路径: d:\库文件\桌面\Summer_Intern\c_marketing_agent\agent_orchestrator\__init__.py
+文件路径: d:\库文件\桌面\Summer_Intern\ai_marketing_agent_local\marketing_agent\agent_orchestrator\__init__.py
 功能描述: Agent编排模块导出
 """
 

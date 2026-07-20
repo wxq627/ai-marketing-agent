@@ -1,5 +1,5 @@
 """
-文件路径: d:\库文件\桌面\Summer_Intern\c_marketing_agent\common\__init__.py
+文件路径: d:\库文件\桌面\Summer_Intern\ai_marketing_agent_local\marketing_agent\common\__init__.py
 功能描述: 公共模块导出文件
 """
 
@@ -10,9 +10,9 @@ from .config import (
     postgres_config,
     llm_config,
     ollama_config,
-    data_config,
     ke_config,
     sa_strategy_config,
+    feedback_config,
 )
 from .logger import logger
 from .errors import (
@@ -54,9 +54,9 @@ __all__ = [
     "postgres_config",
     "llm_config",
     "ollama_config",
-    "data_config",
     "ke_config",
     "sa_strategy_config",
+    "feedback_config",
     "logger",
     "MarketingAgentError",
     "StrategyError",

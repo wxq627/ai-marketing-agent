@@ -4,7 +4,6 @@ feedback_collector\data_reflow.py
 """
 
 import json
-import os
 import uuid
 import urllib.request
 import urllib.error
@@ -13,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from abc import ABC, abstractmethod
 from .models import ReflowRecord, ReflowStatus
-from common.logger import logger
+from common import logger, feedback_config
 from common.errors import FeedbackError
 
 
@@ -36,8 +35,8 @@ class ProjectOneInterface(ProjectInterface):
     """项目一接口：知识引擎（客户洞察系统）"""
 
     def __init__(self):
-        self._api_base = os.environ.get("KE_FEEDBACK_URL", "http://localhost:8000")
-        self._timeout = int(os.environ.get("KE_FEEDBACK_TIMEOUT", "10"))
+        self._api_base = feedback_config.KE_FEEDBACK_URL
+        self._timeout = feedback_config.KE_FEEDBACK_TIMEOUT
 
     @property
     def project_name(self) -> str:
@@ -126,8 +125,8 @@ class ProjectTwoInterface(ProjectInterface):
     """项目二接口：策略优化系统"""
 
     def __init__(self):
-        self._api_base = os.environ.get("SA_FEEDBACK_URL", "http://localhost:8765")
-        self._timeout = int(os.environ.get("SA_FEEDBACK_TIMEOUT", "10"))
+        self._api_base = feedback_config.SA_FEEDBACK_URL
+        self._timeout = feedback_config.SA_FEEDBACK_TIMEOUT
 
     @property
     def project_name(self) -> str:
@@ -318,6 +317,17 @@ class DataReflowQueue:
         events = []
         for record in all_records[:limit]:
             data = record.data
+            
+            if record.target == "project_two":
+                detail_data = {
+                    "feedback_metrics": data.get("feedback_metrics", {}),
+                    "channel_attribution": data.get("channel_attribution", []),
+                    "segment_performance": data.get("segment_performance", []),
+                    "conversation_outcome": data.get("conversation_outcome", {})
+                }
+            else:
+                detail_data = data.get("detail", {})
+            
             events.append({
                 "record_id": record.record_id,
                 "event_type": data.get("event_type", ""),
@@ -326,7 +336,7 @@ class DataReflowQueue:
                 "channel": data.get("channel", ""),
                 "target": record.target,
                 "status": record.status,
-                "detail": data.get("detail", {}),
+                "detail": detail_data,
                 "timestamp": (record.processed_at or record.created_at).isoformat() if record.processed_at or record.created_at else ""
             })
         

@@ -10,12 +10,14 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from .schemas import StrategyPackage, ExecutionPlan
-from common import logger, data_config, StrategyError, StrategyValidationError, StrategyNotFoundError
+from common import logger, StrategyError, StrategyValidationError, StrategyNotFoundError
+
+DEFAULT_STRATEGY_MOCK_FILE = Path(__file__).parent.parent / "contracts/examples/strategy_package_example.json"
 
 
 class StrategyLoader:
     def __init__(self, mock_file: Optional[str] = None):
-        self._mock_file = mock_file or data_config.STRATEGY_MOCK_FILE
+        self._mock_file = mock_file or str(DEFAULT_STRATEGY_MOCK_FILE)
         self._cache: Dict[str, StrategyPackage] = {}
         # 按保存顺序记录的 campaign_id 列表，用于查找最新策略
         self._latest_campaign_id: Optional[str] = None

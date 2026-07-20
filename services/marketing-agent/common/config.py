@@ -13,17 +13,16 @@ class AppConfig(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8080
     APP_DEBUG: bool = False
+    API_PREFIX: str = "/api/v3"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class LogConfig(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
     LOG_FILE_PATH: str = "./logs/app.log"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class RedisConfig(BaseSettings):
     REDIS_HOST: str = "localhost"
@@ -32,8 +31,7 @@ class RedisConfig(BaseSettings):
     REDIS_PASSWORD: Optional[str] = None
     REDIS_TIMEOUT: int = 5
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class PostgresConfig(BaseSettings):
     POSTGRES_HOST: str = "localhost"
@@ -43,7 +41,7 @@ class PostgresConfig(BaseSettings):
     POSTGRES_DB: str = "marketing_agent"
     POSTGRES_TIMEOUT: int = 10
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def dsn(self) -> str:
@@ -61,38 +59,13 @@ class LLMConfig(BaseSettings):
     LLM_MAX_TOKENS: int = 2048
     LLM_TEMPERATURE: float = 0.7
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class OllamaConfig(BaseSettings):
     OLLAMA_HOST: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5:7b"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-
-class DataConfig(BaseSettings):
-    CHROMA_DB_PATH: str = "./data/chroma"
-    STRATEGY_MOCK_FILE: str = "./contracts/examples/strategy_package_example.json"
-    DATA_DIR: str = "./data"
-    PROFILE_CSV: str = "customer_profiles.csv"
-    BENEFIT_CSV: str = "benefit_catalog.csv"
-    PRODUCT_CSV: str = "product_catalog.csv"
-
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-    @property
-    def profile_csv_path(self) -> Path:
-        return Path(self.DATA_DIR) / self.PROFILE_CSV
-
-    @property
-    def benefit_csv_path(self) -> Path:
-        return Path(self.DATA_DIR) / self.BENEFIT_CSV
-
-    @property
-    def product_csv_path(self) -> Path:
-        return Path(self.DATA_DIR) / self.PRODUCT_CSV
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class KnowledgeEngineConfig(BaseSettings):
     KE_API_BASE: str = "http://localhost:8000"
@@ -100,8 +73,7 @@ class KnowledgeEngineConfig(BaseSettings):
     KE_CACHE_TTL: int = 300
     KE_FALLBACK_TO_MOCK: bool = True
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class StrategyAgentConfig(BaseSettings):
     """strategy_agent 服务对接配置"""
@@ -110,8 +82,7 @@ class StrategyAgentConfig(BaseSettings):
     SA_CACHE_TTL: int = 600
     SA_FALLBACK_TO_MOCK: bool = True
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 class FeedbackConfig(BaseSettings):
     """反馈与回流配置"""
@@ -120,7 +91,7 @@ class FeedbackConfig(BaseSettings):
     SA_FEEDBACK_URL: str = "http://localhost:8765"
     SA_FEEDBACK_TIMEOUT: int = 10
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 app_config = AppConfig()
@@ -129,7 +100,6 @@ redis_config = RedisConfig()
 postgres_config = PostgresConfig()
 llm_config = LLMConfig()
 ollama_config = OllamaConfig()
-data_config = DataConfig()
 ke_config = KnowledgeEngineConfig()
 sa_strategy_config = StrategyAgentConfig()
 feedback_config = FeedbackConfig()

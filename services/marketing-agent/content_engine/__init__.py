@@ -1,5 +1,5 @@
 """
-文件路径: d:\库文件\桌面\Summer_Intern\c_marketing_agent\content_engine\__init__.py
+文件路径: d:\库文件\桌面\Summer_Intern\ai_marketing_agent_local\marketing_agent\content_engine\__init__.py
 功能描述: 内容引擎模块导出
 """
 
