@@ -30,7 +30,7 @@ class StrategyCandidateService:
     def generate(
         self,
         *,
-        customer_limit: int | None = 200,
+        customer_limit: int | None = None,
         sample_limit: int = 100,
         include_blocked: bool = False,
         campaign_id: str | None = None,
@@ -192,7 +192,7 @@ class StrategyCandidateService:
         *,
         campaign_id: str,
         budget: float,
-        customer_limit: int | None = 200,
+        customer_limit: int | None = None,
         selected_sample_limit: int = 100,
         evaluation_time: str | None = None,
     ) -> dict[str, Any]:

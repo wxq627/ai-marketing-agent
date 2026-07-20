@@ -238,7 +238,7 @@ class MarketingHandler(SimpleHTTPRequestHandler):
     def _handle_real_data_candidates(self) -> None:
         try:
             payload = self._read_json_body()
-            customer_limit = payload.get("customer_limit", 200)
+            customer_limit = payload.get("customer_limit")
             result = candidates.generate(
                 customer_limit=_optional_int(customer_limit),
                 sample_limit=int(payload.get("sample_limit", 100)),
@@ -297,7 +297,7 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             result = candidates.optimize(
                 campaign_id=campaign_id,
                 budget=budget,
-                customer_limit=_optional_int(payload.get("customer_limit", 200)),
+                customer_limit=_optional_int(payload.get("customer_limit")),
                 selected_sample_limit=int(payload.get("selected_sample_limit", 100)),
                 evaluation_time=_optional_text(payload.get("evaluation_time")),
             )

@@ -58,7 +58,6 @@ async function generateStrategy() {
       body: JSON.stringify({
         campaign_id: els.campaign.value,
         budget: Number(els.budget.value) * 10000,
-        customer_limit: 200,
         selected_sample_limit: 10,
         evaluation_time: "2026-07-17 12:00:00",
       }),
