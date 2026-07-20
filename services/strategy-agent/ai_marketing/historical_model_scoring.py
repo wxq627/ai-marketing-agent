@@ -73,6 +73,16 @@ class HistoricalModelScoreProvider:
         self._load_models()
         return self._models is not None
 
+    def warm_up(self) -> bool:
+        """Load model artifacts and feature indexes before the first strategy request."""
+        if not self.available:
+            return False
+        self._load_customers()
+        self._load_mappings()
+        self._load_channel_costs()
+        self._load_series()
+        return True
+
     def score(
         self,
         *,

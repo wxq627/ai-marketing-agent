@@ -25,8 +25,8 @@ engine = MarketingDecisionEngine()
 local_knowledge_data = LocalKnowledgeData()
 repo = PlanRepository(DATA_DIR / "marketing_demo.sqlite3")
 personalization = PersonalizedStrategyService(local_knowledge_data, engine)
-candidates = StrategyCandidateService(local_knowledge_data, engine)
 historical_model_scores = HistoricalModelScoreProvider()
+candidates = StrategyCandidateService(local_knowledge_data, engine, model_scores=historical_model_scores)
 
 
 class MarketingHandler(SimpleHTTPRequestHandler):
@@ -549,6 +549,8 @@ def _campaign_request_from_payload(payload: dict) -> CampaignRequest:
 
 
 def main() -> None:
+    print("Warming historical model features...")
+    historical_model_scores.warm_up()
     server = ThreadingHTTPServer(("127.0.0.1", 8765), MarketingHandler)
     print("AI marketing MVP running at http://127.0.0.1:8765")
     server.serve_forever()
