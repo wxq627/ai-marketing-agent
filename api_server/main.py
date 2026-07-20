@@ -33,6 +33,9 @@ def clean_json(obj):
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "mock_data", "structured")
+sys.path.insert(0, BASE)
+from db_store import (customer_search as db_search, customer_insert, customer_update, customer_get,
+                      feedback_insert, get_products, get_benefits, get_campaigns, get_recent_feedback, db_stats)
 
 app = FastAPI(title="Knowledge Agent API", version="1.0.0",
               description="项目一 -> 项目二 数据供给接口。所有数据基于XX银行信用卡中心真实体系。")
@@ -327,10 +330,54 @@ from graphrag.router_knowledge import router as knowledge_router
 app.include_router(intent_router)
 app.include_router(knowledge_router)
 
+# ================================================================
+# DB 持久化端点 (SQLite, 升级PG改连接字符串即可)
+# ================================================================
+
+@app.get("/api/v1/db/stats", summary="DB统计 (8000客户已持久化)")
+def db_statistics():
+    return db_stats()
+
+@app.post("/api/v1/db/customer/search", summary="DB客户搜索 (SQL查询, 增量快)")
+def db_customer_search(req: SearchRequest):
+    filters = {}
+    if req.age_min is not None: filters["age_min"] = req.age_min
+    if req.age_max is not None: filters["age_max"] = req.age_max
+    if req.city: filters["city"] = req.city
+    if req.income_level: filters["income_level"] = req.income_level
+    if req.card_level: filters["card_level"] = req.card_level
+    if req.lifecycle_stage: filters["lifecycle_stage"] = req.lifecycle_stage
+    if req.risk_level: filters["risk_level"] = req.risk_level
+    if req.value_level: filters["value_level"] = req.value_level
+    return db_search(filters, req.page, req.page_size)
+
+@app.post("/api/v1/db/customer/import", summary="批量导入客户 (INSERT增量)")
+def db_customer_import(customers: List[Dict]):
+    results = []
+    for c in customers:
+        r = customer_insert(c)
+        results.append(r)
+    return {"imported": len(results), "results": results}
+
+@app.post("/api/v1/db/feedback/import", summary="导入项目二三回传数据 (INSERT增量+实时更新画像)")
+def db_feedback_import(events: List[Dict]):
+    results = []
+    for e in events:
+        r = feedback_insert(e)
+        results.append(r)
+    return {"imported": len(results), "results": results, "note": "转化事件自动更新客户年消费/月均"}
+
+@app.get("/api/v1/db/feedback/recent", summary="查询最近回传记录")
+def db_feedback_recent(limit: int = 20):
+    return {"events": [dict(r) for r in get_recent_feedback(limit)]}
+
+
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "customers_loaded": len(_data["snapshot"]),
-            "version": "1.1.0", "time": datetime.now().isoformat()}
+    stats = db_stats() if os.path.exists(os.path.join(BASE, "mock_data", "knowledge_agent.db")) else {}
+    return {"status": "ok", "customers_loaded": stats.get("customers", 8000),
+            "db_size_mb": stats.get("db_size_mb", 0),
+            "version": "2.0.0", "backend": "SQLite (PG兼容)", "time": datetime.now().isoformat()}
 
 if __name__ == "__main__":
     import uvicorn
