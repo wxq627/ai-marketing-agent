@@ -246,6 +246,9 @@ class StrategyCandidateService:
                 "household_deduplication": policy["household_deduplication"],
                 "scored_candidate_count": len(candidates),
             },
+            "strategy_view": _build_strategy_view(
+                selected, result, calculator.campaign_mapping[campaign_id], budget=budget
+            ),
             "selected_candidate_sample": selected[:selected_sample_limit],
             "selected_candidate_total": len(selected),
             "_selected_candidates": selected,
@@ -314,6 +317,113 @@ class StrategyCandidateService:
         ]
 
 
+def _build_strategy_view(
+    selected: list[dict[str, Any]], result: Any, campaign_context: dict[str, Any], *, budget: float
+) -> dict[str, Any]:
+    """Build aggregate presentation data from the value-selected customer list."""
+    selected_count = len(selected)
+    budget_used = float(result.budget_used)
+    total_value = float(result.expected_net_value)
+    total_conversion = float(result.expected_conversion_count)
+    by_value_level: dict[str, list[dict[str, Any]]] = {}
+    by_channel: dict[str, list[dict[str, Any]]] = {}
+    for candidate in selected:
+        value_level = str(candidate.get("economic_profile", {}).get("value_level", "medium"))
+        by_value_level.setdefault(value_level, []).append(candidate)
+        by_channel.setdefault(str(candidate.get("channel", "unknown")), []).append(candidate)
+
+    segment_names = {
+        "high": "高价值优先客群",
+        "medium": "稳健转化客群",
+        "low": "成本敏感客群",
+    }
+    segments = [
+        {
+            "name": segment_names.get(level, "价值优先客群"),
+            "size": len(rows),
+            "conversion_rate": round(_average_probability(rows, "p_conversion") * 100, 2),
+            "expected_value_wan": round(_total_net_value(rows) / 10000, 2),
+            "reasons": ["正向预期净价值", "客户去重后入选", f"{level} 价值分层"],
+        }
+        for level, rows in by_value_level.items()
+    ]
+    segments.sort(key=lambda item: item["expected_value_wan"], reverse=True)
+
+    channels = [
+        {
+            "channel": channel,
+            "expected_reach": len(rows),
+            "budget_share": round(_total_budget_cost(rows) / max(budget_used, 0.01), 4),
+            "role": f"平均转化概率 {_average_probability(rows, 'p_conversion') * 100:.1f}%",
+        }
+        for channel, rows in by_channel.items()
+    ]
+    channels.sort(key=lambda item: item["expected_reach"], reverse=True)
+
+    category = str(campaign_context.get("benefit_category", "专属权益"))
+    objective = _objective_text(str(campaign_context.get("objective", "conversion")))
+    content = {
+        "app_popup": f"为您匹配了{category}活动，请在 App 查看适用条件与有效期。",
+        "sms": f"【信用卡服务】您有一项{category}活动提醒，请登录 App 查看详情；退订回复 TD。",
+        "wechat": f"围绕{category}价值说明使用路径，并明确活动条件、费用与有效期。",
+        "explain": f"依据{objective}目标、预测转化概率和预期净价值生成；不承诺收益或审批结果。",
+    }
+    average_unsubscribe = _average_probability(selected, "p_unsubscribe")
+    capacity_limited = int(result.excluded.get("channel_capacity_reached", 0))
+    compliance = [
+        {"item": "营销授权", "status": "通过", "detail": "候选生成阶段已过滤未授权客户。"},
+        {"item": "客户去重", "status": "通过", "detail": "同一客户最多保留一条投放策略。"},
+        {
+            "item": "渠道容量",
+            "status": "通过",
+            "detail": "已按各渠道日容量校验。" if not capacity_limited else "超出容量的候选已被过滤。",
+        },
+        {
+            "item": "退订风险",
+            "status": "通过" if average_unsubscribe <= 0.03 else "复核",
+            "detail": f"入选客群平均退订概率 {average_unsubscribe * 100:.2f}% 。",
+        },
+    ]
+    return {
+        "metrics": {
+            "audience_size": selected_count,
+            "conversion_rate": round(total_conversion / max(selected_count, 1) * 100, 2),
+            "expected_net_value_wan": round(total_value / 10000, 2),
+            "budget_utilization": round(budget_used / max(budget, 0.01) * 100, 2),
+        },
+        "segments": segments[:3],
+        "channels": channels,
+        "content": content,
+        "compliance": compliance,
+        "effect_forecast": {
+            "ctr": round(_average_probability(selected, "p_click") * 100, 2),
+            "conversion": round(total_conversion / max(selected_count, 1) * 100, 2),
+            "unsubscribe": round(average_unsubscribe * 100, 3),
+        },
+    }
+
+
+def _average_probability(rows: list[dict[str, Any]], name: str) -> float:
+    if not rows:
+        return 0.0
+    return sum(float(row["model_scores"]["probabilities"].get(name, 0.0)) for row in rows) / len(rows)
+
+
+def _total_net_value(rows: list[dict[str, Any]]) -> float:
+    return sum(float(row["strategy_value"]["expected_net_value"]) for row in rows)
+
+
+def _total_budget_cost(rows: list[dict[str, Any]]) -> float:
+    return sum(float(row["strategy_value"]["budget_cost"]) for row in rows)
+
+
+def _objective_text(objective: str) -> str:
+    return {
+        "conversion": "提升转化",
+        "spend": "提升消费",
+        "activation": "客户激活",
+        "retention": "客户留存",
+    }.get(objective, "营销转化")
 def _candidate_record(
     *,
     customer_id: str,
