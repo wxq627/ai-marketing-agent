@@ -79,7 +79,8 @@ function renderOptimization(data) {
   els.optimizationSummary.textContent =
     `从 ${summary.scored_candidate_count.toLocaleString()} 条合规候选中选中 ` +
     `${summary.selected_candidate_count.toLocaleString()} 人，使用预算 ${summary.budget_used.toFixed(2)} 元，` +
-    `预计净价值 ${summary.expected_net_value.toFixed(2)} 元，预计转化 ${summary.expected_conversion_count.toFixed(2)} 人。`;
+    `预计净价值 ${summary.expected_net_value.toFixed(2)} 元，预计转化 ${summary.expected_conversion_count.toFixed(2)} 人。` +
+    `以下展示前 ${data.selected_candidate_sample.length} 条策略样例。`;
   els.selectedCandidates.innerHTML = data.selected_candidate_sample.map(item => `
     <div class="row">
       <div>

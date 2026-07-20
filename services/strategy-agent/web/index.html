@@ -25,13 +25,9 @@
           <h2>运营输入</h2>
           <span id="statusText">等待生成</span>
         </div>
-        <label>
-          活动目标
-          <textarea id="goalInput">基于历史活动响应、客户行为与合规约束，生成具有正向预期净价值的投放策略。</textarea>
-        </label>
         <div class="form-grid">
           <label>
-            历史活动
+            活动
             <select id="campaignInput">
               <option value="CAMP_2026_DOUBLE11">分期促活活动</option>
               <option value="CAMP_2026_618">消费权益活动</option>
@@ -39,32 +35,8 @@
             </select>
           </label>
           <label>
-            产品
-            <select id="productInput" disabled>
-              <option value="installment">由活动策略映射</option>
-            </select>
-          </label>
-          <label>
-            渠道
-            <select id="channelInput" disabled>
-              <option value="omni">由客户授权与渠道容量决定</option>
-            </select>
-          </label>
-          <label>
             预算上限（万元）
             <input id="budgetInput" type="number" min="30" max="160" value="80">
-          </label>
-          <label>
-            风险容忍
-            <select id="riskInput" disabled>
-              <option value="2">策略规则控制</option>
-            </select>
-          </label>
-          <label>
-            频控强度
-            <select id="freqInput" disabled>
-              <option value="2">客户级频控规则</option>
-            </select>
           </label>
         </div>
       </section>

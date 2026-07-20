@@ -291,10 +291,10 @@ class StrategyCandidateService:
         if object_type == "card_upgrade":
             return self.catalog.offers()
         product_id, product_name = {
-            "installment": ("INSTALLMENT", "Installment plan"),
-            "benefit": ("CAMPAIGN_BENEFIT", "Campaign benefit"),
-            "activation": ("CUSTOMER_ACTIVATION", "Customer activation"),
-        }.get(object_type, ("CAMPAIGN_OFFER", "Campaign offer"))
+            "installment": ("INSTALLMENT", "信用卡分期方案"),
+            "benefit": ("CAMPAIGN_BENEFIT", f"{mapping.get('benefit_category', '专属')}权益方案"),
+            "activation": ("CUSTOMER_ACTIVATION", "客户激活方案"),
+        }.get(object_type, ("CAMPAIGN_OFFER", "活动权益方案"))
         benefit_ids = [
             item for item in mapping.get("primary_benefit_ids", "").split("|") if item
         ]
