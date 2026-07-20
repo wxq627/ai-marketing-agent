@@ -35,7 +35,8 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "mock_data", "structured")
 sys.path.insert(0, BASE)
 from db_store import (customer_search as db_search, customer_insert, customer_update, customer_get,
-                      feedback_insert, get_products, get_benefits, get_campaigns, get_recent_feedback, db_stats)
+                      feedback_insert, campaign_insert, get_products, get_benefits, get_campaigns,
+                      get_recent_feedback, db_stats)
 
 app = FastAPI(title="Knowledge Agent API", version="1.0.0",
               description="项目一 -> 项目二 数据供给接口。所有数据基于XX银行信用卡中心真实体系。")
@@ -359,13 +360,31 @@ def db_customer_import(customers: List[Dict]):
         results.append(r)
     return {"imported": len(results), "results": results}
 
-@app.post("/api/v1/db/feedback/import", summary="导入项目二三回传数据 (INSERT增量+实时更新画像)")
+@app.post("/api/v1/db/feedback/import", summary="项目三回传 (INSERT+实时更新动态记忆/意图)")
 def db_feedback_import(events: List[Dict]):
+    """接收项目三回传的各类事件, 实时更新客户画像。
+
+    支持: conversion(转化) / click(点击感兴趣) / reject(拒绝) / conversation(对话)
+    conversation事件会自动更新: 搜索关键词, 浏览偏好, 关键事件, 预警信号
+    """
     results = []
     for e in events:
         r = feedback_insert(e)
         results.append(r)
-    return {"imported": len(results), "results": results, "note": "转化事件自动更新客户年消费/月均"}
+    return {
+        "imported": len(results),
+        "results": results,
+        "note": "conversation→更新搜索关键词/浏览偏好/关键事件; conversion→更新年消费; click/reject→记录活动交互"
+    }
+
+@app.post("/api/v1/db/campaign/import", summary="项目三新建活动 (INSERT OR REPLACE)")
+def db_campaign_import(campaigns: List[Dict]):
+    """接收项目三创建的新活动ID。campaign_id不存在则INSERT, 存在则UPDATE。"""
+    results = []
+    for c in campaigns:
+        r = campaign_insert(c)
+        results.append(r)
+    return {"imported": len(results), "results": results}
 
 @app.get("/api/v1/db/feedback/recent", summary="查询最近回传记录")
 def db_feedback_recent(limit: int = 20):
