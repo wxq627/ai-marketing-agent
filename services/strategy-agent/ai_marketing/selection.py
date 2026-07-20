@@ -48,7 +48,7 @@ class BudgetConstrainedSelector:
         )
         selected: list[dict[str, Any]] = []
         excluded: Counter[str] = Counter()
-        selected_customers: set[str] = set()
+        selected_customer_ids: set[str] = set()
         channel_usage: Counter[str] = Counter()
         budget_used = 0.0
         expected_net_value = 0.0
@@ -58,13 +58,13 @@ class BudgetConstrainedSelector:
             value = candidate["strategy_value"]
             net_value = float(value["expected_net_value"])
             cost = float(value["budget_cost"])
-            customer_id = str(candidate["customer_id"])
+            customer_unique_id = str(candidate.get("customer_unique_id") or candidate["customer_id"])
             channel = str(candidate["channel"])
             capacity = int(candidate.get("channel_daily_capacity", 0) or 0)
             if net_value <= minimum_net_value:
                 excluded["non_positive_expected_value"] += 1
                 continue
-            if one_candidate_per_customer and customer_id in selected_customers:
+            if one_candidate_per_customer and customer_unique_id in selected_customer_ids:
                 excluded["customer_deduplicated"] += 1
                 continue
             if capacity > 0 and channel_usage[channel] >= capacity:
@@ -75,7 +75,7 @@ class BudgetConstrainedSelector:
                 continue
 
             selected.append(candidate)
-            selected_customers.add(customer_id)
+            selected_customer_ids.add(customer_unique_id)
             channel_usage[channel] += 1
             budget_used += cost
             expected_net_value += net_value

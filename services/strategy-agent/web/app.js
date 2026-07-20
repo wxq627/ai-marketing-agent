@@ -85,7 +85,7 @@ function renderOptimization(data) {
     <div class="row">
       <div>
         <strong>${item.product_name}</strong>
-        <p>${item.customer_id} · ${item.channel} · 转化概率 ${(item.model_scores.probabilities.p_conversion * 100).toFixed(1)}%</p>
+        <p>客户唯一 ID：${item.customer_unique_id || item.oneid} · ${item.channel} · 转化概率 ${(item.model_scores.probabilities.p_conversion * 100).toFixed(1)}%</p>
       </div>
       <span class="pill">净价值 ${item.strategy_value.expected_net_value.toFixed(1)}</span>
     </div>
@@ -151,3 +151,25 @@ function renderChart(effect) {
 
 els.generate.addEventListener("click", generateStrategy);
 els.publish.addEventListener("click", publishPlan);
+loadCampaignOptions();
+
+async function loadCampaignOptions() {
+  try {
+    const response = await fetch("/api/strategy/campaigns");
+    const data = await response.json();
+    if (!response.ok || !Array.isArray(data.items)) return;
+    const selectedCampaign = els.campaign.value;
+    els.campaign.replaceChildren();
+    data.items.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.campaign_id;
+      option.textContent = item.label;
+      els.campaign.append(option);
+    });
+    els.campaign.value = data.items.some(item => item.campaign_id === selectedCampaign)
+      ? selectedCampaign
+      : data.items[0]?.campaign_id || "";
+  } catch (_error) {
+    // Keep the bundled fallback options when the local service is unavailable.
+  }
+}

@@ -47,6 +47,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/feedback":
             self._handle_strategy_feedback_list()
             return
+        if path == "/api/strategy/campaigns":
+            self._handle_strategy_campaigns()
+            return
         if path == "/api/activities":
             self._json_response({"items": repo.list_recent()})
             return
@@ -199,6 +202,12 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             )
         except (TypeError, ValueError) as exc:
             self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_campaigns(self) -> None:
+        try:
+            self._json_response({"items": candidates.campaign_options()})
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 from collections import Counter
 from typing import Any
@@ -186,6 +187,30 @@ class StrategyCandidateService:
             "model_scoring": model_scoring,
             "next_step": "calculate strategy value from p_conversion, p_unsubscribe, product economics, and constraints",
         }
+
+    def campaign_options(self) -> list[dict[str, str]]:
+        """Return activities that have both catalog metadata and value-model mappings."""
+        with (self.local_data.structured_dir / "campaign_catalog.csv").open(
+            encoding="utf-8-sig", newline=""
+        ) as handle:
+            catalog = {row["campaign_id"]: row for row in csv.DictReader(handle)}
+        mappings = StrategyValueCalculator().campaign_mapping
+        options: list[dict[str, str]] = []
+        for campaign_id, row in catalog.items():
+            mapping = mappings.get(campaign_id)
+            if mapping is None:
+                continue
+            campaign_name = row.get("campaign_name", campaign_id)
+            category = mapping.get("benefit_category", "权益")
+            options.append(
+                {
+                    "campaign_id": campaign_id,
+                    "campaign_name": campaign_name,
+                    "benefit_category": category,
+                    "label": f"{campaign_name} · {category}权益",
+                }
+            )
+        return options
 
     def optimize(
         self,
@@ -440,6 +465,7 @@ def _candidate_record(
         "candidate_status": "ELIGIBLE",
         "customer_id": customer_id,
         "oneid": oneid,
+        "customer_unique_id": oneid or customer_id,
         "product_id": offer.product_id,
         "product_name": offer.product_name,
         "annual_fee": offer.annual_fee,
