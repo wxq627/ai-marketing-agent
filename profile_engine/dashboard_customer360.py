@@ -193,16 +193,102 @@ def render_intent(oneid, row):
     with c2: st.caption("证据:"+";".join(reasons) if reasons else "日常正常使用"); st.caption("T+1批量每日03:00 | 事件驱动<100ms | DeepSeek可用时启用语义分析")
 
 def render_roi(oneid, row):
-    st.subheader("活动效果 & 归因")
+    st.subheader("活动效果 & 归因 (触达→点击→转化)")
+
+    # 概念解释
+    with st.expander("  触达/点击/拒绝/转化 — 什么意思？", expanded=False):
+        st.markdown("""
+```
+活动推送 ──→ 客户收到(触达) ──→ 点击"感兴趣"(click) ──→ 实际消费(转化)
+  (touch)                         │
+                                  └──→ 点击"不感兴趣"(reject)
+```
+| 阶段 | 含义 | 数据来源 |
+|------|------|---------|
+| **触达 (touch)** | 活动消息/推送/邮件送达客户 | campaign_attribution表 |
+| **点击感兴趣 (click)** | 客户点了活动"感兴趣"按钮 | 项目三回传 POST /feedback/import |
+| **拒绝 (reject)** | 客户点了"不感兴趣" | 项目三回传 POST /feedback/import |
+| **转化 (conversion)** | 客户实际消费，产生金额 | campaign_attribution.converted=1 |
+        """)
+
     try:
         cust_id_val = row.get("cust_id","")
-        sql = "SELECT * FROM campaign_attribution WHERE cust_id=?"
-        conn=get_db(); attr=pd.read_sql(sql, conn, params=[cust_id_val]); conn.close()
-        conv=attr[attr["converted"]==True]; rev=conv["conversion_amount"].sum() if len(conv)>0 else 0; cost=attr["touch_cost"].sum() if len(attr)>0 else 1
-        c1,c2,c3,c4=st.columns(4)
-        c1.metric("触达",f"{len(attr)}次"); c2.metric("转化",f"{len(conv)}次"); c3.metric("归因收入",f"{rev:,.0f}"); c4.metric("ROI",f"{(rev-cost)/cost:.1f}x" if cost>0 else "N/A")
-        st.caption("归因收入=SUM(转化客户conversion_amount) | ROI=(收入-成本)/成本")
-    except: st.info("暂无活动数据")
+        conn = get_db()
+
+        # ── 1. campaign_attribution 归因数据 ──
+        attr_sql = "SELECT * FROM campaign_attribution WHERE cust_id=?"
+        attr = pd.read_sql(attr_sql, conn, params=[cust_id_val])
+
+        # ── 2. feedback_events 项目三回传 ──
+        fb_sql = "SELECT * FROM feedback_events WHERE oneid=? ORDER BY timestamp DESC LIMIT 50"
+        fb = pd.read_sql(fb_sql, conn, params=[oneid])
+        conn.close()
+
+        # 统计
+        total_touch = len(attr)
+        conv = attr[attr["converted"] == True]
+        total_conv = len(conv)
+        total_rev = conv["conversion_amount"].sum() if total_conv > 0 else 0
+        total_cost = attr["touch_cost"].sum() if total_touch > 0 else 1
+
+        # 项目三回传导航计
+        clicks = len(fb[fb["event_type"] == "click"]) if len(fb) > 0 else 0
+        rejects = len(fb[fb["event_type"] == "reject"]) if len(fb) > 0 else 0
+        conversations = len(fb[fb["event_type"] == "conversation"]) if len(fb) > 0 else 0
+
+        # ── KPI 卡片 ──
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
+        c1.metric(" 触达", f"{total_touch}次")
+        c2.metric(" 点击感兴趣", f"{clicks}次")
+        c3.metric(" 拒绝", f"{rejects}次")
+        c4.metric(" 转化", f"{total_conv}次")
+        c5.metric(" 归因收入", f"{total_rev:,.0f}")
+        c6.metric(" ROI", f"{(total_rev-total_cost)/max(total_cost,1):.1f}x" if total_cost > 0 else "N/A")
+
+        if total_touch > 0:
+            click_rate = clicks / total_touch * 100
+            conv_rate = total_conv / total_touch * 100
+            st.caption(f"点击率: {click_rate:.1f}% | 转化率: {conv_rate:.1f}% | 触达成本: ¥{total_cost:,.0f}")
+
+        # ── 按活动分组 ──
+        if total_touch > 0:
+            st.markdown("---")
+            st.markdown("#### 按活动明细")
+            camp_stats = attr.groupby("campaign_id").agg(
+                触达次数=("touch_id","count"),
+                转化次数=("converted","sum"),
+                转化金额=("conversion_amount","sum"),
+                总成本=("touch_cost","sum"),
+            ).reset_index()
+            # 加入点击/拒绝数
+            camp_clicks = {}
+            camp_rejects = {}
+            for _, r2 in fb.iterrows():
+                cid = str(r2.get("campaign_id",""))
+                if r2.get("event_type") == "click":
+                    camp_clicks[cid] = camp_clicks.get(cid,0) + 1
+                elif r2.get("event_type") == "reject":
+                    camp_rejects[cid] = camp_rejects.get(cid,0) + 1
+            camp_stats["点击"] = camp_stats["campaign_id"].map(lambda x: camp_clicks.get(str(x),0))
+            camp_stats["拒绝"] = camp_stats["campaign_id"].map(lambda x: camp_rejects.get(str(x),0))
+            camp_stats["转化率"] = (camp_stats["转化次数"] / camp_stats["触达次数"] * 100).round(1)
+            st.dataframe(camp_stats, use_container_width=True, hide_index=True)
+
+        # ── 项目三最新回传记录 ──
+        if len(fb) > 0:
+            st.markdown("---")
+            st.markdown("#### 项目三最新回传 (最近10条)")
+            for _, r in fb.head(10).iterrows():
+                etype = r.get("event_type","?")
+                emoji_map = {"click":"", "reject":"", "conversation":"", "conversion":""}
+                emoji = emoji_map.get(etype, "")
+                campaign = str(r.get("campaign_id",""))[:25] or "-"
+                detail = str(r.get("detail",""))[:60]
+                ts = str(r.get("timestamp",""))[:19]
+                st.caption(f"{emoji} [{etype}] {ts} | 活动:{campaign} | {detail}")
+
+    except Exception as e:
+        st.info(f"暂无活动数据 ({e})")
 
 def render_input(oneid, row):
     st.subheader("手动输入 & 实时更新")
