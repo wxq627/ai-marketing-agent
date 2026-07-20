@@ -33,6 +33,18 @@ body {
   background: var(--surface);
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.publish-status {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--primary);
@@ -134,6 +146,23 @@ textarea {
   font: inherit;
   font-weight: 650;
   cursor: pointer;
+}
+
+.secondary-button {
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--primary-strong);
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.secondary-button:disabled {
+  border-color: var(--line);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .primary-button:hover {
@@ -282,6 +311,9 @@ textarea {
   .section-head {
     align-items: stretch;
     flex-direction: column;
+  }
+  .topbar-actions {
+    flex-wrap: wrap;
   }
   .layout {
     padding: 14px;

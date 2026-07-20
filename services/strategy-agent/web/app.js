@@ -6,6 +6,8 @@ const els = {
   risk: document.getElementById("riskInput"),
   freq: document.getElementById("freqInput"),
   generate: document.getElementById("generateBtn"),
+  publish: document.getElementById("publishBtn"),
+  publishedStatus: document.getElementById("publishedStatus"),
   status: document.getElementById("statusText"),
   campaignId: document.getElementById("campaignId"),
   audience: document.getElementById("audienceMetric"),
@@ -18,6 +20,8 @@ const els = {
   compliance: document.getElementById("compliance"),
   chart: document.getElementById("forecastChart"),
 };
+
+let currentCampaignId = "";
 
 async function generatePlan() {
   els.status.textContent = "正在生成";
@@ -33,11 +37,34 @@ async function generatePlan() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "生成失败");
     renderPlan(data.plan || data);
+    currentCampaignId = (data.plan || data).campaign_id;
+    els.publish.disabled = !currentCampaignId;
+    els.publishedStatus.textContent = "草稿待发布";
     els.status.textContent = "方案已生成";
   } catch (error) {
     els.status.textContent = error.message;
   } finally {
     els.generate.disabled = false;
+  }
+}
+
+async function publishPlan() {
+  if (!currentCampaignId) return;
+  els.publish.disabled = true;
+  els.status.textContent = "正在发布";
+  try {
+    const response = await fetch("/api/strategy/publications", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({campaign_id: currentCampaignId}),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "发布失败");
+    els.publishedStatus.textContent = `已发布 ${data.publication.strategy_version}`;
+    els.status.textContent = "已发布给 C 端";
+  } catch (error) {
+    els.status.textContent = error.message;
+    els.publish.disabled = false;
   }
 }
 
@@ -149,4 +176,5 @@ function renderChart(effect) {
 }
 
 els.generate.addEventListener("click", generatePlan);
+els.publish.addEventListener("click", publishPlan);
 generatePlan();

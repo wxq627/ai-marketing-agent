@@ -35,8 +35,14 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path.startswith("/api/strategy/customers/") and path.endswith("/published-context"):
+            self._handle_published_strategy_context(path)
+            return
         if path.startswith("/api/strategy/customers/") and path.endswith("/recommendations"):
             self._handle_personalized_recommendations(path)
+            return
+        if path == "/api/strategy/publications":
+            self._handle_strategy_publications()
             return
         if path == "/api/activities":
             self._json_response({"items": repo.list_recent()})
@@ -56,6 +62,12 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/strategy/model-scores/real-data":
             self._handle_real_data_model_scores()
+            return
+        if path == "/api/strategy/publications":
+            self._handle_strategy_publish()
+            return
+        if path == "/api/strategy/publications/archive":
+            self._handle_strategy_archive()
             return
         if path == "/api/generate":
             self._handle_legacy_generate()
@@ -103,6 +115,11 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 scene=str(query.get("scene", ["agent_home"])[0]),
                 limit=int(query.get("limit", [5])[0]),
             )
+            result["published_strategy_context"] = self._published_context_for_oneid(
+                oneid,
+                product=_optional_text(query.get("product", [""])[0]),
+                as_of=_optional_text(query.get("as_of", [""])[0]),
+            )
             self._json_response(result)
         except KeyError as exc:
             self._json_response({"error": str(exc)}, status=404)
@@ -128,6 +145,15 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 conversation_summary=str(payload.get("conversation_summary", "")),
                 touchpoint=str(payload.get("touchpoint", "in_app")),
             )
+            result["published_strategy_context"] = self._published_context_for_oneid(
+                oneid,
+                product=_strategy_product_hint(
+                    str(payload.get("product_id", "")),
+                    str(payload.get("user_intent", "")),
+                    str(payload.get("conversation_summary", "")),
+                ),
+                as_of=_optional_text(payload.get("as_of")),
+            )
             self._json_response(result)
         except KeyError as exc:
             self._json_response({"error": str(exc)}, status=404)
@@ -135,6 +161,77 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             self._json_response({"should_recommend": False, "reason": str(exc)}, status=200)
         except (TypeError, ValueError) as exc:
             self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_published_strategy_context(self, path: str) -> None:
+        try:
+            prefix = "/api/strategy/customers/"
+            oneid = unquote(path[len(prefix) : -len("/published-context")]).strip("/")
+            query = parse_qs(urlparse(self.path).query)
+            self._json_response(
+                {
+                    "oneid": oneid,
+                    "strategy_context": self._published_context_for_oneid(
+                        oneid,
+                        product=_optional_text(query.get("product", [""])[0]),
+                        as_of=_optional_text(query.get("as_of", [""])[0]),
+                    ),
+                }
+            )
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_publications(self) -> None:
+        try:
+            query = parse_qs(urlparse(self.path).query)
+            self._json_response(
+                {
+                    "items": repo.list_publications(
+                        status=_optional_text(query.get("status", [""])[0]),
+                        limit=int(query.get("limit", [50])[0]),
+                    )
+                }
+            )
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_publish(self) -> None:
+        try:
+            payload = self._read_json_body()
+            campaign_id = _optional_text(payload.get("campaign_id"))
+            if not campaign_id:
+                self._json_response({"error": "campaign_id is required"}, status=400)
+                return
+            publication = repo.publish(
+                campaign_id,
+                effective_from=_optional_text(payload.get("effective_from")),
+                effective_to=_optional_text(payload.get("effective_to")),
+            )
+            self._json_response({"publication": publication})
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
+        except ValueError as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_archive(self) -> None:
+        try:
+            payload = self._read_json_body()
+            strategy_version = _optional_text(payload.get("strategy_version"))
+            if not strategy_version:
+                self._json_response({"error": "strategy_version is required"}, status=400)
+                return
+            self._json_response({"publication": repo.archive(strategy_version)})
+        except KeyError as exc:
+            self._json_response({"error": str(exc)}, status=404)
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 
@@ -193,7 +290,7 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 self._json_response({"error": "goal is required"}, status=400)
                 return
             plan = engine.generate_plan(request)
-            repo.save(plan)
+            repo.save(plan, build_strategy_package(plan))
             self._json_response(plan.to_dict())
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
@@ -205,11 +302,12 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 self._json_response({"error": "goal is required"}, status=400)
                 return
             plan = engine.generate_plan(request)
-            repo.save(plan)
+            package = build_strategy_package(plan)
+            repo.save(plan, package)
             self._json_response(
                 {
                     "plan": plan.to_dict(),
-                    "strategy_package": build_strategy_package(plan),
+                    "strategy_package": package,
                 }
             )
         except Exception as exc:
@@ -233,11 +331,12 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 return
             eligibility = engine.assess_knowledge_insight(insight_payload)
             plan = engine.generate_plan_from_knowledge_insight(request, insight_payload)
-            repo.save(plan)
+            package = build_strategy_package(plan)
+            repo.save(plan, package)
             self._json_response(
                 {
                     "plan": plan.to_dict(),
-                    "strategy_package": build_strategy_package(plan),
+                    "strategy_package": package,
                     "eligibility": eligibility.to_dict(),
                     "source": "knowledge_insight",
                 }
@@ -305,14 +404,15 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 evaluation_time=payload.get("evaluation_time"),
             )
             plan = engine.generate_plan_from_knowledge_insight(strategy_request, insight)
-            repo.save(plan)
+            package = build_strategy_package(plan)
+            repo.save(plan, package)
             self._json_response(
                 {
                     "source": insight["source"],
                     "data_version": insight["data_version"],
                     "goal_parsing": goal_parsing,
                     "plan": plan.to_dict(),
-                    "strategy_package": build_strategy_package(plan),
+                    "strategy_package": package,
                 }
             )
         except ValueError as exc:
@@ -337,8 +437,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 self._json_response({"error": "goal is required"}, status=400)
                 return
             plan = engine.generate_plan(request)
-            repo.save(plan)
-            self._json_response(build_strategy_package(plan))
+            package = build_strategy_package(plan)
+            repo.save(plan, package)
+            self._json_response(package)
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 
@@ -352,6 +453,22 @@ class MarketingHandler(SimpleHTTPRequestHandler):
     def _read_campaign_request(self) -> CampaignRequest:
         payload = self._read_json_body()
         return _campaign_request_from_payload(payload)
+
+    @staticmethod
+    def _published_context_for_oneid(
+        oneid: str,
+        *,
+        product: str | None,
+        as_of: str | None,
+    ) -> list[dict]:
+        customer_id = local_knowledge_data.customer_id_for_oneid(oneid)
+        if customer_id is None:
+            raise KeyError("unknown_oneid")
+        return repo.published_context_for_customer(
+            customer_id=customer_id,
+            product=product,
+            as_of=as_of,
+        )
 
     def _read_json_body(self) -> dict:
         body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
@@ -379,6 +496,14 @@ def _optional_int(value: object) -> int | None:
 def _optional_text(value: object) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _strategy_product_hint(product_id: str, user_intent: str, conversation_summary: str) -> str | None:
+    if product_id.strip():
+        return product_id
+    if "\u5206\u671f" in f"{user_intent}{conversation_summary}":
+        return "installment"
+    return None
 
 
 def _campaign_request_from_payload(payload: dict) -> CampaignRequest:

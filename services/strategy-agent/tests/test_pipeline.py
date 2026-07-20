@@ -8,6 +8,7 @@ from ai_marketing.persona import DEFAULT_CLUSTER_COUNT, kmeans_available
 from ai_marketing.personalization import PersonalizedStrategyService
 from ai_marketing.candidates import StrategyCandidateService
 from ai_marketing.historical_model_scoring import HistoricalModelScoreProvider
+from ai_marketing.storage import PlanRepository
 
 
 def test_generate_installment_plan():
@@ -371,6 +372,42 @@ def test_historical_model_score_provider_uses_v2_artifacts_when_available():
     assert result["feature_source"] == "project1_pre_touch_raw_data"
     assert set(result["probabilities"]) == {"p_open", "p_click", "p_conversion", "p_unsubscribe"}
     assert all(0 <= value <= 1 for value in result["probabilities"].values())
+
+
+def test_published_strategy_context_is_versioned_and_customer_scoped(tmp_path):
+    insight = LocalKnowledgeData().build_customer_insight(
+        campaign_id="PUBLISHED_CONTEXT_TEST",
+        target_product="installment",
+        limit=100,
+    )
+    plan = MarketingDecisionEngine().generate_plan_from_knowledge_insight(
+        CampaignRequest(goal="installment conversion", product="installment", budget_wan=20),
+        insight,
+    )
+    package = build_strategy_package(plan)
+    customer_id = package["audience_delivery_constraints"]["customer_channel_constraints"][0]["customer_id"]
+    repository = PlanRepository(tmp_path / "strategy.sqlite3")
+    repository.save(plan, package)
+
+    publication = repository.publish(plan.campaign_id, effective_from="2026-07-20 09:00:00")
+    contexts = repository.published_context_for_customer(
+        customer_id=customer_id,
+        product="installment",
+        as_of="2026-07-20 10:00:00",
+    )
+
+    assert publication["status"] == "published"
+    assert publication["strategy_version"].startswith("STR_")
+    assert len(contexts) == 1
+    assert contexts[0]["strategy_version"] == publication["strategy_version"]
+    assert contexts[0]["benefit_rule"]
+
+    repository.archive(publication["strategy_version"])
+    assert repository.published_context_for_customer(
+        customer_id=customer_id,
+        product="installment",
+        as_of="2026-07-20 10:00:00",
+    ) == []
 
 
 def test_business_suppression_is_distinct_from_compliance_block():
