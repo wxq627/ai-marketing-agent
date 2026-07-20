@@ -15,6 +15,7 @@
       <div class="topbar-actions">
         <span id="publishedStatus" class="publish-status">未发布</span>
         <button id="publishBtn" class="secondary-button" type="button" disabled>发布给 C 端</button>
+        <button id="optimizeBtn" class="secondary-button" type="button">价值优化</button>
         <button id="generateBtn" class="primary-button" type="button">生成营销方案</button>
       </div>
     </header>
@@ -30,6 +31,14 @@
           <textarea id="goalInput">面向近期有餐饮、商旅、线上支付活跃行为的客户，提升信用卡分期与消费券活动转化，同时控制打扰频次和合规风险。</textarea>
         </label>
         <div class="form-grid">
+          <label>
+            历史活动
+            <select id="campaignInput">
+              <option value="CAMP_2026_DOUBLE11">分期促活活动</option>
+              <option value="CAMP_2026_618">消费权益活动</option>
+              <option value="CAMP_2026_SUMMER">出行权益活动</option>
+            </select>
+          </label>
           <label>
             产品
             <select id="productInput">
@@ -100,6 +109,15 @@
           <div><b>决策</b><span>客群/预算/渠道</span></div>
           <div><b>生成</b><span>内容/实验/复盘</span></div>
         </div>
+
+        <section aria-label="价值优化结果">
+          <div class="section-head">
+            <h2>经济最优投放</h2>
+            <span id="optimizationStatus">等待优化</span>
+          </div>
+          <div id="optimizationSummary" class="optimization-summary">尚未基于预算进行候选筛选</div>
+          <div id="selectedCandidates" class="list"></div>
+        </section>
 
         <div class="two-column">
           <section>

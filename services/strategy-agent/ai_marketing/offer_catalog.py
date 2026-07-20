@@ -12,6 +12,7 @@ from .local_knowledge_data import STRUCTURED_DATA_DIR
 class ProductOffer:
     product_id: str
     product_name: str
+    annual_fee: float
     target_income: str
     selling_points: list[str]
     benefit_ids: list[str]
@@ -54,6 +55,7 @@ class OfferCatalog:
                 ProductOffer(
                     product_id=product_id,
                     product_name=product.get("product_name", product_id),
+                    annual_fee=_as_float(product.get("annual_fee")),
                     target_income=product.get("target_income", ""),
                     selling_points=_split_values(product.get("key_selling_points", "")),
                     benefit_ids=benefit_ids,

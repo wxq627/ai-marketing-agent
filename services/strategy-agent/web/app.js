@@ -1,11 +1,13 @@
 const els = {
   goal: document.getElementById("goalInput"),
+  campaign: document.getElementById("campaignInput"),
   product: document.getElementById("productInput"),
   channel: document.getElementById("channelInput"),
   budget: document.getElementById("budgetInput"),
   risk: document.getElementById("riskInput"),
   freq: document.getElementById("freqInput"),
   generate: document.getElementById("generateBtn"),
+  optimize: document.getElementById("optimizeBtn"),
   publish: document.getElementById("publishBtn"),
   publishedStatus: document.getElementById("publishedStatus"),
   status: document.getElementById("statusText"),
@@ -19,6 +21,9 @@ const els = {
   content: document.getElementById("contentBox"),
   compliance: document.getElementById("compliance"),
   chart: document.getElementById("forecastChart"),
+  optimizationStatus: document.getElementById("optimizationStatus"),
+  optimizationSummary: document.getElementById("optimizationSummary"),
+  selectedCandidates: document.getElementById("selectedCandidates"),
 };
 
 let currentCampaignId = "";
@@ -65,6 +70,35 @@ async function publishPlan() {
   } catch (error) {
     els.status.textContent = error.message;
     els.publish.disabled = false;
+  }
+}
+
+async function optimizeStrategy() {
+  els.optimize.disabled = true;
+  els.optimizationStatus.textContent = "正在计算候选价值";
+  try {
+    const response = await fetch("/api/strategy/optimize/real-data", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        campaign_id: els.campaign.value,
+        budget: Number(els.budget.value) * 10000,
+        customer_limit: 200,
+        selected_sample_limit: 10,
+        evaluation_time: "2026-07-17 12:00:00",
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "价值优化失败");
+    renderOptimization(data);
+    currentCampaignId = data.strategy_draft.campaign_id;
+    els.publish.disabled = false;
+    els.publishedStatus.textContent = "优化草稿待发布";
+    els.optimizationStatus.textContent = "优化草稿已生成";
+  } catch (error) {
+    els.optimizationStatus.textContent = error.message;
+  } finally {
+    els.optimize.disabled = false;
   }
 }
 
@@ -175,6 +209,27 @@ function renderChart(effect) {
   }).join("");
 }
 
+function renderOptimization(data) {
+  const summary = data.selection_summary;
+  els.optimizationSummary.textContent =
+    `选中 ${summary.selected_candidate_count} 人，使用预算 ${summary.budget_used.toFixed(2)} 元，` +
+    `预计净价值 ${summary.expected_net_value.toFixed(2)} 元，预计转化 ${summary.expected_conversion_count.toFixed(2)} 人`;
+  els.selectedCandidates.innerHTML = data.selected_candidate_sample.map(item => {
+    const value = item.strategy_value;
+    const conversion = item.model_scores.probabilities.p_conversion;
+    return `
+      <div class="row">
+        <div>
+          <strong>${item.product_name}</strong>
+          <p>${item.customer_id} · ${item.channel} · 转化概率 ${(conversion * 100).toFixed(1)}%</p>
+        </div>
+        <span class="pill">净价值 ${value.expected_net_value.toFixed(1)}</span>
+      </div>
+    `;
+  }).join("") || "<p>当前预算下没有正向价值候选</p>";
+}
+
 els.generate.addEventListener("click", generatePlan);
 els.publish.addEventListener("click", publishPlan);
+els.optimize.addEventListener("click", optimizeStrategy);
 generatePlan();

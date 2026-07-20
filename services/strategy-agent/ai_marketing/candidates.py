@@ -9,6 +9,8 @@ from .historical_model_scoring import HistoricalModelScoreProvider
 from .local_knowledge_data import LocalKnowledgeData
 from .offer_catalog import OfferCatalog, ProductOffer, offer_eligibility_reasons
 from .orchestrator import MarketingDecisionEngine
+from .selection import BudgetConstrainedSelector
+from .strategy_value import StrategyValueCalculator
 
 
 class StrategyCandidateService:
@@ -51,6 +53,7 @@ class StrategyCandidateService:
         decisions = {item.customer_id: item for item in report.decisions}
         channel_metrics = insight.get("channel_context", {}).get("channel_metrics", {})
         available_channels = insight.get("channel_context", {}).get("available_channels", [])
+        offers = self._offers_for_campaign(campaign_id)
 
         eligible_candidates: list[dict[str, Any]] = []
         blocked_sample: list[dict[str, Any]] = []
@@ -79,7 +82,7 @@ class StrategyCandidateService:
                 )
                 continue
 
-            for offer in self.catalog.offers():
+            for offer in offers:
                 product_reasons = offer_eligibility_reasons(offer, profile)
                 if product_reasons:
                     product_filtered_count += 1
@@ -104,6 +107,8 @@ class StrategyCandidateService:
                             offer=offer,
                             channel=channel,
                             channel_metrics=channel_metrics.get(channel, {}),
+                            campaign_id=campaign_id or "",
+                            economic_profile=_economic_profile(profile),
                         )
                     )
                     eligible_by_channel[channel] += 1
@@ -135,13 +140,22 @@ class StrategyCandidateService:
             "scored_candidate_count": 0,
         }
         if include_model_scores:
+            score_cache: dict[tuple[str, str, str, str], dict[str, Any]] = {}
             for candidate in candidate_sample:
-                candidate["model_scores"] = self.model_scores.score(
-                    customer_id=candidate["customer_id"],
-                    campaign_id=campaign_id,
-                    channel=candidate["channel"],
-                    touch_time=evaluation_time,
+                cache_key = (
+                    candidate["customer_id"],
+                    candidate["channel"],
+                    campaign_id or "",
+                    evaluation_time or "",
                 )
+                if cache_key not in score_cache:
+                    score_cache[cache_key] = self.model_scores.score(
+                        customer_id=candidate["customer_id"],
+                        campaign_id=campaign_id,
+                        channel=candidate["channel"],
+                        touch_time=evaluation_time,
+                    )
+                candidate["model_scores"] = score_cache[cache_key]
             model_scoring["model_available"] = self.model_scores.available
             model_scoring["scored_candidate_count"] = len(candidate_sample)
 
@@ -173,6 +187,71 @@ class StrategyCandidateService:
             "next_step": "calculate strategy value from p_conversion, p_unsubscribe, product economics, and constraints",
         }
 
+    def optimize(
+        self,
+        *,
+        campaign_id: str,
+        budget: float,
+        customer_limit: int | None = 200,
+        selected_sample_limit: int = 100,
+        evaluation_time: str | None = None,
+    ) -> dict[str, Any]:
+        """Score all eligible candidates, then select a budget-feasible delivery list."""
+        if selected_sample_limit <= 0:
+            raise ValueError("selected_sample_limit must be positive")
+        generated = self.generate(
+            customer_limit=customer_limit,
+            sample_limit=100_000,
+            campaign_id=campaign_id,
+            include_model_scores=True,
+            evaluation_time=evaluation_time,
+        )
+        candidates = generated["candidate_sample"]
+        unavailable = [
+            item for item in candidates if not item.get("model_scores", {}).get("model_available", False)
+        ]
+        if unavailable:
+            reason = unavailable[0]["model_scores"].get("reason", "model_artifacts_unavailable")
+            raise RuntimeError(f"historical response model is unavailable: {reason}")
+
+        calculator = StrategyValueCalculator()
+        for candidate in candidates:
+            candidate["strategy_value"] = calculator.score(candidate).to_dict()
+        selector = BudgetConstrainedSelector()
+        policy = calculator.policy["selection"]
+        result = selector.select(
+            candidates,
+            budget=budget,
+            minimum_net_value=float(policy["minimum_net_value"]),
+            one_candidate_per_customer=bool(policy["one_candidate_per_customer"]),
+        )
+        selected = result.selected
+        return {
+            "source": generated["source"],
+            "data_version": generated["data_version"],
+            "campaign_id": campaign_id,
+            "evaluation_time": evaluation_time,
+            "candidate_definition": generated["candidate_definition"],
+            "value_policy_version": calculator.policy["policy_version"],
+            "campaign_context": {
+                **calculator.campaign_mapping[campaign_id],
+                "benefit_cost_trigger": calculator.policy["strategy_object_economics"].get(
+                    calculator.campaign_mapping[campaign_id].get("strategy_object_type", "benefit"),
+                    calculator.policy["strategy_object_economics"]["benefit"],
+                )["benefit_cost_trigger"],
+            },
+            "budget": budget,
+            "selection_summary": {
+                **result.to_dict(),
+                "household_deduplication": policy["household_deduplication"],
+                "scored_candidate_count": len(candidates),
+            },
+            "selected_candidate_sample": selected[:selected_sample_limit],
+            "selected_candidate_total": len(selected),
+            "_selected_candidates": selected,
+            "top_rejected_reason_codes": generated["summary"]["top_blocked_reason_codes"],
+        }
+
     @staticmethod
     def _append_blocked(
         target: list[dict[str, Any]],
@@ -199,6 +278,41 @@ class StrategyCandidateService:
             }
         )
 
+    def _offers_for_campaign(self, campaign_id: str | None) -> list[ProductOffer]:
+        if not campaign_id:
+            return self.catalog.offers()
+        mapping = StrategyValueCalculator().campaign_mapping.get(campaign_id)
+        if mapping is None:
+            raise ValueError(f"unknown campaign_id: {campaign_id}")
+        object_type = mapping.get("strategy_object_type", "benefit")
+        if object_type == "card_upgrade":
+            return self.catalog.offers()
+        product_id, product_name = {
+            "installment": ("INSTALLMENT", "Installment plan"),
+            "benefit": ("CAMPAIGN_BENEFIT", "Campaign benefit"),
+            "activation": ("CUSTOMER_ACTIVATION", "Customer activation"),
+        }.get(object_type, ("CAMPAIGN_OFFER", "Campaign offer"))
+        benefit_ids = [
+            item for item in mapping.get("primary_benefit_ids", "").split("|") if item
+        ]
+        return [
+            ProductOffer(
+                product_id=product_id,
+                product_name=product_name,
+                annual_fee=0.0,
+                target_income="",
+                selling_points=[str(mapping.get("objective", "conversion"))],
+                benefit_ids=benefit_ids,
+                benefit_names=benefit_ids,
+                required_income="",
+                min_age=0,
+                max_age=120,
+                required_card_level="",
+                min_credit=0.0,
+                special_conditions="",
+            )
+        ]
+
 
 def _candidate_record(
     *,
@@ -207,6 +321,8 @@ def _candidate_record(
     offer: ProductOffer,
     channel: str,
     channel_metrics: dict[str, Any],
+    campaign_id: str,
+    economic_profile: dict[str, Any],
 ) -> dict[str, Any]:
     key = f"{customer_id}|{offer.product_id}|{channel}"
     return {
@@ -216,16 +332,29 @@ def _candidate_record(
         "oneid": oneid,
         "product_id": offer.product_id,
         "product_name": offer.product_name,
+        "annual_fee": offer.annual_fee,
         "benefit_ids": offer.benefit_ids,
         "benefit_names": offer.benefit_names,
         "channel": channel,
+        "campaign_id": campaign_id,
         "contact_cost": float(channel_metrics.get("cost_per_send", 0.0)),
         "channel_avg_open_rate": float(channel_metrics.get("avg_open_rate", 0.0)),
         "channel_avg_click_rate": float(channel_metrics.get("avg_click_rate", 0.0)),
         "channel_daily_capacity": int(channel_metrics.get("daily_capacity", 0)),
+        "economic_profile": economic_profile,
         "reason_codes": [],
     }
 
 
 def _top_counts(counter: Counter[str], limit: int = 10) -> list[dict[str, Any]]:
     return [{"reason_code": key, "count": value} for key, value in counter.most_common(limit)]
+
+
+def _economic_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    """Keep only aggregate value and risk signals required by the value formula."""
+    return {
+        "monthly_spend": float(profile.get("monthly_spend", 0.0) or 0.0),
+        "value_level": str(profile.get("value_level", "medium") or "medium"),
+        "risk_level": str(profile.get("risk_level", "low") or "low"),
+        "complaint_risk": float(profile.get("complaint_risk", 0.0) or 0.0),
+    }

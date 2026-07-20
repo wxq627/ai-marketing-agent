@@ -69,6 +69,27 @@ class PlanRepository:
                 on strategy_publication (status, product, effective_from, effective_to)
                 """
             )
+            conn.execute(
+                """
+                create table if not exists strategy_feedback_event (
+                    feedback_id integer primary key autoincrement,
+                    strategy_version text,
+                    campaign_id text,
+                    oneid text,
+                    channel text,
+                    event_type text not null,
+                    event_time text not null,
+                    payload text not null,
+                    created_at text not null
+                )
+                """
+            )
+            conn.execute(
+                """
+                create index if not exists idx_strategy_feedback_lookup
+                on strategy_feedback_event (strategy_version, campaign_id, event_time)
+                """
+            )
 
     def save(self, plan: MarketingPlan, strategy_package: dict[str, Any] | None = None) -> None:
         payload = json.dumps(plan.to_dict(), ensure_ascii=False)
@@ -93,6 +114,54 @@ class PlanRepository:
                     plan.audience_size,
                     plan.predicted_uplift,
                     plan.predicted_roi,
+                    payload,
+                    package_payload,
+                ),
+            )
+
+    def save_optimized_draft(
+        self,
+        *,
+        campaign_id: str,
+        strategy_package: dict[str, Any],
+        selection_summary: dict[str, Any],
+    ) -> None:
+        """Save a value-optimized strategy package so it can use the normal publish lifecycle."""
+        metadata = strategy_package.get("campaign_metadata", {})
+        payload = json.dumps(
+            {
+                "source": "value_optimization",
+                "campaign_id": campaign_id,
+                "selection_summary": selection_summary,
+            },
+            ensure_ascii=False,
+        )
+        package_payload = json.dumps(strategy_package, ensure_ascii=False)
+        budget_used = max(float(selection_summary.get("budget_used", 0) or 0), 0.01)
+        predicted_roi = float(selection_summary.get("expected_net_value", 0) or 0) / budget_used
+        selected_count = int(selection_summary.get("selected_candidate_count", 0) or 0)
+        expected_conversion = float(selection_summary.get("expected_conversion_count", 0) or 0)
+        predicted_uplift = expected_conversion / max(selected_count, 1)
+        with self._connection() as conn:
+            conn.execute(
+                """
+                insert into marketing_plan
+                (campaign_id, product, audience_size, predicted_uplift, predicted_roi, payload, strategy_package)
+                values (?, ?, ?, ?, ?, ?, ?)
+                on conflict(campaign_id) do update set
+                    product=excluded.product,
+                    audience_size=excluded.audience_size,
+                    predicted_uplift=excluded.predicted_uplift,
+                    predicted_roi=excluded.predicted_roi,
+                    payload=excluded.payload,
+                    strategy_package=excluded.strategy_package
+                """,
+                (
+                    campaign_id,
+                    str(metadata.get("product", "")),
+                    selected_count,
+                    predicted_uplift,
+                    predicted_roi,
                     payload,
                     package_payload,
                 ),
@@ -251,6 +320,80 @@ class PlanRepository:
             )
         return contexts
 
+    def save_feedback(self, feedback: dict[str, Any]) -> dict[str, Any]:
+        """Persist a C-side delivery or conversion event for later review and retraining."""
+        event_type = str(feedback.get("event_type", "aggregate_feedback")).strip() or "aggregate_feedback"
+        event_time = _normalize_time(str(feedback.get("event_time", "")) or None)
+        created_at = _now()
+        payload = json.dumps(feedback, ensure_ascii=False)
+        with self._connection() as conn:
+            cursor = conn.execute(
+                """
+                insert into strategy_feedback_event
+                (strategy_version, campaign_id, oneid, channel, event_type, event_time, payload, created_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    _optional_string(feedback.get("strategy_version")),
+                    _optional_string(feedback.get("campaign_id")),
+                    _optional_string(feedback.get("oneid")),
+                    _optional_string(feedback.get("channel")),
+                    event_type,
+                    event_time,
+                    payload,
+                    created_at,
+                ),
+            )
+        return {
+            "feedback_id": cursor.lastrowid,
+            "event_type": event_type,
+            "event_time": event_time,
+            "stored": True,
+        }
+
+    def list_feedback(
+        self,
+        *,
+        strategy_version: str | None = None,
+        campaign_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        query = """
+            select feedback_id, strategy_version, campaign_id, oneid, channel, event_type,
+                   event_time, payload, created_at
+            from strategy_feedback_event
+        """
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        if strategy_version:
+            clauses.append("strategy_version = ?")
+            parameters.append(strategy_version)
+        if campaign_id:
+            clauses.append("campaign_id = ?")
+            parameters.append(campaign_id)
+        if clauses:
+            query += " where " + " and ".join(clauses)
+        query += " order by event_time desc, feedback_id desc limit ?"
+        parameters.append(limit)
+        with self._connection() as conn:
+            rows = conn.execute(query, parameters).fetchall()
+        return [
+            {
+                "feedback_id": row[0],
+                "strategy_version": row[1],
+                "campaign_id": row[2],
+                "oneid": row[3],
+                "channel": row[4],
+                "event_type": row[5],
+                "event_time": row[6],
+                "payload": json.loads(row[7]),
+                "created_at": row[8],
+            }
+            for row in rows
+        ]
+
     def list_recent(self, limit: int = 10) -> list[dict]:
         with self._connection() as conn:
             rows = conn.execute(
@@ -311,3 +454,8 @@ def _normalize_time(value: str | None) -> str:
 
 def _now() -> str:
     return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
+def _optional_string(value: object) -> str | None:
+    text = str(value or "").strip()
+    return text or None

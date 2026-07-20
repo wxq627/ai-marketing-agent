@@ -14,7 +14,7 @@ from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.personalization import PersonalizedStrategyService
 from ai_marketing.storage import PlanRepository
-from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
+from ai_marketing.strategy_package import build_optimized_strategy_package, build_strategy_package, summarize_feedback
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,6 +44,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path == "/api/strategy/publications":
             self._handle_strategy_publications()
             return
+        if path == "/api/strategy/feedback":
+            self._handle_strategy_feedback_list()
+            return
         if path == "/api/activities":
             self._json_response({"items": repo.list_recent()})
             return
@@ -62,6 +65,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/strategy/model-scores/real-data":
             self._handle_real_data_model_scores()
+            return
+        if path == "/api/strategy/optimize/real-data":
+            self._handle_real_data_optimization()
             return
         if path == "/api/strategy/publications":
             self._handle_strategy_publish()
@@ -283,6 +289,44 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 
+    def _handle_real_data_optimization(self) -> None:
+        try:
+            payload = self._read_json_body()
+            campaign_id = _optional_text(payload.get("campaign_id"))
+            if not campaign_id:
+                self._json_response({"error": "campaign_id is required"}, status=400)
+                return
+            budget = float(payload.get("budget", 0))
+            if budget <= 0:
+                self._json_response({"error": "budget must be positive"}, status=400)
+                return
+            result = candidates.optimize(
+                campaign_id=campaign_id,
+                budget=budget,
+                customer_limit=_optional_int(payload.get("customer_limit", 200)),
+                selected_sample_limit=int(payload.get("selected_sample_limit", 100)),
+                evaluation_time=_optional_text(payload.get("evaluation_time")),
+            )
+            strategy_package = build_optimized_strategy_package(result)
+            result.pop("_selected_candidates", None)
+            repo.save_optimized_draft(
+                campaign_id=campaign_id,
+                strategy_package=strategy_package,
+                selection_summary=result["selection_summary"],
+            )
+            result["strategy_draft"] = {
+                "campaign_id": campaign_id,
+                "status": "draft",
+                "publish_endpoint": "/api/strategy/publications",
+            }
+            self._json_response(result)
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
+        except RuntimeError as exc:
+            self._json_response({"error": str(exc)}, status=503)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
     def _handle_legacy_generate(self) -> None:
         try:
             request = self._read_campaign_request()
@@ -446,7 +490,29 @@ class MarketingHandler(SimpleHTTPRequestHandler):
     def _handle_strategy_feedback(self) -> None:
         try:
             payload = self._read_json_body()
-            self._json_response(summarize_feedback(payload))
+            self._json_response(
+                {
+                    "storage": repo.save_feedback(payload),
+                    "summary": summarize_feedback(payload),
+                }
+            )
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_strategy_feedback_list(self) -> None:
+        try:
+            query = parse_qs(urlparse(self.path).query)
+            self._json_response(
+                {
+                    "items": repo.list_feedback(
+                        strategy_version=_optional_text(query.get("strategy_version", [""])[0]),
+                        campaign_id=_optional_text(query.get("campaign_id", [""])[0]),
+                        limit=int(query.get("limit", [100])[0]),
+                    )
+                }
+            )
+        except (TypeError, ValueError) as exc:
+            self._json_response({"error": str(exc)}, status=400)
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 

@@ -270,6 +270,14 @@ textarea {
   gap: 10px;
 }
 
+.optimization-summary {
+  border-left: 3px solid var(--primary);
+  background: var(--accent);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 12px;
+}
+
 .copy-item {
   background: var(--accent);
   border-left: 3px solid var(--primary);

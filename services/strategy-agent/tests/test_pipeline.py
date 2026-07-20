@@ -1,6 +1,6 @@
 from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
-from ai_marketing.strategy_package import build_strategy_package, summarize_feedback
+from ai_marketing.strategy_package import build_optimized_strategy_package, build_strategy_package, summarize_feedback
 from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
@@ -9,6 +9,8 @@ from ai_marketing.personalization import PersonalizedStrategyService
 from ai_marketing.candidates import StrategyCandidateService
 from ai_marketing.historical_model_scoring import HistoricalModelScoreProvider
 from ai_marketing.storage import PlanRepository
+from ai_marketing.selection import BudgetConstrainedSelector
+from ai_marketing.strategy_value import StrategyValueCalculator
 
 
 def test_generate_installment_plan():
@@ -408,6 +410,140 @@ def test_published_strategy_context_is_versioned_and_customer_scoped(tmp_path):
         product="installment",
         as_of="2026-07-20 10:00:00",
     ) == []
+
+
+def test_strategy_value_uses_click_trigger_for_benefit_costs():
+    candidate = {
+        "candidate_id": "CANDIDATE_1",
+        "campaign_id": "CAMP_2026_618",
+        "annual_fee": 300,
+        "contact_cost": 0.02,
+        "economic_profile": {
+            "monthly_spend": 10000,
+            "value_level": "medium",
+            "risk_level": "low",
+            "complaint_risk": 0.0,
+        },
+        "model_scores": {
+            "probabilities": {
+                "p_open": 0.8,
+                "p_click": 0.5,
+                "p_conversion": 0.2,
+                "p_unsubscribe": 0.01,
+            }
+        },
+    }
+
+    value = StrategyValueCalculator().score(candidate)
+
+    assert value.breakdown["benefit_expected_cost"] == 40.0
+    assert value.breakdown["contact_cost"] == 0.02
+    assert value.p_long_term > 0
+
+
+def test_budget_selector_enforces_budget_and_customer_deduplication():
+    candidates = [
+        {
+            "candidate_id": "A1",
+            "customer_id": "C001",
+            "channel": "app_push",
+            "channel_daily_capacity": 10,
+            "model_scores": {"probabilities": {"p_conversion": 0.5}},
+            "strategy_value": {"expected_net_value": 100, "budget_cost": 40, "value_density": 2.5},
+        },
+        {
+            "candidate_id": "A2",
+            "customer_id": "C001",
+            "channel": "sms",
+            "channel_daily_capacity": 10,
+            "model_scores": {"probabilities": {"p_conversion": 0.8}},
+            "strategy_value": {"expected_net_value": 90, "budget_cost": 20, "value_density": 4.5},
+        },
+        {
+            "candidate_id": "B1",
+            "customer_id": "C002",
+            "channel": "app_push",
+            "channel_daily_capacity": 10,
+            "model_scores": {"probabilities": {"p_conversion": 0.4}},
+            "strategy_value": {"expected_net_value": 80, "budget_cost": 70, "value_density": 1.14},
+        },
+    ]
+
+    result = BudgetConstrainedSelector().select(candidates, budget=70)
+
+    assert result.budget_used <= 70
+    assert len({item["customer_id"] for item in result.selected}) == len(result.selected)
+    assert result.excluded["budget_exhausted"] == 1
+    assert result.excluded["customer_deduplicated"] == 1
+
+
+def test_feedback_is_persisted(tmp_path):
+    repository = PlanRepository(tmp_path / "strategy.sqlite3")
+    stored = repository.save_feedback(
+        {
+            "strategy_version": "STR_TEST_001",
+            "campaign_id": "MKT_TEST",
+            "oneid": "UID000001",
+            "channel": "in_app",
+            "event_type": "clicked",
+            "event_time": "2026-07-20 10:00:00",
+            "feedback_metrics": {"exposure_count": 1, "click_count": 1},
+        }
+    )
+
+    rows = repository.list_feedback(strategy_version="STR_TEST_001")
+
+    assert stored["stored"] is True
+    assert rows[0]["event_type"] == "clicked"
+    assert rows[0]["payload"]["oneid"] == "UID000001"
+
+
+def test_optimized_delivery_list_can_be_published_for_c_side(tmp_path):
+    optimization = {
+        "campaign_id": "CAMP_2026_DOUBLE11",
+        "budget": 500,
+        "value_policy_version": "demo-2026-07-v1",
+        "campaign_context": {
+            "strategy_object_type": "installment",
+            "benefit_category": "installment",
+            "objective": "conversion",
+            "benefit_cost_trigger": "conversion",
+        },
+        "selection_summary": {
+            "selected_candidate_count": 1,
+            "budget_used": 45,
+            "expected_net_value": 150,
+            "expected_conversion_count": 0.4,
+        },
+        "_selected_candidates": [
+            {
+                "candidate_id": "CANDIDATE_001",
+                "customer_id": "C001",
+                "oneid": "UID001",
+                "channel": "app_push",
+                "strategy_value": {"expected_net_value": 150},
+                "model_scores": {"probabilities": {"p_conversion": 0.4}},
+            }
+        ],
+    }
+    package = build_optimized_strategy_package(optimization)
+    repository = PlanRepository(tmp_path / "strategy.sqlite3")
+    repository.save_optimized_draft(
+        campaign_id="CAMP_2026_DOUBLE11",
+        strategy_package=package,
+        selection_summary=optimization["selection_summary"],
+    )
+
+    publication = repository.publish("CAMP_2026_DOUBLE11", effective_from="2026-07-20 09:00:00")
+    context = repository.published_context_for_customer(
+        customer_id="C001",
+        product="installment",
+        as_of="2026-07-20 10:00:00",
+    )
+
+    assert publication["product"] == "credit_card_installment"
+    assert context[0]["strategy_version"] == publication["strategy_version"]
+    assert context[0]["allowed_channels"] == ["app_push"]
 
 
 def test_business_suppression_is_distinct_from_compliance_block():
