@@ -28,6 +28,14 @@ DEFAULT_SCORE_WEIGHTS = {
     "risk": 0.10,
 }
 
+# Different products need different evidence and have different affordable contact volumes.
+PRODUCT_MATCH_THRESHOLDS = {"installment": 0.26, "coupon": 0.30, "travel": 0.22}
+PRODUCT_AUDIENCE_CAP = {
+    "installment": (220, 9),
+    "coupon": (280, 11),
+    "travel": (140, 7),
+}
+
 
 def filter_priority_candidates(customers: list[Customer], request: CampaignRequest) -> list[Customer]:
     risk_ceiling = {1: 0.08, 2: 0.14, 3: 0.22}.get(request.risk_level, 0.14)
@@ -35,14 +43,19 @@ def filter_priority_candidates(customers: list[Customer], request: CampaignReque
         customer
         for customer in customers
         if customer.has_marketing_consent and customer.complaint_risk <= risk_ceiling
+        and _product_match_score(customer, request.product) >= PRODUCT_MATCH_THRESHOLDS.get(request.product, 0.26)
     ]
 
 
 def score_customers(
-    customers: list[Customer], request: CampaignRequest, persona_assignments: dict[str, Any] | None = None
+    customers: list[Customer],
+    request: CampaignRequest,
+    persona_assignments: dict[str, Any] | None = None,
+    candidates_pre_filtered: bool = False,
 ) -> list[CustomerScore]:
     scored: list[CustomerScore] = []
-    for customer in filter_priority_candidates(customers, request):
+    eligible_customers = customers if candidates_pre_filtered else filter_priority_candidates(customers, request)
+    for customer in eligible_customers:
         persona = (persona_assignments or {}).get(customer.customer_id)
 
         response, reasons, segment = predict_response(customer, request.product)
@@ -68,7 +81,8 @@ def score_customers(
         )
 
     scored.sort(key=lambda item: (item.priority_score, item.expected_value), reverse=True)
-    max_size = min(len(scored), int(320 + request.budget_wan * 9))
+    base, per_budget_wan = PRODUCT_AUDIENCE_CAP.get(request.product, PRODUCT_AUDIENCE_CAP["installment"])
+    max_size = min(len(scored), int(base + request.budget_wan * per_budget_wan))
     return _select_with_persona_allocation(scored, max_size, persona_assignments)
 
 
@@ -140,6 +154,22 @@ def _behavior_score(events: list[dict[str, str]], product: str) -> float:
         if "campaign_click" in name or "\u70b9\u51fb" in name:
             campaign_clicks += 1
     return min(1.0, matches * 0.25 + campaign_clicks * 0.3)
+
+
+def _product_match_score(customer: Customer, product: str) -> float:
+    """Return a transparent 0-1 product affinity score before final ranking."""
+    intent_name = PRODUCT_INTENTS.get(product, PRODUCT_INTENTS["installment"])
+    intent_score = customer.intent_scores.get(intent_name, 0.0)
+    behavior_score = _behavior_score(customer.recent_events, product)
+    if product == "installment":
+        product_signal = min(1.0, customer.credit_limit_usage * 0.55 + customer.installment_history * 0.15)
+    elif product == "coupon":
+        spending_frequency = min(1.0, (customer.dining_txn + customer.online_txn) / 28)
+        product_signal = min(1.0, customer.coupon_response * 0.7 + spending_frequency * 0.3)
+    else:
+        travel_frequency = min(1.0, customer.travel_txn / 4)
+        product_signal = min(1.0, travel_frequency * 0.6 + customer.monthly_spend / 30000 * 0.4)
+    return 0.5 * intent_score + 0.25 * behavior_score + 0.25 * product_signal
 
 
 def _select_with_persona_allocation(

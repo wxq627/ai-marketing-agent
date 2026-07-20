@@ -576,6 +576,7 @@ def _campaign_request_from_payload(payload: dict) -> CampaignRequest:
     return CampaignRequest(
         goal=str(payload.get("goal", "")),
         product=str(payload.get("product", "installment")),
+        product_locked=payload.get("product_locked") is True,
         channel_mode=str(payload.get("channel_mode", "omni")),
         budget_wan=int(payload.get("budget_wan", 80)),
         risk_level=int(payload.get("risk_level", 2)),

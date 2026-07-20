@@ -86,6 +86,7 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                     "Return only one valid json object, with no markdown. "
                     "Use only product values installment, coupon, travel and channel_mode values omni, app, sms. "
                     "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
+                    "When product_locked is true, keep the supplied default product exactly and do not infer another product. "
                     "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals. "
                     "The json object must exactly follow this example shape: "
                     '{"product":"installment","channel_mode":"omni","budget_wan":80,'
@@ -98,7 +99,7 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                     f"Operator goal: {goal}\n"
                     f"Defaults: product={defaults.product}, channel_mode={defaults.channel_mode}, "
                     f"budget_wan={defaults.budget_wan}, risk_level={defaults.risk_level}, "
-                    f"frequency_level={defaults.frequency_level}."
+                    f"frequency_level={defaults.frequency_level}, product_locked={defaults.product_locked}."
                 ),
             },
         ],
@@ -134,7 +135,7 @@ def _extract_output_text(response: dict[str, Any]) -> str:
 def _campaign_request_from_model(
     parsed: dict[str, Any], goal: str, defaults: CampaignRequest
 ) -> CampaignRequest:
-    product = parsed.get("product", defaults.product)
+    product = defaults.product if defaults.product_locked else parsed.get("product", defaults.product)
     channel_mode = parsed.get("channel_mode", defaults.channel_mode)
     budget_wan = parsed.get("budget_wan", defaults.budget_wan)
     risk_level = parsed.get("risk_level", defaults.risk_level)
@@ -148,6 +149,7 @@ def _campaign_request_from_model(
     return CampaignRequest(
         goal=goal,
         product=product,
+        product_locked=defaults.product_locked,
         channel_mode=channel_mode,
         budget_wan=budget_wan,
         risk_level=risk_level,
@@ -159,6 +161,7 @@ def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalP
     request = CampaignRequest(
         goal=goal,
         product=defaults.product,
+        product_locked=defaults.product_locked,
         channel_mode=defaults.channel_mode,
         budget_wan=defaults.budget_wan,
         risk_level=defaults.risk_level,
@@ -169,6 +172,7 @@ def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalP
         campaign_request=CampaignRequest(
             goal=goal,
             product=intent.product,
+            product_locked=defaults.product_locked,
             channel_mode=request.channel_mode,
             budget_wan=request.budget_wan,
             risk_level=request.risk_level,

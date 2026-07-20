@@ -56,6 +56,7 @@ class MarketingDecisionEngine:
         normalized = CampaignRequest(
             goal=request.goal,
             product=intent.product,
+            product_locked=request.product_locked,
             channel_mode=request.channel_mode,
             budget_wan=request.budget_wan,
             risk_level=request.risk_level,
@@ -64,9 +65,10 @@ class MarketingDecisionEngine:
         priority_candidates = filter_priority_candidates(customers, normalized)
         persona_result = cluster_priority_candidates(priority_candidates, normalized)
         scored = score_customers(
-            customers,
+            priority_candidates,
             normalized,
             persona_assignments=persona_result.assignments if persona_result else None,
+            candidates_pre_filtered=True,
         )
         segments = (
             summarize_selected_personas(scored, persona_result.assignments) if persona_result else summarize_segments(scored)
@@ -101,6 +103,11 @@ class MarketingDecisionEngine:
             ],
             persona_method="kmeans" if persona_result else "rule_based",
             persona_feature_names=persona_result.feature_names if persona_result else [],
+            audience_funnel={
+                "input_customer_count": len(customers),
+                "product_matched_count": len(priority_candidates),
+                "budget_selected_count": len(scored),
+            },
             next_actions=[
                 "运营确认活动目标、权益成本和投放窗口",
                 "灰度投放后回收响应、转化、投诉与核销数据",

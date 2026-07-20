@@ -28,6 +28,8 @@ class Customer:
 class CampaignRequest:
     goal: str
     product: str = "installment"
+    # The operator selected a concrete product in the UI; goal parsing must not override it.
+    product_locked: bool = False
     channel_mode: str = "omni"
     budget_wan: int = 80
     risk_level: int = 2
@@ -103,6 +105,7 @@ class MarketingPlan:
     customer_persona_assignments: list[dict[str, str]] = field(default_factory=list)
     persona_method: str = "rule_based"
     persona_feature_names: list[str] = field(default_factory=list)
+    audience_funnel: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

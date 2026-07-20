@@ -45,7 +45,6 @@ async function generatePlan() {
     currentCampaignId = (data.plan || data).campaign_id;
     els.publish.disabled = !currentCampaignId;
     els.publishedStatus.textContent = "草稿待发布";
-    els.status.textContent = "方案已生成";
   } catch (error) {
     els.status.textContent = error.message;
   } finally {
@@ -109,6 +108,7 @@ async function parseGoalWithLlm() {
     body: JSON.stringify({
       goal: els.goal.value,
       product: els.product.value,
+      product_locked: true,
       channel_mode: els.channel.value,
       budget_wan: Number(els.budget.value),
       risk_level: Number(els.risk.value),
@@ -118,7 +118,7 @@ async function parseGoalWithLlm() {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Goal parsing failed");
   const request = data.campaign_request;
-  els.product.value = request.product;
+  request.product_locked = true;
   els.channel.value = request.channel_mode;
   els.budget.value = request.budget_wan;
   els.risk.value = request.risk_level;
@@ -133,11 +133,20 @@ function renderPlan(plan) {
   els.uplift.textContent = `+${plan.predicted_uplift}%`;
   els.roi.textContent = `${plan.predicted_roi}x`;
   els.riskMetric.textContent = `${plan.effect_forecast.complaint}%`;
+  renderAudienceFunnel(plan.audience_funnel, plan.eligibility_summary);
   renderSegments(plan.segments);
   renderChannels(plan.channels);
   renderContent(plan.content);
   renderCompliance(plan.compliance);
   renderChart(plan.effect_forecast);
+}
+
+function renderAudienceFunnel(funnel = {}, eligibility = {}) {
+  const input = eligibility.eligible_count ?? funnel.input_customer_count;
+  const matched = funnel.product_matched_count;
+  const selected = funnel.budget_selected_count;
+  if (!input || !matched || !selected) return;
+  els.status.textContent = `合规可投 ${input.toLocaleString()} 人，产品匹配 ${matched.toLocaleString()} 人，预算入选 ${selected.toLocaleString()} 人`;
 }
 
 function renderSegments(segments) {

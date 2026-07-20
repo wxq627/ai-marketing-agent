@@ -13,10 +13,11 @@ PRODUCT_KEYWORDS = {
 def parse_intent(request: CampaignRequest) -> ParsedIntent:
     text = request.goal.lower()
     product = request.product
-    for candidate, keywords in PRODUCT_KEYWORDS.items():
-        if any(keyword in text for keyword in keywords):
-            product = candidate
-            break
+    if not request.product_locked:
+        for candidate, keywords in PRODUCT_KEYWORDS.items():
+            if any(keyword in text for keyword in keywords):
+                product = candidate
+                break
 
     signals: list[str] = []
     if any(word in text for word in ["餐饮", "商超", "消费券", "线上支付"]):
