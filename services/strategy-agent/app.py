@@ -594,10 +594,28 @@ def _suggest_campaign_id(
         if campaign_id.lower() in normalized_goal or campaign_name.lower() in normalized_goal:
             return campaign_id
 
-    # Explicit campaign timing words are stronger evidence than a broad LLM product label.
-    if any(keyword in normalized_goal for keyword in ("暑期", "夏季", "夏日")):
+    # Explicit activity words are stronger evidence than a broad LLM product label.
+    campaign_name_hints = (
+        (("618",), ("618",)),
+        (("双11", "双十一"), ("双11", "双十一")),
+        (("暑期", "夏季", "夏日"), ("暑期", "夏季", "夏日")),
+        (("春节", "新春"), ("春节", "新春")),
+        (("开学",), ("开学",)),
+        (("国庆",), ("国庆",)),
+        (("生日",), ("生日",)),
+        (("跨境", "境外"), ("跨境", "境外")),
+        (("观影", "电影"), ("观影",)),
+        (("亲子",), ("亲子",)),
+        (("绿色",), ("绿色",)),
+        (("云闪付",), ("云闪付",)),
+        (("apple pay",), ("apple pay",)),
+    )
+    for goal_hints, name_hints in campaign_name_hints:
+        if not any(hint in normalized_goal for hint in goal_hints):
+            continue
         for option in campaign_options:
-            if "暑期" in str(option.get("campaign_name", "")):
+            campaign_name = str(option.get("campaign_name", "")).lower()
+            if any(hint in campaign_name for hint in name_hints):
                 return str(option["campaign_id"])
 
     category_by_product = {
