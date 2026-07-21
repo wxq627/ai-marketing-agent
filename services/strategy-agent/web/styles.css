@@ -67,6 +67,7 @@ button {
 .primary-button:hover { background: #f0c45e; }
 .secondary-button { border: 1px solid #b9dfd7; background: transparent; color: #fff; }
 .secondary-button:disabled { border-color: #5d8580; color: #a7c5c0; cursor: not-allowed; }
+button:disabled { cursor: not-allowed; }
 
 .layout {
   display: grid;

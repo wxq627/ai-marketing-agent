@@ -47,6 +47,7 @@ const channelLabels = {
 let currentCampaignId = "";
 let pendingSuggestion = null;
 let configurationReady = false;
+let parsingGoal = false;
 
 function setConfigurationEditable(enabled) {
   configControls.forEach(control => { control.disabled = !enabled; });
@@ -54,11 +55,13 @@ function setConfigurationEditable(enabled) {
 }
 
 async function parseGoal() {
+  if (parsingGoal) return;
   const goal = els.goal.value.trim();
   if (!goal) {
     els.status.textContent = "请先输入运营目标";
     return;
   }
+  parsingGoal = true;
   els.parseGoal.disabled = true;
   els.parseSource.textContent = "解析中";
   els.parseSummary.textContent = "正在提取活动、预算、目标客群和渠道约束。";
@@ -84,6 +87,7 @@ async function parseGoal() {
     els.parseSummary.textContent = error.message;
   } finally {
     els.parseGoal.disabled = false;
+    parsingGoal = false;
   }
 }
 
@@ -245,7 +249,14 @@ function renderChart(effect) {
   }).join("");
 }
 
+window.parseGoalFromUi = parseGoal;
 els.parseGoal.addEventListener("click", parseGoal);
+els.goal.addEventListener("keydown", event => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    parseGoal();
+  }
+});
 els.acceptSuggestion.addEventListener("click", acceptSuggestion);
 els.manualMode.addEventListener("click", useManualMode);
 els.generate.addEventListener("click", generateStrategy);
