@@ -594,6 +594,12 @@ def _suggest_campaign_id(
         if campaign_id.lower() in normalized_goal or campaign_name.lower() in normalized_goal:
             return campaign_id
 
+    # Explicit campaign timing words are stronger evidence than a broad LLM product label.
+    if any(keyword in normalized_goal for keyword in ("暑期", "夏季", "夏日")):
+        for option in campaign_options:
+            if "暑期" in str(option.get("campaign_name", "")):
+                return str(option["campaign_id"])
+
     category_by_product = {
         "installment": "分期",
         "coupon": "消费",
