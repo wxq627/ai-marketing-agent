@@ -97,7 +97,9 @@ function renderSuggestion(data) {
   els.parseSource.textContent = sourceLabel;
   els.parseSummary.textContent = data.source === "deepseek"
     ? "AI 已生成以下可执行建议，仍需运营确认。"
-    : "未使用在线模型，已按本地规则生成建议，仍可手工调整。";
+    : data.fallback_reason === "api_key_not_configured"
+      ? "在线模型未配置：请在 .env 中设置 DEEPSEEK_API_KEY 后重新解析。"
+      : "在线模型暂不可用，已按本地规则生成建议，仍可手工调整。";
   const tags = [
     `预算 ${request.budget_wan} 万元`,
     `活动 ${data.suggested_campaign_id || "待选择"}`,

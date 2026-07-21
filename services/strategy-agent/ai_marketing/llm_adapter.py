@@ -4,6 +4,7 @@ import json
 import os
 import re
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -16,6 +17,7 @@ DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_MODEL = "deepseek-v4-pro"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
 ALLOWED_CHANNEL_MODES = {"omni", "app", "sms", "wechat"}
+LOCAL_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ def parse_campaign_goal(
     if not normalized_goal:
         raise ValueError("goal is required")
 
+    _load_local_deepseek_env()
     key = os.getenv("DEEPSEEK_API_KEY", "") if api_key is None else api_key
     model = os.getenv("DEEPSEEK_MODEL", DEFAULT_MODEL)
     if not key:
@@ -74,6 +77,26 @@ def parse_campaign_goal(
         return _fallback_result(normalized_goal, defaults, "deepseek_network_or_timeout")
     except (ValueError, json.JSONDecodeError, TypeError, AttributeError):
         return _fallback_result(normalized_goal, defaults, "deepseek_response_validation_failed")
+
+
+def _load_local_deepseek_env() -> None:
+    """Load local DeepSeek settings without overriding process environment variables."""
+    if not LOCAL_ENV_FILE.is_file():
+        return
+    try:
+        lines = LOCAL_ENV_FILE.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        candidate = line.strip()
+        if not candidate or candidate.startswith("#") or "=" not in candidate:
+            continue
+        name, value = candidate.split("=", 1)
+        name = name.strip()
+        if name not in {"DEEPSEEK_API_KEY", "DEEPSEEK_MODEL", "DEEPSEEK_TIMEOUT_SECONDS"}:
+            continue
+        if name not in os.environ:
+            os.environ[name] = value.strip().strip('"').strip("'")
 
 
 def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) -> dict[str, Any]:
