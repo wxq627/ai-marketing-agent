@@ -6,7 +6,7 @@ from .models import CampaignRequest, ParsedIntent
 PRODUCT_KEYWORDS = {
     "installment": ["分期", "账单", "费率", "还款"],
     "coupon": ["消费券", "券", "餐饮", "商超", "满减"],
-    "travel": ["商旅", "出行", "酒店", "机票", "贵宾厅", "里程"],
+    "travel": ["商旅", "出行", "暑期", "夏季", "酒店", "机票", "贵宾厅", "里程"],
 }
 
 
@@ -22,7 +22,7 @@ def parse_intent(request: CampaignRequest) -> ParsedIntent:
     signals: list[str] = []
     if any(word in text for word in ["餐饮", "商超", "消费券", "线上支付"]):
         signals.append("高频消费/权益敏感")
-    if any(word in text for word in ["商旅", "出行", "酒店", "机票"]):
+    if any(word in text for word in ["商旅", "出行", "暑期", "夏季", "酒店", "机票"]):
         signals.append("商旅出行偏好")
     if any(word in text for word in ["分期", "资金", "账单", "还款"]):
         signals.append("分期接受度/资金周转")
