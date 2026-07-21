@@ -557,6 +557,10 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
 
 def _optional_int(value: object) -> int | None:
     if value is None:
