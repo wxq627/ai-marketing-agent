@@ -1,3 +1,5 @@
+import json
+
 from ai_marketing.models import CampaignRequest
 from ai_marketing.orchestrator import MarketingDecisionEngine
 from ai_marketing.strategy_package import build_optimized_strategy_package, build_strategy_package, summarize_feedback
@@ -400,6 +402,9 @@ def test_published_strategy_context_is_versioned_and_customer_scoped(tmp_path):
 
     assert publication["status"] == "published"
     assert publication["strategy_version"].startswith("STR_")
+    downloaded = repository.get_published_package(publication["strategy_version"])
+    assert downloaded is not None
+    assert downloaded["campaign_metadata"]["campaign_id"] == plan.campaign_id
     assert len(contexts) == 1
     assert contexts[0]["strategy_version"] == publication["strategy_version"]
     assert contexts[0]["benefit_rule"]
@@ -542,8 +547,43 @@ def test_optimized_delivery_list_can_be_published_for_c_side(tmp_path):
     )
 
     assert publication["product"] == "credit_card_installment"
+    downloaded = repository.get_published_package(publication["strategy_version"])
+    assert downloaded is not None
+    assert downloaded["benefit_rule"]["benefit_type"] == "installment_fee_coupon"
+    assert downloaded["benefit_rule"]["benefit_name"] == "分期手续费优惠"
     assert context[0]["strategy_version"] == publication["strategy_version"]
     assert context[0]["allowed_channels"] == ["app_push"]
+
+
+def test_downloaded_legacy_package_has_c_side_benefit_fields(tmp_path):
+    repository = PlanRepository(tmp_path / "strategy.sqlite3")
+    package = {
+        "campaign_metadata": {"campaign_id": "LEGACY", "product": "coupon_package", "budget": 100},
+        "benefit_rule": {"benefit_category": "消费券"},
+    }
+    with repository._connection() as conn:
+        conn.execute(
+            """
+            insert into strategy_publication
+            (strategy_version, campaign_id, product, status, effective_from, effective_to,
+             strategy_package, created_at, published_at)
+            values (?, ?, ?, 'published', ?, null, ?, ?, ?)
+            """,
+            (
+                "STR_LEGACY_001",
+                "LEGACY",
+                "coupon_package",
+                "2026-07-20 09:00:00",
+                json.dumps(package, ensure_ascii=False),
+                "2026-07-20 09:00:00",
+                "2026-07-20 09:00:00",
+            ),
+        )
+
+    downloaded = repository.get_published_package("STR_LEGACY_001")
+    assert downloaded is not None
+    assert downloaded["benefit_rule"]["benefit_type"] == "campaign_benefit"
+    assert downloaded["benefit_rule"]["benefit_name"] == "消费券活动权益"
 
 
 def test_business_suppression_is_distinct_from_compliance_block():

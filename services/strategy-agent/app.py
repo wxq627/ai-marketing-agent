@@ -41,6 +41,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
         if path.startswith("/api/strategy/customers/") and path.endswith("/recommendations"):
             self._handle_personalized_recommendations(path)
             return
+        if path.startswith("/api/strategy/publications/") and path.endswith("/package"):
+            self._handle_published_strategy_package(path)
+            return
         if path == "/api/strategy/publications":
             self._handle_strategy_publications()
             return
@@ -202,6 +205,23 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             )
         except (TypeError, ValueError) as exc:
             self._json_response({"error": str(exc)}, status=400)
+        except Exception as exc:
+            self._json_response({"error": str(exc)}, status=500)
+
+    def _handle_published_strategy_package(self, path: str) -> None:
+        try:
+            prefix = "/api/strategy/publications/"
+            strategy_version = unquote(path[len(prefix) : -len("/package")]).strip("/")
+            if not strategy_version:
+                self._json_response({"error": "strategy_version is required"}, status=400)
+                return
+            package = repo.get_published_package(strategy_version)
+            publication = repo.get_publication(strategy_version)
+            if package is None or publication is None:
+                self._json_response({"error": "published_strategy_not_found"}, status=404)
+                return
+            package["publication"] = publication
+            self._json_response(package)
         except Exception as exc:
             self._json_response({"error": str(exc)}, status=500)
 

@@ -47,115 +47,6 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
     persona_by_customer = {
         item["customer_id"]: item["persona_name"] for item in plan.customer_persona_assignments
     }
-
-
-def build_optimized_strategy_package(optimization: dict) -> dict:
-    """Convert the value-optimized delivery list into the same publishable C-side contract."""
-    selected = list(optimization.get("_selected_candidates") or optimization.get("selected_candidate_sample", []))
-    summary = optimization.get("selection_summary", {})
-    context = optimization.get("campaign_context", {})
-    object_type = str(context.get("strategy_object_type", "benefit"))
-    product = {
-        "installment": "credit_card_installment",
-        "benefit": "coupon_package",
-        "card_upgrade": "card_upgrade",
-        "activation": "customer_activation",
-    }.get(object_type, object_type)
-    campaign_id = str(optimization.get("campaign_id", ""))
-    channel_counts = Counter(str(item.get("channel", "")) for item in selected)
-    selected_count = len(selected)
-    channel_routing = [
-        {
-            "channel": channel,
-            "budget_ratio": round(count / max(selected_count, 1), 4),
-            "contact_order": index,
-            "retry_rule": "Do not retry when the customer is frequency-blocked or has declined marketing.",
-        }
-        for index, (channel, count) in enumerate(channel_counts.most_common(), start=1)
-    ]
-    constraints = [
-        {
-            "customer_id": item["customer_id"],
-            "oneid": item.get("oneid", ""),
-            "final_decision": "ALLOW_VALUE_OPTIMIZED",
-            "allowed_channels": [item["channel"]],
-            "persona_name": "价值优先客群",
-            "segment_id": "SEG001",
-            "candidate_id": item["candidate_id"],
-            "expected_net_value": item["strategy_value"]["expected_net_value"],
-            "p_conversion": item["model_scores"]["probabilities"]["p_conversion"],
-        }
-        for item in selected
-    ]
-    benefit_category = str(context.get("benefit_category", "benefit"))
-    strategy = {
-        "scoring_focus": "expected_net_value_per_budget_cost",
-        "channel_strategy": "Use the selected channel only after compliance and frequency checks.",
-        "offer_direction": f"Prioritize the {benefit_category} value that matches the published campaign.",
-        "content_direction": "Explain applicable conditions and fees before presenting the next action.",
-    }
-    return {
-        "campaign_metadata": {
-            "campaign_id": campaign_id,
-            "objective": context.get("objective", "conversion"),
-            "product": product,
-            "budget": optimization.get("budget", 0),
-            "strategy_source": "value_optimization",
-            "value_policy_version": optimization.get("value_policy_version", ""),
-        },
-        "audience_segments": [
-            {
-                "segment_id": "SEG001",
-                "segment_name": "价值优先客群",
-                "size": selected_count,
-                "priority": 1.0,
-                "features": ["positive_expected_net_value", "budget_feasible", "customer_deduplicated"],
-                "expected_conversion_rate": round(
-                    float(summary.get("expected_conversion_count", 0)) / max(selected_count, 1), 4
-                ),
-                "expected_roi": round(
-                    float(summary.get("expected_net_value", 0)) / max(float(summary.get("budget_used", 0)), 0.01), 4
-                ),
-                "strategy": strategy,
-            }
-        ],
-        "audience_persona": {
-            "method": "strategy_value_optimization",
-            "feature_names": ["p_conversion", "p_unsubscribe", "ltv", "benefit_cost", "risk_loss"],
-            "cluster_count": 1,
-        },
-        "benefit_rule": {
-            "benefit_category": benefit_category,
-            "cost_trigger": context.get("benefit_cost_trigger", "conversion"),
-            "eligibility": ["published_strategy_member", "marketing_consent=true", "frequency_check_passed"],
-        },
-        "channel_routing": channel_routing,
-        "audience_delivery_constraints": {
-            "customer_channel_constraints": constraints,
-            "selection_summary": summary,
-        },
-        "budget_allocation": {
-            "total_budget": optimization.get("budget", 0),
-            "budget_used": summary.get("budget_used", 0),
-            "expected_net_value": summary.get("expected_net_value", 0),
-            "allocation_method": "greedy_expected_net_value_per_budget_cost",
-        },
-        "content_brief": {
-            "core_message": "Use the published value-optimized campaign policy.",
-            "tone": "professional, clear, and compliant",
-            "persona_content_briefs": [
-                {
-                    "segment_name": "价值优先客群",
-                    **strategy,
-                }
-            ],
-        },
-        "compliance_guard": {
-            "frequency_limit": "Use the Stage 2 customer-level frequency rule.",
-            "must_not_claim": ["guaranteed approval", "guaranteed savings"],
-            "selection_constraints": ["budget", "channel_capacity", "customer_deduplication"],
-        },
-    }
     return {
         "campaign_metadata": {
             "campaign_id": plan.campaign_id,
@@ -248,6 +139,125 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
     }
 
 
+def build_optimized_strategy_package(optimization: dict) -> dict:
+    """Convert the value-optimized delivery list into the same publishable C-side contract."""
+    selected = list(optimization.get("_selected_candidates") or optimization.get("selected_candidate_sample", []))
+    summary = optimization.get("selection_summary", {})
+    context = optimization.get("campaign_context", {})
+    object_type = str(context.get("strategy_object_type", "benefit"))
+    product = {
+        "installment": "credit_card_installment",
+        "benefit": "coupon_package",
+        "card_upgrade": "card_upgrade",
+        "activation": "customer_activation",
+    }.get(object_type, object_type)
+    campaign_id = str(optimization.get("campaign_id", ""))
+    channel_counts = Counter(str(item.get("channel", "")) for item in selected)
+    selected_count = len(selected)
+    channel_routing = [
+        {
+            "channel": channel,
+            "budget_ratio": round(count / max(selected_count, 1), 4),
+            "contact_order": index,
+            "retry_rule": "Do not retry when the customer is frequency-blocked or has declined marketing.",
+        }
+        for index, (channel, count) in enumerate(channel_counts.most_common(), start=1)
+    ]
+    constraints = [
+        {
+            "customer_id": item["customer_id"],
+            "oneid": item.get("oneid", ""),
+            "final_decision": "ALLOW_VALUE_OPTIMIZED",
+            "allowed_channels": [item["channel"]],
+            "persona_name": "价值优先客群",
+            "segment_id": "SEG001",
+            "candidate_id": item["candidate_id"],
+            "expected_net_value": item["strategy_value"]["expected_net_value"],
+            "p_conversion": item["model_scores"]["probabilities"]["p_conversion"],
+        }
+        for item in selected
+    ]
+    benefit_category = str(context.get("benefit_category", "benefit"))
+    benefit_type, benefit_name = {
+        "installment": ("installment_fee_coupon", "分期手续费优惠"),
+        "card_upgrade": ("card_upgrade_benefit", "卡等级升级权益"),
+        "activation": ("activation_reward", "客户激活权益"),
+    }.get(object_type, ("campaign_benefit", f"{benefit_category}活动权益"))
+    strategy = {
+        "scoring_focus": "expected_net_value_per_budget_cost",
+        "channel_strategy": "Use the selected channel only after compliance and frequency checks.",
+        "offer_direction": f"Prioritize the {benefit_category} value that matches the published campaign.",
+        "content_direction": "Explain applicable conditions and fees before presenting the next action.",
+    }
+    return {
+        "campaign_metadata": {
+            "campaign_id": campaign_id,
+            "objective": context.get("objective", "conversion"),
+            "product": product,
+            "budget": optimization.get("budget", 0),
+            "strategy_source": "value_optimization",
+            "value_policy_version": optimization.get("value_policy_version", ""),
+        },
+        "audience_segments": [
+            {
+                "segment_id": "SEG001",
+                "segment_name": "价值优先客群",
+                "size": selected_count,
+                "priority": 1.0,
+                "features": ["positive_expected_net_value", "budget_feasible", "customer_deduplicated"],
+                "expected_conversion_rate": round(
+                    float(summary.get("expected_conversion_count", 0)) / max(selected_count, 1), 4
+                ),
+                "expected_roi": round(
+                    float(summary.get("expected_net_value", 0)) / max(float(summary.get("budget_used", 0)), 0.01), 4
+                ),
+                "strategy": strategy,
+            }
+        ],
+        "audience_persona": {
+            "method": "strategy_value_optimization",
+            "feature_names": ["p_conversion", "p_unsubscribe", "ltv", "benefit_cost", "risk_loss"],
+            "cluster_count": 1,
+        },
+        "benefit_rule": {
+            "benefit_type": benefit_type,
+            "benefit_name": benefit_name,
+            "benefit_category": benefit_category,
+            "cost_trigger": context.get("benefit_cost_trigger", "conversion"),
+            "eligibility": ["published_strategy_member", "marketing_consent=true", "frequency_check_passed"],
+            "limit": "每客户在活动有效期内最多使用1次",
+        },
+        "channel_routing": channel_routing,
+        "audience_delivery_constraints": {
+            "customer_channel_constraints": constraints,
+            "selection_summary": summary,
+        },
+        "budget_allocation": {
+            "total_budget": optimization.get("budget", 0),
+            "budget_used": summary.get("budget_used", 0),
+            "expected_net_value": summary.get("expected_net_value", 0),
+            "allocation_method": "greedy_expected_net_value_per_budget_cost",
+        },
+        "content_brief": {
+            "core_message": "Use the published value-optimized campaign policy.",
+            "tone": "professional, clear, and compliant",
+            "persona_content_briefs": [
+                {
+                    "segment_name": "价值优先客群",
+                    **strategy,
+                }
+            ],
+        },
+        "compliance_guard": {
+            "frequency_limit": "Use the Stage 2 customer-level frequency rule.",
+            "must_not_claim": ["guaranteed approval", "guaranteed savings"],
+            "selection_constraints": ["budget", "channel_capacity", "customer_deduplication"],
+        },
+        "callback_config": {
+            "feedback_url": "/api/strategy/feedback",
+            "report_interval": "daily",
+        },
+    }
 def normalize_channel_name(name: str) -> str:
     mapping = {
         "App Push": "app_push",

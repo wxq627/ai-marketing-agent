@@ -118,9 +118,51 @@ POST /api/strategy/publications/archive
 
 归档后，该策略不会再被 C 端查询接口返回。
 
-## 5. C 端策略查询接口
+## 5. C 端获取完整策略包
 
-### 5.1 获取客户当前可用的已发布策略
+完整策略包用于 C 端在收到新活动后校验、缓存活动级规则和生成执行计划。它与“某一位客户当前是否命中策略”是两类不同数据，不能互相替代。
+
+### 5.1 查询已发布版本列表
+
+```text
+GET /api/strategy/publications?status=published&limit=50
+```
+
+C 端先获得已发布的 `strategy_version`，只同步新版本或尚未缓存的版本。该接口只返回元数据，不返回完整策略包。
+
+### 5.2 下载某个已发布的完整策略包
+
+```text
+GET /api/strategy/publications/{strategy_version}/package
+```
+
+示例：
+
+```text
+GET /api/strategy/publications/STR_CAMP_2026_WEDDING5_001/package
+```
+
+返回值是标准 `StrategyPackage`，可直接交给 C 端的 `/api/v3/strategy/receive` 校验和缓存；额外的 `publication` 字段用于记录版本、状态和有效期。草稿、归档版本或不存在的版本返回 `404`。
+
+```text
+GET B /api/strategy/publications?status=published
+GET B /api/strategy/publications/{strategy_version}/package
+POST C /api/v3/strategy/receive   body: {"strategy": <下载到的策略包>}
+```
+
+C 端现有代码中调用的旧接口 `POST /api/generate` 已被移除，不能再作为策略包来源。C 端应改为上述“版本列表 -> 下载策略包 -> receive”的流程。
+
+### 5.3 C 端改造清单
+
+1. 删除 `StrategyAgentAdapter` 中对 `http://localhost:8765/api/generate` 的调用和“MarketingPlan 二次转换”逻辑。
+2. 调用版本列表接口，选取尚未缓存的 `strategy_version`。
+3. 调用下载接口，得到的响应可直接作为 `StrategyPackage` 校验；`publication` 是附加元数据，可忽略。
+4. 将完整包提交至 C 端已有的 `POST /api/v3/strategy/receive`，或在 C 服务内部直接执行同样的校验和缓存。
+5. 用户进入会话、展示卡片或准备营销推荐时，再调用第 6 节的单客接口，不能仅凭 C 的“最新活动缓存”判断该客户是否命中。
+
+## 6. C 端单客户策略查询接口
+
+### 6.1 获取客户当前可用的已发布策略
 
 ```text
 GET /api/strategy/customers/{oneid}/published-context?product=installment
@@ -177,13 +219,13 @@ GET /api/strategy/customers/{oneid}/published-context?product=installment
 }
 ```
 
-返回为空数组 `strategy_context: []` 时，代表该客户当前没有命中的已发布策略。C 端应继续提供正常的查询或服务能力，不应主动输出营销推荐。
+这里的返回是脱敏后的单客策略上下文，不是完整策略包：它不会包含其他客户的名单、预算明细或全部客群约束。返回为空数组 `strategy_context: []` 时，代表该客户当前没有命中的已发布策略。C 端应继续提供正常的查询或服务能力，不应主动输出营销推荐。
 
-## 6. C 端已有接口的联动方式
+## 7. C 端已有接口的联动方式
 
 以下两个接口的响应中，也会自动增加 `published_strategy_context` 字段，因此 C 端可以少调用一次接口：
 
-### 6.1 智能体首页推荐
+### 7.1 智能体首页推荐
 
 ```text
 GET /api/strategy/customers/{oneid}/recommendations?scene=agent_home
@@ -191,7 +233,7 @@ GET /api/strategy/customers/{oneid}/recommendations?scene=agent_home
 
 该接口返回基础个性化推荐列表，并附带当前客户命中的已发布策略上下文。C 端展示推荐卡片时，应优先使用策略上下文中的权益方向、内容方向和合规要求。
 
-### 6.2 对话中的推荐决策
+### 7.2 对话中的推荐决策
 
 ```text
 POST /api/strategy/decision
@@ -218,7 +260,7 @@ POST /api/strategy/decision
 
 C 端仍负责生成自然语言回答；B 端提供的是“推荐什么、如何推荐、是否应推荐”的策略约束，而不是替代对话本身。
 
-## 7. C 端使用规则
+## 8. C 端使用规则
 
 1. C 端不得通过页面抓取或读取 SQLite 文件获取策略，必须调用服务接口。
 2. C 端不得使用 `draft` 或 `archived` 状态的策略。
@@ -226,7 +268,7 @@ C 端仍负责生成自然语言回答；B 端提供的是“推荐什么、如�
 4. C 端输出任何营销内容前，应遵守 `compliance_guard` 中的频控和禁止承诺要求。
 5. 当用户明确拒绝营销、取消授权或表达投诉时，C 端应停止营销推荐，并将事件回传给 B 端复盘模块。
 
-## 8. 反馈回传约定
+## 9. 反馈回传约定
 
 C 端在用户发生关键行为后，应调用反馈接口：
 

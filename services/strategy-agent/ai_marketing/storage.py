@@ -240,6 +240,21 @@ class PlanRepository:
             ).fetchone()
         return _publication_metadata(row) if row else None
 
+    def get_published_package(self, strategy_version: str) -> dict[str, Any] | None:
+        """Return a complete package only when its version is published."""
+        with self._connection() as conn:
+            row = conn.execute(
+                """
+                select strategy_package
+                from strategy_publication
+                where strategy_version = ? and status = 'published'
+                """,
+                (strategy_version,),
+            ).fetchone()
+        if row is None:
+            return None
+        return _normalize_download_package(json.loads(row[0]))
+
     def list_publications(self, *, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         if limit <= 0:
             raise ValueError("limit must be positive")
@@ -429,6 +444,29 @@ def _publication_metadata(row: tuple[Any, ...]) -> dict[str, Any]:
         "created_at": row[6],
         "published_at": row[7],
     }
+
+
+def _normalize_download_package(package: dict[str, Any]) -> dict[str, Any]:
+    """Make historical published packages consumable by the current C-side schema."""
+    benefit_rule = package.get("benefit_rule")
+    if not isinstance(benefit_rule, dict):
+        return package
+
+    product = str(package.get("campaign_metadata", {}).get("product", "")).lower()
+    benefit_category = str(benefit_rule.get("benefit_category", "活动"))
+    defaults = {
+        "credit_card_installment": ("installment_fee_coupon", "分期手续费优惠"),
+        "card_upgrade": ("card_upgrade_benefit", "卡等级升级权益"),
+        "customer_activation": ("activation_reward", "客户激活权益"),
+    }
+    benefit_type, benefit_name = defaults.get(
+        product,
+        ("campaign_benefit", f"{benefit_category}活动权益"),
+    )
+    benefit_rule.setdefault("benefit_type", benefit_type)
+    benefit_rule.setdefault("benefit_name", benefit_name)
+    benefit_rule.setdefault("limit", "每客户在活动有效期内最多使用1次")
+    return package
 
 
 def _product_matches(requested_product: str, stored_product: str) -> bool:
