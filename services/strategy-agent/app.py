@@ -329,6 +329,8 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 customer_limit=_optional_int(payload.get("customer_limit")),
                 selected_sample_limit=int(payload.get("selected_sample_limit", 100)),
                 evaluation_time=_optional_text(payload.get("evaluation_time")),
+                target_segment=str(payload.get("target_segment", "auto")),
+                channel_mode=str(payload.get("channel_mode", "omni")),
             )
             strategy_package = build_optimized_strategy_package(result)
             result.pop("_selected_candidates", None)
@@ -459,9 +461,19 @@ class MarketingHandler(SimpleHTTPRequestHandler):
 
     def _handle_strategy_parse_goal(self) -> None:
         try:
-            defaults = self._read_campaign_request()
+            request_payload = self._read_json_body()
+            defaults = _campaign_request_from_payload(request_payload)
             result = parse_campaign_goal(defaults.goal, defaults)
-            self._json_response(result.to_dict())
+            campaign_options = candidates.campaign_options()
+            payload = result.to_dict()
+            payload["suggested_campaign_id"] = _suggest_campaign_id(
+                defaults.goal,
+                result.campaign_request.product,
+                _optional_text(request_payload.get("campaign_id")),
+                campaign_options,
+            )
+            payload["suggested_target_segment"] = _suggest_target_segment(defaults.goal)
+            self._json_response(payload)
         except ValueError as exc:
             self._json_response({"error": str(exc)}, status=400)
         except Exception as exc:
@@ -563,6 +575,44 @@ def _strategy_product_hint(product_id: str, user_intent: str, conversation_summa
     if "\u5206\u671f" in f"{user_intent}{conversation_summary}":
         return "installment"
     return None
+
+
+def _suggest_campaign_id(
+    goal: str,
+    product: str,
+    default_campaign_id: str | None,
+    campaign_options: list[dict[str, str]],
+) -> str | None:
+    normalized_goal = goal.lower()
+    for option in campaign_options:
+        campaign_id = str(option.get("campaign_id", ""))
+        campaign_name = str(option.get("campaign_name", ""))
+        if campaign_id.lower() in normalized_goal or campaign_name.lower() in normalized_goal:
+            return campaign_id
+
+    category_by_product = {
+        "installment": "分期",
+        "coupon": "消费",
+        "travel": "出行",
+    }
+    expected_category = category_by_product.get(product)
+    for option in campaign_options:
+        if option.get("benefit_category") == expected_category:
+            return str(option["campaign_id"])
+    return default_campaign_id or (str(campaign_options[0]["campaign_id"]) if campaign_options else None)
+
+
+def _suggest_target_segment(goal: str) -> str:
+    text = goal.lower()
+    if any(word in text for word in ("沉睡", "唤醒", "召回", "低活")):
+        return "dormant"
+    if any(word in text for word in ("高价值", "高消费", "高净值", "优质")):
+        return "high_value"
+    if any(word in text for word in ("高意图", "意向", "分期意图", "权益意图")):
+        return "high_intent"
+    if any(word in text for word in ("年轻", "青年", "校园", "新户")):
+        return "young_new"
+    return "auto"
 
 
 def _campaign_request_from_payload(payload: dict) -> CampaignRequest:

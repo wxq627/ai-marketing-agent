@@ -37,6 +37,8 @@ class StrategyCandidateService:
         campaign_id: str | None = None,
         include_model_scores: bool = False,
         evaluation_time: str | None = None,
+        target_segment: str = "auto",
+        channel_mode: str = "omni",
     ) -> dict[str, Any]:
         if customer_limit is not None and customer_limit <= 0:
             raise ValueError("customer_limit must be positive or null")
@@ -44,6 +46,10 @@ class StrategyCandidateService:
             raise ValueError("sample_limit must be positive")
         if include_model_scores and not campaign_id:
             raise ValueError("campaign_id is required when include_model_scores is true")
+        if target_segment not in {"auto", "high_value", "high_intent", "dormant", "young_new"}:
+            raise ValueError("unsupported target_segment")
+        if channel_mode not in {"omni", "app", "sms", "wechat"}:
+            raise ValueError("unsupported channel_mode")
 
         insight = self.local_data.build_customer_insight(
             campaign_id="STRATEGY_CANDIDATES",
@@ -82,6 +88,9 @@ class StrategyCandidateService:
                     include_blocked=include_blocked,
                 )
                 continue
+            if not _matches_target_segment(customer, target_segment):
+                blocked_reasons["operator_target_segment_mismatch"] += 1
+                continue
 
             for offer in offers:
                 product_reasons = offer_eligibility_reasons(offer, profile)
@@ -101,6 +110,9 @@ class StrategyCandidateService:
                     continue
 
                 for channel in decision.eligible_channels:
+                    if not _channel_matches_mode(channel, channel_mode):
+                        channel_filtered_count += 1
+                        continue
                     eligible_candidates.append(
                         _candidate_record(
                             customer_id=customer_id,
@@ -220,6 +232,8 @@ class StrategyCandidateService:
         customer_limit: int | None = None,
         selected_sample_limit: int = 100,
         evaluation_time: str | None = None,
+        target_segment: str = "auto",
+        channel_mode: str = "omni",
     ) -> dict[str, Any]:
         """Score all eligible candidates, then select a budget-feasible delivery list."""
         if selected_sample_limit <= 0:
@@ -230,6 +244,8 @@ class StrategyCandidateService:
             campaign_id=campaign_id,
             include_model_scores=True,
             evaluation_time=evaluation_time,
+            target_segment=target_segment,
+            channel_mode=channel_mode,
         )
         candidates = generated["candidate_sample"]
         unavailable = [
@@ -266,6 +282,10 @@ class StrategyCandidateService:
                 )["benefit_cost_trigger"],
             },
             "budget": budget,
+            "operator_constraints": {
+                "target_segment": target_segment,
+                "channel_mode": channel_mode,
+            },
             "selection_summary": {
                 **result.to_dict(),
                 "household_deduplication": policy["household_deduplication"],
@@ -494,3 +514,33 @@ def _economic_profile(profile: dict[str, Any]) -> dict[str, Any]:
         "risk_level": str(profile.get("risk_level", "low") or "low"),
         "complaint_risk": float(profile.get("complaint_risk", 0.0) or 0.0),
     }
+
+
+def _channel_matches_mode(channel: str, channel_mode: str) -> bool:
+    return channel_mode == "omni" or {
+        "app": "app_push",
+        "sms": "sms",
+        "wechat": "wechat",
+    }[channel_mode] == channel
+
+
+def _matches_target_segment(customer: dict[str, Any], target_segment: str) -> bool:
+    if target_segment == "auto":
+        return True
+
+    profile = customer.get("customer_profile", {})
+    top_intents = " ".join(
+        str(item.get("name", "")) if isinstance(item, dict) else str(item)
+        for item in customer.get("intent_vector", {}).get("top_intents", [])
+    )
+    if target_segment == "high_value":
+        return str(profile.get("value_level", "")).lower() == "high" or float(
+            profile.get("monthly_spend", 0) or 0
+        ) >= 12000
+    if target_segment == "high_intent":
+        return any(keyword in top_intents for keyword in ("分期", "权益", "出行", "升级"))
+    if target_segment == "dormant":
+        return int(profile.get("churn_risk_score", 0) or 0) >= 60 or "沉睡" in str(
+            profile.get("lifecycle_stage", "")
+        )
+    return int(profile.get("age", 99) or 99) <= 30 or "新户" in str(profile.get("lifecycle_stage", ""))

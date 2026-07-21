@@ -219,6 +219,17 @@ def test_goal_parser_falls_back_without_api_key():
     assert result.campaign_request.budget_wan == 20
 
 
+def test_goal_parser_fallback_extracts_budget_and_channel():
+    result = parse_campaign_goal(
+        "面向高价值客户，用短信投放分期优惠，预算20万",
+        CampaignRequest(goal="", product="installment", channel_mode="omni", budget_wan=80),
+        api_key="",
+    )
+
+    assert result.campaign_request.budget_wan == 20
+    assert result.campaign_request.channel_mode == "sms"
+
+
 def test_goal_parser_uses_deepseek_json_response():
     def sender(payload, api_key):
         assert payload["response_format"] == {"type": "json_object"}

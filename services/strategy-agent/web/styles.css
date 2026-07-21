@@ -104,7 +104,7 @@ button {
 
 .form-grid { display: grid; gap: 14px; }
 label { display: grid; gap: 7px; color: #315a56; font-size: 13px; font-weight: 700; }
-select, input {
+select, input, textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid #a8cfc4;
@@ -114,7 +114,29 @@ select, input {
   font: inherit;
   padding: 9px 10px;
 }
-select:focus, input:focus { outline: 3px solid #b9e9dc; border-color: var(--teal-700); }
+textarea { min-height: 128px; resize: vertical; line-height: 1.55; }
+select:focus, input:focus, textarea:focus { outline: 3px solid #b9e9dc; border-color: var(--teal-700); }
+select:disabled, input:disabled { background: #edf4f1; color: #718582; cursor: not-allowed; }
+
+.goal-label { color: var(--ink); }
+.outline-button, .small-primary, .small-secondary {
+  min-height: 38px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.outline-button { border: 1px solid var(--teal-700); background: #fff; color: var(--teal-900); }
+.outline-button:hover { background: #effaf5; }
+.ai-suggestion { display: grid; gap: 11px; padding: 14px; background: #fff9df; border: 1px solid #ecd38c; border-left: 4px solid var(--gold-500); }
+.suggestion-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.suggestion-head h2 { font-size: 15px; }
+.suggestion-head span { color: #795c16; font-size: 12px; font-weight: 700; }
+.ai-suggestion p { color: #5e5639; font-size: 13px; line-height: 1.55; }
+.parsed-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.parsed-tags span { padding: 4px 7px; background: #fff; border: 1px solid #ead497; color: #6c581c; font-size: 12px; line-height: 1.35; }
+.proposal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.small-primary { border: 1px solid var(--gold-500); background: var(--gold-500); color: #30321f; }
+.small-primary:disabled { border-color: #dfd0a1; background: #eee5c6; color: #9b8c58; cursor: not-allowed; }
+.small-secondary { border: 1px solid #a8cfc4; background: #fff; color: var(--teal-900); }
 
 .dashboard { display: grid; gap: 22px; min-width: 0; }
 
@@ -175,7 +197,8 @@ select:focus, input:focus { outline: 3px solid #b9e9dc; border-color: var(--teal
 
 @media (max-width: 1080px) {
   .layout { grid-template-columns: 1fr; }
-  .workspace { grid-template-columns: 180px 1fr; align-items: center; }
+  .workspace { grid-template-columns: 180px 1fr; align-items: start; }
+  .workspace > .goal-label, .workspace > .outline-button, .workspace > .ai-suggestion, .workspace > .form-grid { grid-column: 2; }
   .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

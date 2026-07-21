@@ -32,7 +32,13 @@ POST /api/strategy/parse-goal
 }
 ```
 
-The response contains a validated `campaign_request`, audience hints, constraints, and the source (`deepseek` or `fallback`).
+The response contains a validated `campaign_request`, audience hints, constraints, and the source (`deepseek` or `fallback`). Channel modes support `omni`, `app`, `sms`, and `wechat`.
+
+## Operator Console Flow
+
+The operations page first accepts a natural-language goal. The parser returns suggested budget, campaign category, target segment, and channel mode. The operator can either confirm the suggested values or switch to manual selection before generating the value-optimized delivery strategy.
+
+The selected target segment and channel mode are enforced when building the candidate pool and are recorded in the published strategy package as `campaign_metadata.operator_constraints`.
 
 ## Safety Boundary
 

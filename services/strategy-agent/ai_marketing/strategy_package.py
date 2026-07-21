@@ -197,6 +197,7 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
             "budget": optimization.get("budget", 0),
             "strategy_source": "value_optimization",
             "value_policy_version": optimization.get("value_policy_version", ""),
+            "operator_constraints": optimization.get("operator_constraints", {}),
         },
         "audience_segments": [
             {

@@ -23,20 +23,56 @@
       <aside class="workspace" aria-label="运营输入">
         <div class="workspace-head">
           <span class="workspace-index">01</span>
-          <div><h2>运营输入</h2><span id="statusText">等待生成</span></div>
+          <div><h2>运营意图</h2><span id="statusText">输入目标后由 AI 提取策略参数</span></div>
         </div>
+
+        <label class="goal-label">
+          运营目标
+          <textarea id="goalInput" rows="6" placeholder="例如：面向高价值、近期有分期意图的客户，使用短信投放分期优惠，预算 20 万。"></textarea>
+        </label>
+        <button id="parseGoalBtn" class="outline-button" type="button">解析运营意图</button>
+
+        <section class="ai-suggestion" aria-label="AI 解析建议">
+          <div class="suggestion-head"><h2>AI 解析建议</h2><span id="parseSource">待解析</span></div>
+          <p id="parseSummary">AI 会提取预算、活动、目标客群、渠道和风险约束，等待运营确认。</p>
+          <div id="parsedTags" class="parsed-tags"></div>
+          <div class="proposal-actions">
+            <button id="acceptSuggestionBtn" class="small-primary" type="button" disabled>确认并填入</button>
+            <button id="manualModeBtn" class="small-secondary" type="button">自行填写</button>
+          </div>
+        </section>
+
         <div class="form-grid">
           <label>
             活动
-            <select id="campaignInput">
-              <option value="CAMP_2026_DOUBLE11">分期促活活动</option>
-              <option value="CAMP_2026_618">消费权益活动</option>
-              <option value="CAMP_2026_SUMMER">出行权益活动</option>
+            <select id="campaignInput" data-config-control disabled>
+              <option value="CAMP_2026_DOUBLE11">双十一分期免息大促</option>
+              <option value="CAMP_2026_618">618 购物节返现</option>
+              <option value="CAMP_2026_SUMMER">暑期出行季</option>
             </select>
           </label>
           <label>
             预算上限（万元）
-            <input id="budgetInput" type="number" min="30" max="160" value="80">
+            <input id="budgetInput" data-config-control type="number" min="1" max="200" value="80" disabled>
+          </label>
+          <label>
+            目标客群
+            <select id="targetSegmentInput" data-config-control disabled>
+              <option value="auto">自动圈选</option>
+              <option value="high_value">高价值客户</option>
+              <option value="high_intent">高意图客户</option>
+              <option value="dormant">沉睡待唤醒客户</option>
+              <option value="young_new">年轻或新户客户</option>
+            </select>
+          </label>
+          <label>
+            投放渠道偏好
+            <select id="channelModeInput" data-config-control disabled>
+              <option value="omni">智能全渠道</option>
+              <option value="app">仅 App Push</option>
+              <option value="sms">仅短信</option>
+              <option value="wechat">仅微信公众号</option>
+            </select>
           </label>
         </div>
       </aside>
@@ -61,13 +97,13 @@
 
         <section class="strategy-focus" aria-label="策略生成结果">
           <div class="section-head"><h2>策略生成结果</h2><span id="optimizationStatus">等待生成</span></div>
-          <div id="optimizationSummary" class="optimization-summary">尚未基于预算进行候选筛选。</div>
+          <div id="optimizationSummary" class="optimization-summary">请先确认运营输入，再基于预算进行候选筛选。</div>
           <div id="selectedCandidates" class="list"></div>
         </section>
 
         <div class="two-column">
           <section class="result-panel audience-panel"><h2>推荐客群</h2><div id="segments" class="list"></div></section>
-          <section class="result-panel channel-panel"><h2>投放策略</h2><div id="channels" class="list"></div></section>
+          <section class="result-panel channel-panel"><h2>投放渠道</h2><div id="channels" class="list"></div></section>
         </div>
 
         <section class="result-panel content-panel"><h2>内容生成</h2><div id="contentBox" class="content-box"></div></section>

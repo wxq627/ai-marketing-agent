@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import asdict, dataclass
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
@@ -14,7 +15,7 @@ from .models import CampaignRequest
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_MODEL = "deepseek-v4-pro"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
-ALLOWED_CHANNEL_MODES = {"omni", "app", "sms"}
+ALLOWED_CHANNEL_MODES = {"omni", "app", "sms", "wechat"}
 
 
 @dataclass(frozen=True)
@@ -84,7 +85,7 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                 "content": (
                     "You convert a bank marketing operator's goal into a constrained campaign request. "
                     "Return only one valid json object, with no markdown. "
-                    "Use only product values installment, coupon, travel and channel_mode values omni, app, sms. "
+                    "Use only product values installment, coupon, travel and channel_mode values omni, app, sms, wechat. "
                     "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
                     "When product_locked is true, keep the supplied default product exactly and do not infer another product. "
                     "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals. "
@@ -158,12 +159,14 @@ def _campaign_request_from_model(
 
 
 def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalParseResult:
+    channel_mode = _infer_channel_mode(goal, defaults.channel_mode)
+    budget_wan = _infer_budget_wan(goal, defaults.budget_wan)
     request = CampaignRequest(
         goal=goal,
         product=defaults.product,
         product_locked=defaults.product_locked,
-        channel_mode=defaults.channel_mode,
-        budget_wan=defaults.budget_wan,
+        channel_mode=channel_mode,
+        budget_wan=budget_wan,
         risk_level=defaults.risk_level,
         frequency_level=defaults.frequency_level,
     )
@@ -173,8 +176,8 @@ def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalP
             goal=goal,
             product=intent.product,
             product_locked=defaults.product_locked,
-            channel_mode=request.channel_mode,
-            budget_wan=request.budget_wan,
+            channel_mode=channel_mode,
+            budget_wan=budget_wan,
             risk_level=request.risk_level,
             frequency_level=request.frequency_level,
         ),
@@ -183,6 +186,28 @@ def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalP
         source="fallback",
         fallback_reason=reason,
     )
+
+
+def _infer_channel_mode(goal: str, default: str) -> str:
+    if "短信" in goal:
+        return "sms"
+    if "微信" in goal or "公众号" in goal:
+        return "wechat"
+    if "app" in goal.lower() or "推送" in goal:
+        return "app"
+    return default
+
+
+def _infer_budget_wan(goal: str, default: int) -> int:
+    wan_match = re.search(r"(?:预算)?\s*(\d+(?:\.\d+)?)\s*万", goal)
+    if wan_match:
+        value = int(round(float(wan_match.group(1))))
+        return value if 1 <= value <= 200 else default
+    yuan_match = re.search(r"(?:预算)?\s*(\d{4,7})\s*元", goal)
+    if yuan_match:
+        value = int(round(int(yuan_match.group(1)) / 10000))
+        return value if 1 <= value <= 200 else default
+    return default
 
 
 def _string_list(value: Any, *, limit: int) -> list[str]:
