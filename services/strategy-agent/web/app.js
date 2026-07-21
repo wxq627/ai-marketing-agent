@@ -42,6 +42,10 @@ const channelLabels = {
   app: "仅 App Push",
   sms: "仅短信",
   wechat: "仅微信公众号",
+  app_sms: "App Push + 短信",
+  app_wechat: "App Push + 微信公众号",
+  sms_wechat: "短信 + 微信公众号",
+  app_sms_wechat: "App Push + 短信 + 微信公众号",
 };
 
 let currentCampaignId = "";

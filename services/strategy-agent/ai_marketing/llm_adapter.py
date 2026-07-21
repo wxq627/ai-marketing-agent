@@ -16,7 +16,16 @@ from .models import CampaignRequest
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_MODEL = "deepseek-v4-pro"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
-ALLOWED_CHANNEL_MODES = {"omni", "app", "sms", "wechat"}
+ALLOWED_CHANNEL_MODES = {
+    "omni",
+    "app",
+    "sms",
+    "wechat",
+    "app_sms",
+    "app_wechat",
+    "sms_wechat",
+    "app_sms_wechat",
+}
 LOCAL_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
@@ -108,7 +117,9 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                 "content": (
                     "You convert a bank marketing operator's goal into a constrained campaign request. "
                     "Return only one valid json object, with no markdown. "
-                    "Use only product values installment, coupon, travel and channel_mode values omni, app, sms, wechat. "
+                    "Use only product values installment, coupon, travel and channel_mode values "
+                    "omni, app, sms, wechat, app_sms, app_wechat, sms_wechat, app_sms_wechat. "
+                    "Use app_sms when the operator explicitly requires both App Push and SMS. "
                     "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
                     "When product_locked is true, keep the supplied default product exactly and do not infer another product. "
                     "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals. "
@@ -160,7 +171,9 @@ def _campaign_request_from_model(
     parsed: dict[str, Any], goal: str, defaults: CampaignRequest
 ) -> CampaignRequest:
     product = defaults.product if defaults.product_locked else parsed.get("product", defaults.product)
-    channel_mode = parsed.get("channel_mode", defaults.channel_mode)
+    model_channel_mode = parsed.get("channel_mode", defaults.channel_mode)
+    explicit_channel_mode = _infer_channel_mode(goal, "")
+    channel_mode = explicit_channel_mode or model_channel_mode
     budget_wan = parsed.get("budget_wan", defaults.budget_wan)
     risk_level = parsed.get("risk_level", defaults.risk_level)
     frequency_level = parsed.get("frequency_level", defaults.frequency_level)
@@ -212,12 +225,15 @@ def _fallback_result(goal: str, defaults: CampaignRequest, reason: str) -> GoalP
 
 
 def _infer_channel_mode(goal: str, default: str) -> str:
-    if "短信" in goal:
-        return "sms"
-    if "微信" in goal or "公众号" in goal:
-        return "wechat"
+    selected = []
     if "app" in goal.lower() or "推送" in goal:
-        return "app"
+        selected.append("app")
+    if "短信" in goal:
+        selected.append("sms")
+    if "微信" in goal or "公众号" in goal:
+        selected.append("wechat")
+    if selected:
+        return "_".join(selected)
     return default
 
 

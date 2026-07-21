@@ -48,7 +48,9 @@ class StrategyCandidateService:
             raise ValueError("campaign_id is required when include_model_scores is true")
         if target_segment not in {"auto", "high_value", "high_intent", "dormant", "young_new"}:
             raise ValueError("unsupported target_segment")
-        if channel_mode not in {"omni", "app", "sms", "wechat"}:
+        if channel_mode not in {
+            "omni", "app", "sms", "wechat", "app_sms", "app_wechat", "sms_wechat", "app_sms_wechat"
+        }:
             raise ValueError("unsupported channel_mode")
 
         insight = self.local_data.build_customer_insight(
@@ -517,11 +519,14 @@ def _economic_profile(profile: dict[str, Any]) -> dict[str, Any]:
 
 
 def _channel_matches_mode(channel: str, channel_mode: str) -> bool:
-    return channel_mode == "omni" or {
+    if channel_mode == "omni":
+        return True
+    channel_mapping = {
         "app": "app_push",
         "sms": "sms",
         "wechat": "wechat",
-    }[channel_mode] == channel
+    }
+    return channel in {channel_mapping[item] for item in channel_mode.split("_")}
 
 
 def _matches_target_segment(customer: dict[str, Any], target_segment: str) -> bool:
