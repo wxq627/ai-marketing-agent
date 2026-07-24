@@ -19,11 +19,18 @@ from ai_marketing.storage import PlanRepository
 from ai_marketing.feedback_simulator import simulate_strategy_feedback
 from ai_marketing.strategy_copilot import answer_follow_up, draft_channel_content, review_strategy
 from ai_marketing.strategy_package import build_optimized_strategy_package, build_strategy_package, summarize_feedback
+from ai_marketing.strategy_catalog import export_published_strategy_catalog
 
 
 BASE_DIR = Path(__file__).resolve().parent
 WEB_DIR = BASE_DIR / "web"
 DATA_DIR = BASE_DIR / "data"
+CATALOG_EXPORT_PATH = Path(
+    os.getenv(
+        "STRATEGY_CATALOG_EXPORT_PATH",
+        str(BASE_DIR.parents[1] / "shared" / "published_strategy_catalog.json"),
+    )
+)
 
 engine = MarketingDecisionEngine()
 knowledge_data = Project1ApiKnowledgeData()
@@ -312,7 +319,8 @@ class MarketingHandler(SimpleHTTPRequestHandler):
                 effective_from=_optional_text(payload.get("effective_from")),
                 effective_to=_optional_text(payload.get("effective_to")),
             )
-            self._json_response({"publication": publication})
+            catalog_export = export_published_strategy_catalog(repo, CATALOG_EXPORT_PATH)
+            self._json_response({"publication": publication, "catalog_export": catalog_export})
         except KeyError as exc:
             self._json_response({"error": str(exc)}, status=404)
         except ValueError as exc:
@@ -327,7 +335,9 @@ class MarketingHandler(SimpleHTTPRequestHandler):
             if not strategy_version:
                 self._json_response({"error": "strategy_version is required"}, status=400)
                 return
-            self._json_response({"publication": repo.archive(strategy_version)})
+            publication = repo.archive(strategy_version)
+            catalog_export = export_published_strategy_catalog(repo, CATALOG_EXPORT_PATH)
+            self._json_response({"publication": publication, "catalog_export": catalog_export})
         except KeyError as exc:
             self._json_response({"error": str(exc)}, status=404)
         except Exception as exc:
