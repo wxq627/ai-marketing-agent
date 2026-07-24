@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>知识图谱 + 全文检索 — 技术图表</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',sans-serif;background:#fff;padding:20px 24px}
+
+/* ═══ Shared ═══ */
+.section{margin-bottom:24px}
+.sec-title{font-size:17px;font-weight:800;color:#0b2a4a;margin-bottom:3px;padding-left:8px;border-left:3px solid #3ba9f5}
+.sec-sub{font-size:11px;color:#889;margin-bottom:12px}
+.row2{display:flex;gap:12px}
+.col{flex:1}
+
+/* Tables */
+.tbl-wrap{border-radius:8px;overflow:hidden;box-shadow:0 1px 6px rgba(11,42,74,.05);margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+thead th{background:linear-gradient(180deg,#0b2a4a,#14538a);color:#fff;font-weight:600;padding:7px 9px;text-align:center}
+tbody td{padding:6px 9px;text-align:center;border-bottom:1px solid #e8ecf2}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody tr:nth-child(odd){background:#fff}
+td.l{text-align:left}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.bd-blue{background:#dceefb;color:#14538a}
+.bd-green{background:#e6f7ee;color:#0d7d3e}
+.bd-orange{background:#fef3cd;color:#92600a}
+
+/* Cards */
+.card-row{display:flex;gap:8px;flex-wrap:wrap}
+.card{flex:1;min-width:140px;border-radius:8px;padding:10px;border:1px solid #dde5f0}
+.card h4{font-size:12px;font-weight:700;margin-bottom:4px}
+.card p{font-size:10px;color:#666;line-height:1.45}
+.card .tag{display:inline-block;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:600;margin-right:3px}
+
+/* Flow */
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0}
+.fs{padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600}
+.fa{font-size:14px;color:#bbb}
+.fs.b0{background:#0b2a4a;color:#fff}
+.fs.b1{background:#1e7ec4;color:#fff}
+.fs.b2{background:#3ba9f5;color:#fff}
+.fs.bg{background:#e6f7ee;color:#0d7d3e;border:1px solid #b7e4cf}
+.fs.by{background:#fef3cd;color:#92600a;border:1px solid #e5d598}
+.fs.bb{background:#dceefb;color:#14538a;border:1px solid #9cc8e8}
+
+/* Formula */
+.fml{border-radius:8px;border:1.5px solid #d0dce8;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:8px 0}
+.fml .p{text-align:center}
+.fml .p .v{font-size:18px;font-weight:800;color:#14538a}
+.fml .p .l{font-size:8px;color:#999}
+.fml .op{font-size:16px;color:#aaa;font-weight:300}
+
+/* Mini step card */
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.step-card{flex:1;min-width:150px;border-radius:8px;overflow:hidden;border:1.5px solid #d0dce8}
+.step-hdr{padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:center}
+.step-body{padding:6px 8px;font-size:10px;color:#4a4a4a;line-height:1.45}
+.sc0 .step-hdr{background:#0b2a4a}
+.sc1 .step-hdr{background:#1e7ec4}
+.sc2 .step-hdr{background:#14538a}
+.sc3 .step-hdr{background:#3ba9f5}
+
+.footer{text-align:center;margin-top:16px;font-size:9px;color:#ccc}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 知识图谱构建 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+<div class="sec-title">三、知识图谱构建 — NetworkX + GraphRAG</div>
+<div class="sec-sub">graphrag/kg_builder.py &nbsp;|&nbsp; 183节点 · 1040边 · 7种实体 · 7种关系</div>
+
+<!-- 架构流程 -->
+<div class="flow" style="margin-bottom:12px">
+<span class="fs b0">CSV数据源<br><span style="font-size:8px;opacity:.8">7张表</span></span><span class="fa">→</span>
+<span class="fs b1">NetworkX<br><span style="font-size:8px;opacity:.8">MultiDiGraph</span></span><span class="fa">→</span>
+<span class="fs b2">智能深度遍历<br><span style="font-size:8px;opacity:.8">depth=1/2/3</span></span><span class="fa">→</span>
+<span class="fs b1">GraphRAG检索<br><span style="font-size:8px;opacity:.8">4阶段混合</span></span><span class="fa">→</span>
+<span class="fs b0">Plotly可视化<br><span style="font-size:8px;opacity:.8">力导向+悬停</span></span>
+</div>
+
+<div class="row2">
+<!-- 左：实体+关系 -->
+<div class="col" style="flex:1.1">
+<div class="tbl-wrap"><table>
+<thead><tr><th style="width:14%">类型</th><th style="width:14%">简称</th><th style="width:10%">数量</th><th style="width:32%;text-align:left">关键属性</th><th style="width:30%;text-align:left">7种关系</th></tr></thead>
+<tbody>
+<tr><td><span class="badge bd-blue">Product</span></td><td>产品</td><td>15</td><td class="l">name · card_level · annual_fee</td><td class="l"><b>INCLUDES</b> → 权益</td></tr>
+<tr><td><span class="badge bd-green">Benefit</span></td><td>权益</td><td>90</td><td class="l">name · category (7类)</td><td class="l"><b>APPLIES_TO</b> 活动→产品</td></tr>
+<tr><td><span class="badge bd-orange">Campaign</span></td><td>活动</td><td>25</td><td class="l">name · date · target_segment</td><td class="l"><b>TARGETS</b> 活动→客户</td></tr>
+<tr><td style="color:#F5222D;font-weight:600">Customer</td><td>客户</td><td>30</td><td class="l">name · age · city · lifecycle</td><td class="l"><b>HOLDS</b> 客户→卡</td></tr>
+<tr><td style="color:#722ED1;font-weight:600">CreditCard</td><td>信用卡</td><td>6</td><td class="l">card_level · credit_amount</td><td class="l"><b>BELONGS_TO</b> 卡→产品</td></tr>
+<tr><td style="color:#8C8C8C;font-weight:600">Document</td><td>文档</td><td>12</td><td class="l">title · doc_type</td><td class="l"><b>GOVERNED_BY</b> 产品→分期</td></tr>
+<tr><td style="color:#13C2C2;font-weight:600">InstallRule</td><td>分期</td><td>5</td><td class="l">periods · fee_rate</td><td class="l"><b>RELATES_TO</b> 文档→产品</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 右：抽样 + 深度遍历 -->
+<div class="col" style="flex:0.9">
+<div class="card" style="margin-bottom:8px">
+<h4 style="color:#14538a">🎯 客户分层抽样策略</h4>
+<p>8000全量 → <b>card_level × lifecycle_stage</b> 分层 → 每子层≤3人 → 取前30人<br>
+保证白金活跃、金卡沉睡、普卡新户等各类型都有代表</p>
+</div>
+<div class="card" style="margin-bottom:8px">
+<h4 style="color:#0b2a4a">🔍 智能深度遍历</h4>
+<p><b>depth=1</b>: 全部直接邻居 ≤45节点<br>
+<b>depth=2</b>: 跳过INCLUDES/GOVERNED_BY边 + document/installment_rule节点 ≤55节点<br>
+<b>depth=3</b>: 进一步收紧限制</p>
+</div>
+<div class="card">
+<h4 style="color:#1e7ec4">📋 活动匹配5策略</h4>
+<p>①card_level精确匹配 ②target_all=全部 ③lifecycle=新户→入门卡 ④跨境→旅行卡 ⑤兜底:每等级取1代表</p>
+</div>
+</div>
+</div>
+
+<!-- GraphRAG 4阶段 -->
+<div style="margin-top:10px">
+<div style="font-size:13px;font-weight:700;color:#0b2a4a;margin-bottom:8px">GraphRAG 混合检索 — 4 阶段流程</div>
+<div class="steps">
+<div class="step-card sc0">
+<div class="step-hdr">阶段1 · 关键词找种子</div>
+<div class="step-body">完整匹配 +30分<br>n-gram (2/3/4字) +len×2分<br>attrs兜底 +15分<br>→ {node_id: score}</div>
+</div>
+<div class="step-card sc1">
+<div class="step-hdr">阶段2 · 图扩展</div>
+<div class="step-body">从种子节点 get_subgraph<br>depth=1 扩展邻居<br>→ expanded_ids<br>(~120个节点)</div>
+</div>
+<div class="step-card sc2">
+<div class="step-hdr">阶段3 · 批量嵌入</div>
+<div class="step-body">embed([query, n1, n2, …])<br><b>1次API调用</b>替代N+1<br>计算余弦相似度<br>→ {node_id: cos_sim}</div>
+</div>
+<div class="step-card sc3">
+<div class="step-hdr">阶段4 · 综合评分</div>
+<div class="step-body">kw×0.5 + graph×0.2<br>+ embed×0.3<br>按分数排序 → top_k<br>含seed_path路径</div>
+</div>
+</div>
+<div class="fml" style="margin-top:8px">
+<div class="p"><div class="v">kw × 0.5</div><div class="l">关键词匹配分</div></div><div class="op">+</div>
+<div class="p"><div class="v">graph × 0.2</div><div class="l">度数归一化</div></div><div class="op">+</div>
+<div class="p"><div class="v">embed × 0.3</div><div class="l">余弦相似度</div></div><div class="op">=</div>
+<div class="p"><div class="v" style="font-size:22px">final</div><div class="l">综合评分</div></div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 全文检索 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" style="margin-top:8px">
+<div class="sec-title">四、全文检索 — 滑动窗口 + 平方权重</div>
+<div class="sec-sub">dashboard_knowledge_graph.py → search_docs() &nbsp;|&nbsp; 5类来源 · 163条索引 · count×len²评分</div>
+
+<!-- 整体流程 -->
+<div class="flow" style="margin-bottom:12px">
+<span class="fs b0">查询输入<br><span style="font-size:8px;opacity:.8">"白金卡机场权益"</span></span><span class="fa">→</span>
+<span class="fs b1">滑动窗口拆词<br><span style="font-size:8px;opacity:.8">L=4,3,2</span></span><span class="fa">→</span>
+<span class="fs b2">平方权重评分<br><span style="font-size:8px;opacity:.8">count×len²</span></span><span class="fa">→</span>
+<span class="fs b1">海报×1.5 + 去重<br><span style="font-size:8px;opacity:.8">top_k=20</span></span><span class="fa">→</span>
+<span class="fs b0">关键词高亮输出<br><span style="font-size:8px;opacity:.8">最佳片段定位</span></span>
+</div>
+
+<div class="row2">
+<!-- 左：索引构建 -->
+<div class="col" style="flex:1">
+<div class="tbl-wrap"><table>
+<thead><tr><th style="text-align:left;width:22%">来源</th><th style="width:12%">标签</th><th style="width:8%">数量</th><th style="text-align:left">文本构建方式</th></tr></thead>
+<tbody>
+<tr><td class="l">product_docs/*.txt</td><td><span class="badge" style="background:#e8e8e8;color:#666">文档</span></td><td>22</td><td class="l">读全文 → 取前2500字符</td></tr>
+<tr><td class="l">product_catalog.csv</td><td><span class="badge bd-blue">产品</span></td><td>15</td><td class="l">产品名 | 卡等级 | 年费 | 卖点</td></tr>
+<tr><td class="l">benefit_catalog.csv</td><td><span class="badge bd-green">权益</span></td><td>90</td><td class="l">权益名 | 类别 | 描述</td></tr>
+<tr><td class="l">campaign_catalog.csv</td><td><span class="badge bd-orange">活动</span></td><td>25</td><td class="l">活动名 | 日期 | 规则</td></tr>
+<tr><td class="l">posters/*.json</td><td><span class="badge" style="background:#fce4ec;color:#c2185b">海报</span></td><td>12</td><td class="l">活动名 | OCR全文 | 视觉实体 | 关键词</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 右：搜索算法 -->
+<div class="col" style="flex:1">
+<div class="steps">
+<div class="step-card sc0"><div class="step-hdr">Step 1 · 拆词</div>
+<div class="step-body">L=4,3,2 滑动窗口<br>"白金卡机场权益" →<br>白金卡机/金卡机场/…<br>白金卡/白金/机场/权益…</div></div>
+<div class="step-card sc1"><div class="step-hdr">Step 2 · 评分</div>
+<div class="step-body">score = Σ(count × term_len²)<br>"机场权益"(4字)×2次=32<br>"白金卡"(3字)×1次=9<br>4²=16 vs 2²=4</div></div>
+<div class="step-card sc2"><div class="step-hdr">Step 3 · 加权</div>
+<div class="step-body">海报 ×1.5 加权补偿<br>（图片文字量天然少）<br>按score降序排列</div></div>
+<div class="step-card sc3"><div class="step-hdr">Step 4-5 · 输出</div>
+<div class="step-body">title前40字去重 top20<br>300字窗口最密集片段<br>匹配词 **高亮** 标记</div></div>
+</div>
+
+<div class="card" style="margin-top:8px">
+<h4 style="color:#0b2a4a">💡 平方权重设计理由</h4>
+<p>4字完整词组权重 = 4² = <b>16</b>，2字碎片权重 = 2² = <b>4</b>，4倍差异体现匹配质量。长词完整匹配远优于多个短词碎片。</p>
+</div>
+
+<div class="card" style="margin-top:6px">
+<h4 style="color:#1e7ec4">🆚 与 TF-IDF 的区别</h4>
+<p>全文检索(Tab3)使用<b>纯字符串平方权重</b>，不涉及向量化。TF-IDF仅用于 <code>graphrag/doc_pipeline.py</code> 作为DeepSeek Embedding降级方案，使用位置是GraphRAG向量检索路径。</p>
+</div>
+</div>
+</div>
+</div>
+
+<div class="footer">AI智能营销助手 · Knowledge Agent &nbsp;|&nbsp; 知识图谱构建 + 全文检索 &nbsp;|&nbsp; 2026-07</div>
+</body></html>

@@ -18,12 +18,20 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 _available = None
 
 def is_available() -> bool:
-    """检查 DeepSeek API 是否可用。"""
-    global _available
+    """检查 DeepSeek API 是否可用。每次调用重新读取环境变量, 支持运行时配置。"""
+    global _available, DEEPSEEK_API_KEY
+    # 每次调用重新读取环境变量(支持启动后设置)
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if key and key != DEEPSEEK_API_KEY:
+        DEEPSEEK_API_KEY = key
+        _available = None  # 强制重新检测
     if _available is not None:
         return _available
     if not DEEPSEEK_API_KEY:
         _available = False
+        # 只在首次检测时打印提示(避免刷屏)
+        if _available is None:
+            print("[LLM] DeepSeek API 未配置, 使用本地Mock降级。设置环境变量 DEEPSEEK_API_KEY 启用。")
         return False
     try:
         import requests

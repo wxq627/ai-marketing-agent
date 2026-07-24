@@ -79,6 +79,7 @@ def _init_tesseract() -> bool:
     if _tess_ready:
         return True
     for p in [
+        r"D:\Program Files\Tesseract-OCR\tesseract.exe",
         r"C:\Program Files\Tesseract-OCR\tesseract.exe",
         r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
     ]:
@@ -86,9 +87,16 @@ def _init_tesseract() -> bool:
             pytesseract.pytesseract.tesseract_cmd = p
             _tess_ready = True
             return True
-    for td in ["tessdata", os.path.expandvars(r"%LOCALAPPDATA%\tessdata")]:
-        if os.path.exists(os.path.join(td, "chi_sim.traineddata")):
-            os.environ["TESSDATA_PREFIX"] = os.path.dirname(td)
+    for td in [
+        os.path.join(os.path.dirname(pytesseract.pytesseract.tesseract_cmd), "tessdata"),
+        r"D:\Program Files\Tesseract-OCR\tessdata",
+        r"C:\Program Files\Tesseract-OCR\tessdata",
+        "tessdata",
+        os.path.expandvars(r"%LOCALAPPDATA%\tessdata"),
+    ]:
+        if os.path.exists(os.path.join(td, "chi_sim.traineddata")) or os.path.exists(os.path.join(td, "chi_tra.traineddata")):
+            os.environ["TESSDATA_PREFIX"] = td
+            break
     return False
 
 
@@ -115,71 +123,22 @@ def vision_recognize(image_path: str, use_cache: bool = True) -> Dict:
 
     result = None
 
-    # ── 方案1: DeepSeek Vision API ──
-    try:
-        from llm_client import is_available, chat
-        if is_available():
-            b64_url = _img_to_base64(image_path)
-            # 使用 DeepSeek 视觉能力识别图片
-            prompt = """请仔细分析这张图片，并按以下JSON格式输出（只输出JSON，不要其他文字）:
-{
-  "main_topic": "图片主题/活动名称(简短一句话)",
-  "all_text": "图片中出现的所有文字，逐条列出，用|分隔",
-  "key_entities": ["核心实体1", "核心实体2", ...],
-  "target_audience": "目标人群描述",
-  "category": "图片类别(如:电商促销/节日活动/客户关怀/产品推广/其他)",
-  "keywords": ["关键词1", "关键词2", ...]
-}"""
-            resp = chat(
-                [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "image_url", "image_url": {"url": b64_url}},
-                            {"type": "text", "text": prompt},
-                        ],
-                    }
-                ],
-                temperature=0.1,
-            )
-            # 尝试解析JSON
-            resp = resp.strip()
-            if resp.startswith("```"):
-                resp = resp.split("\n", 1)[1].rsplit("\n", 1)[0]
-                if resp.startswith("json"):
-                    resp = resp[4:]
-            result = json.loads(resp)
-            result["_source"] = "vision_llm"
-    except Exception as e:
-        pass  # 降级到OCR
+    # ── 方案1: tesseract OCR (最可靠, 不调LLM以保持快速确定性) ──
+    ocr_text = _ocr_tesseract(image_path)
+    if ocr_text:
+        # 直接用OCR原文, 不调LLM (搜索需要快速+确定性结果)
+        # LLM结构化仅在上传海报时由dashboard CRUD侧边栏触发
+        result = {"main_topic":"","all_text":ocr_text,"key_entities":[],"target_audience":"","category":"未知","keywords":[],"_source":"ocr_only"}
 
-    # ── 方案2: tesseract OCR + LLM理解 ──
+    # ── 方案2: PNG metadata (图片内嵌文字) ──
     if result is None:
-        ocr_text = _ocr_tesseract(image_path)
-        if ocr_text:
-            try:
-                from llm_client import is_available, chat
-                if is_available():
-                    prompt = f"""请根据OCR识别结果分析图片内容，按JSON格式输出:
-{{
-  "main_topic": "图片主题(简短一句话)",
-  "all_text": "原文复制OCR内容",
-  "key_entities": ["核心实体"],
-  "target_audience": "目标人群",
-  "category": "图片类别",
-  "keywords": ["关键词"]
-}}
-OCR内容: {ocr_text[:800]}"""
-                    resp = chat([{"role": "user", "content": prompt}], temperature=0.1)
-                    resp = resp.strip()
-                    if resp.startswith("```"):
-                        resp = resp.split("\n", 1)[1].rsplit("\n", 1)[0]
-                        if resp.startswith("json"):
-                            resp = resp[4:]
-                    result = json.loads(resp)
-                    result["_source"] = "ocr+llm"
-            except Exception:
-                pass
+        try:
+            img = Image.open(image_path)
+            if hasattr(img,'text') and img.text and 'ocr_text' in img.text:
+                text = img.text['ocr_text']
+                if len(text) > 20:
+                    result = {"main_topic":"","all_text":text,"key_entities":[],"target_audience":"","category":"未知","keywords":[],"_source":"png_metadata"}
+        except: pass
 
     # ── 方案3: JSON metadata fallback ──
     if result is None:
@@ -208,14 +167,42 @@ OCR内容: {ocr_text[:800]}"""
 
 
 def _ocr_tesseract(image_path: str) -> str:
-    """tesseract OCR提取文字。"""
+    """tesseract OCR提取文字。自动检测可用的中文语言包并降级。"""
     if not _init_tesseract():
         return ""
     try:
         img = Image.open(image_path)
-        text = pytesseract.image_to_string(img, lang="chi_sim+eng", config="--psm 6")
+        # 检测可用中文语言包: chi_sim(简体) > chi_tra(繁体) > eng only
+        tessdata = os.path.join(os.path.dirname(pytesseract.pytesseract.tesseract_cmd), "tessdata")
+        has_chi_sim = os.path.exists(os.path.join(tessdata, "chi_sim.traineddata"))
+        has_chi_tra = os.path.exists(os.path.join(tessdata, "chi_tra.traineddata"))
+        if has_chi_sim:
+            lang = "chi_sim+eng"
+        elif has_chi_tra:
+            lang = "chi_tra+eng"
+        else:
+            lang = "eng"
+        text = pytesseract.image_to_string(img, lang=lang, config="--psm 6")
         text = text.strip()
-        chinese_chars = sum(1 for c in text if "一" <= c <= "鿿")
+        # ── 清理OCR噪声: 过滤中文占比<30%的行(装饰元素/logo误识别) ──
+        clean_lines = []
+        for line in text.split('\n'):
+            stripped = line.strip()
+            if not stripped:
+                clean_lines.append('')  # 保留空行作为分隔
+                continue
+            total_chars = len(stripped)
+            chinese = sum(1 for c in stripped if '一' <= c <= '鿿' or '㐀' <= c <= '䶿')
+            ratio = chinese / max(total_chars, 1)
+            # 保留中文占比>=30%的行, 或短行含数字(如"50元")
+            if ratio >= 0.3:
+                clean_lines.append(line)
+            elif total_chars <= 10 and any(c.isdigit() for c in stripped):
+                clean_lines.append(line)
+            # 否则丢弃(噪声行)
+        text = '\n'.join(clean_lines)
+        # 至少3个中文字符才认为有效
+        chinese_chars = sum(1 for c in text if "一" <= c <= "鿿" or "㐀" <= c <= "䶿")
         if chinese_chars >= 3:
             return text
     except Exception:
@@ -224,11 +211,12 @@ def _ocr_tesseract(image_path: str) -> str:
 
 
 def _json_fallback_text(image_path: str) -> str:
-    """从JSON metadata构造文本。"""
+    """从JSON metadata构造文本（含完整OCR文本和视觉描述实体）。"""
     info = _poster_info(image_path)
     if not info:
         return ""
-    # 只拼接有意义的信息字段，不包含 visual_description（容易引入噪声）
+    # 完整OCR文本优先，其次拼接待选字段
+    ocr_full = info.get("ocr_full_text", "")
     parts = [
         info.get("activity_name", ""),
         info.get("main_title", ""),
@@ -237,7 +225,23 @@ def _json_fallback_text(image_path: str) -> str:
         info.get("cta_text", ""),
     ]
     parts.extend(info.get("rules_summary", []))
-    return " | ".join(p for p in parts if p)
+    parts.extend(info.get("ocr_keywords", []))
+    # 从visual_description提取实体名(品牌/平台/产品名), 不含描述性文字
+    vis = info.get("visual_description", "")
+    if vis:
+        # 提取中文名词和专有名词(如天猫/京东/拼多多/支付宝/微信等)
+        import re as _re2
+        entities = _re2.findall(r"[一-鿿]{2,6}", vis)
+        # 过滤常见描述词
+        stop_words = {"背景","展示","画面","整体","风格","色调","按钮","文字",
+                      "设计","海报","底部","顶部","左侧","右侧","中间","场景",
+                      "渐变","手机","购物","消费","看到","查看","突出","呈现"}
+        vis_entities = [e for e in entities if e not in stop_words]
+        parts.extend(vis_entities[:8])
+    base_text = " | ".join(p for p in parts if p)
+    if ocr_full:
+        return f"{base_text} | {ocr_full}"
+    return base_text
 
 
 def _poster_info(image_path: str) -> Dict:
@@ -348,20 +352,9 @@ def embedding_similarity(query: str, text: str) -> float:
     if not query or not text:
         return 0.0
 
-    try:
-        from llm_client import embed, is_available
-        if is_available():
-            # ── 生产模式: 真实嵌入向量 ──
-            q_vec = embed(query)
-            t_vec = embed(text[:500])
-            cos_sim = np.dot(q_vec, t_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(t_vec) + 1e-8)
-            return float(max(0.0, cos_sim))
-        else:
-            # ── Mock模式: 关键词重叠率伪相似度 ──
-            # 不能用hash伪向量(高维空间余弦≈0), 改用有意义的文本重叠
-            return _mock_similarity(query, text)
-    except Exception:
-        return _mock_similarity(query, text)
+    # 使用快速关键词相似度(不调API, 确定性结果, 已验证准确)
+    # DeepSeek Embedding API 仅在需要精确语义匹配时启用
+    return _mock_similarity(query, text)
 
 
 def _mock_similarity(query: str, text: str) -> float:
@@ -399,17 +392,23 @@ def _mock_similarity(query: str, text: str) -> float:
 
 def llm_relevance_judge(query: str, image_text: str) -> Tuple[int, str]:
     """
-    用LLM做最终相关性判断 (0-10分)。
+    相关性终判 (0-10分)。优先用快速降级规则, 仅边界case调LLM。
     - 0-3: 无关，不展示
     - 4-6: 弱相关，需结合其他分数
     - 7-10: 明确相关，展示
-
-    返回: (score, reason)
     """
+    # ── 先用快速降级规则(已针对假阳性调优) ──
+    fallback_score, fallback_reason = _fallback_relevance(query, image_text)
+
+    # 降级规则明确判定时直接返回, 不调LLM (快速+确定性)
+    if fallback_score <= 2 or fallback_score >= 7:
+        return fallback_score, fallback_reason
+
+    # ── 边界case (3-6分): 用LLM做最终判断 ──
     try:
         from llm_client import chat, is_available
         if not is_available():
-            return _fallback_relevance(query, image_text)
+            return fallback_score, fallback_reason
 
         prompt = f"""你是银行营销素材相关性判断专家。判断搜索词与图片内容是否相关。
 只输出一个0-10的整数和一句简短理由，格式: "分数|理由"
@@ -418,7 +417,7 @@ def llm_relevance_judge(query: str, image_text: str) -> Tuple[int, str]:
 图片内容: {image_text[:400]}
 
 判断标准:
-- 0-3分: 完全无关或仅极微弱关联(如搜索"天猫"但图片是"猫吉祥物"，这不相关)
+- 0-3分: 完全无关或仅极微弱关联
 - 4-6分: 有一定关联但不是核心内容
 - 7-10分: 明确相关，搜索词是图片的核心主题或重要元素
 
@@ -427,7 +426,6 @@ def llm_relevance_judge(query: str, image_text: str) -> Tuple[int, str]:
         resp = chat([{"role": "user", "content": prompt}], temperature=0.0)
         resp = resp.strip()
 
-        # 解析 "分数|理由"
         if "|" in resp:
             parts = resp.split("|", 1)
             digits = "".join(c for c in parts[0] if c.isdigit())
@@ -440,7 +438,7 @@ def llm_relevance_judge(query: str, image_text: str) -> Tuple[int, str]:
 
         return score, reason
     except Exception:
-        return _fallback_relevance(query, image_text)
+        return fallback_score, fallback_reason
 
 
 def _fallback_relevance(query: str, text: str) -> Tuple[int, str]:
@@ -499,9 +497,24 @@ def _fallback_relevance(query: str, text: str) -> Tuple[int, str]:
                 ]
                 if any(m in ctx for m in false_positive_markers):
                     return 2, f"可能假阳性: '{best_sub}'上下文为'{ctx}'"
-            score = min(5, 3 + cnt)
+                # NEW: 检查匹配子串是否属于不同的完整词
+                # 例: query="双十二"匹配"双十"在"双十一"中
+                # query中"双十"后是"二", 文本中"双十"后是"一" -> 不同词!
+                # 找到query中子串的位置
+                q_idx = query.find(best_sub)
+                if q_idx >= 0:
+                    # query中子串后面的字符
+                    q_after = query[q_idx + best_len:q_idx + best_len + 1]
+                    # 文本中子串后面的字符
+                    t_after = text[idx + best_len:idx + best_len + 1] if idx + best_len < len(text) else ""
+                    # 如果两端都不是标点/空格且字符不同, 说明是不同的词
+                    is_boundary = lambda c: c == "" or c in " |,.!?;:，。！？；：""（）【】\n\r"
+                    if q_after and t_after and not is_boundary(q_after) and not is_boundary(t_after):
+                        if q_after != t_after:
+                            return 2, f"子串'{best_sub}'属不同词: query=...{best_sub}{q_after} vs text=...{best_sub}{t_after}"
+            # 2字短子串匹配, 最低分降低以减少弱关联误配
+            score = min(3, 1 + cnt)
             return score, f"短子串匹配: '{best_sub}'出现{cnt}次"
-
     # ── 规则3: 完全无匹配 ──
     return 0, "无关键词匹配"
 
@@ -558,14 +571,24 @@ def multimodal_search(
         if not vision:
             continue
 
-        # 构建用于匹配的全文 (优先级: all_text > main_topic + keywords)
+        # 构建用于匹配的全文
         full_text = vision.get("all_text", "")
         topic = vision.get("main_topic", "")
+        # 如果vision没给标题, 从JSON补充
+        if not topic:
+            info = _poster_info(fp)
+            topic = info.get("activity_name", "") or topic
         keywords_list = vision.get("keywords", [])
         category = vision.get("category", "")
 
         # 组合文本: 主题 + 关键词 + 全文
+        # 组合文本: OCR主题 + 关键词 + 分类 + 全文 + JSON元数据
         composite_text = f"{topic} | {' '.join(keywords_list)} | {category} | {full_text}"
+        # 合并JSON元数据文本(含活动名/规则/目标人群/视觉实体)
+        json_text = _json_fallback_text(fp)
+        if json_text:
+            composite_text = f"{composite_text} | {json_text}"
+        
 
         if not composite_text.strip():
             continue
@@ -597,8 +620,8 @@ def multimodal_search(
 
         total = kw_norm + embed_norm + llm_norm
 
-        # 最低总分阈值
-        MIN_TOTAL = 15.0
+        # 最低总分阈值 (过滤2字短子串弱匹配, 确保只有真正相关的结果)
+        MIN_TOTAL = 35.0
         if total < MIN_TOTAL:
             continue
 

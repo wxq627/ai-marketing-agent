@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>多模态检索技术</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',sans-serif;background:#fff;padding:24px 28px}
+
+.title{font-size:20px;font-weight:800;color:#0b2a4a;margin-bottom:4px}
+.subtitle{font-size:12px;color:#889;margin-bottom:18px}
+
+/* 四层管线 */
+.pipeline{display:flex;align-items:flex-start;gap:0;margin-bottom:18px}
+.step{flex:1;border-radius:10px;overflow:hidden;border:1.5px solid #d0dce8}
+.step+.step{margin-left:8px}
+.step-hdr{padding:8px 10px;font-size:12px;font-weight:700;color:#fff;text-align:center}
+.step-body{padding:8px 10px;font-size:10.5px;color:#4a4a4a;line-height:1.5}
+.step-body .hl{color:#14538a;font-weight:600}
+.arrow-col{display:flex;align-items:center;justify-content:center;width:22px;flex-shrink:0}
+.arrow-col span{font-size:16px;color:#3ba9f5;font-weight:700}
+
+.s0 .step-hdr{background:#0b2a4a}
+.s1 .step-hdr{background:#1e7ec4}
+.s2 .step-hdr{background:#14538a}
+.s3 .step-hdr{background:#3ba9f5}
+
+/* 假阳性控制 */
+.fp-title{font-size:14px;font-weight:700;color:#0b2a4a;margin-bottom:10px;padding-left:4px;border-left:3px solid #3ba9f5}
+.fp-row{display:flex;gap:10px;margin-bottom:14px}
+.fp-card{flex:1;border-radius:8px;padding:10px 12px;border:1px solid #dde5f0}
+.fp-card h4{font-size:12px;font-weight:700;margin-bottom:4px}
+.fp-card .tag{display:inline-block;font-size:9px;padding:1px 7px;border-radius:10px;font-weight:600;margin-bottom:4px}
+.fp-card p{font-size:10px;color:#666;line-height:1.5}
+
+/* 评分公式 */
+.formula-box{border-radius:8px;border:1.5px solid #d0dce8;padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center}
+.formula-box .part{text-align:center}
+.formula-box .part .val{font-size:20px;font-weight:800;color:#14538a}
+.formula-box .part .lab{font-size:9px;color:#999}
+.formula-box .op{font-size:18px;color:#889;font-weight:300}
+
+/* 上传链路 */
+.upload-box{border-radius:8px;border:1px solid #dde5f0;padding:12px 16px;margin-top:14px}
+.upload-box h4{font-size:13px;font-weight:700;color:#0b2a4a;margin-bottom:8px}
+.upload-flow{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.uf-step{padding:5px 12px;border-radius:16px;font-size:10px;font-weight:600;background:#eef3f9;color:#334}
+.uf-arrow{font-size:12px;color:#bbb}
+
+/* 修正历史 */
+.fix-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+.fix-item{border:1px solid #e8ecf2;border-radius:6px;padding:6px 10px}
+.fix-item .prob{font-size:10px;color:#b91c1c;font-weight:600}
+.fix-item .sol{font-size:10px;color:#0d7d3e;margin-top:2px}
+
+.footer{text-align:center;margin-top:14px;font-size:10px;color:#bbb}
+</style>
+</head>
+<body>
+
+<div class="title">多模态检索 — 四层管线 + 三层假阳性控制</div>
+<div class="subtitle">multimodal_engine.py → multimodal_search() &nbsp;|&nbsp; DeepSeek Vision + Tesseract OCR 驱动</div>
+
+<!-- ═══ 四层管线 ═══ -->
+<div class="pipeline">
+  <div class="step s0">
+    <div class="step-hdr">Step 0 · 视觉识别</div>
+    <div class="step-body">
+      <span class="hl">Tesseract OCR</span> (chi_sim简体)<br>
+      噪声过滤: 中文&lt;30%丢弃<br>
+      <span class="hl">Vision LLM</span> 缓存(上传时)<br>
+      → 复合文本 = OCR全文<br>
+      + JSON元数据 + 视觉实体
+    </div>
+  </div>
+  <div class="arrow-col"><span>→</span></div>
+  <div class="step s1">
+    <div class="step-hdr">Step 1 · 关键词匹配</div>
+    <div class="step-body">
+      规则1: <span class="hl">完整词</span> → 25分<br>
+      规则2: <span class="hl">3+字子串</span> → 5-7分<br>
+      规则3: <span class="hl">2字子串</span> → 1-3分<br>
+      <span style="color:#b91c1c;font-size:9px">🛡️ 上下文交叉验证</span>
+    </div>
+  </div>
+  <div class="arrow-col"><span>→</span></div>
+  <div class="step s2">
+    <div class="step-hdr">Step 2 · 语义相似度</div>
+    <div class="step-body">
+      <span class="hl">关键词重叠伪相似度</span><br>
+      不调Embedding API<br>
+      阈值: 0.20(生产) / 0.06(Mock)<br>
+      <span style="color:#b91c1c;font-size:9px">🛡️ 低于阈值直接丢弃</span>
+    </div>
+  </div>
+  <div class="arrow-col"><span>→</span></div>
+  <div class="step s3">
+    <div class="step-hdr">Step 3 · LLM终判</div>
+    <div class="step-body">
+      阶段A: <span class="hl">快速规则</span><br>
+      ≤2或≥7 → 不调LLM<br>
+      阶段B: <span class="hl">边界case</span> → DeepSeek<br>
+      <span style="color:#b91c1c;font-size:9px">🛡️ &lt;4分直接丢弃</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 综合评分公式 ═══ -->
+<div class="formula-box">
+  <div class="part"><div class="val">kw_norm</div><div class="lab">关键词 0-50</div></div>
+  <div class="op">+</div>
+  <div class="part"><div class="val">embed_norm</div><div class="lab">语义 0-30</div></div>
+  <div class="op">+</div>
+  <div class="part"><div class="val">llm_norm</div><div class="lab">LLM 0-40</div></div>
+  <div class="op">=</div>
+  <div class="part"><div class="val" style="font-size:24px">total</div><div class="lab">0-120</div></div>
+  <div class="op">→</div>
+  <div class="part"><div class="val" style="color:#b91c1c">≥35</div><div class="lab">保留</div></div>
+  <div class="part"><div class="val" style="color:#bbb">&lt;35</div><div class="lab">丢弃</div></div>
+</div>
+
+<!-- ═══ 三层假阳性控制 ═══ -->
+<div style="margin-top:14px">
+<div class="fp-title">🛡️ 三层假阳性控制</div>
+<div class="fp-row">
+  <div class="fp-card">
+    <h4 style="color:#1e7ec4">第一层 · 关键词上下文验证</h4>
+    <span class="tag" style="background:#dceefb;color:#14538a">Step 1</span>
+    <p>「双十二」的子串"双十"≠「双十一」的子串"双十" — 前后字符不同 → 不同词<br>
+    「猫」在"猫吉祥物"中 → 假阳性标记「吉祥物」→ 降级<br>
+    纯数字短串(≤3位)直接跳过</p>
+  </div>
+  <div class="fp-card">
+    <h4 style="color:#14538a">第二层 · 嵌入阈值过滤</h4>
+    <span class="tag" style="background:#dceefb;color:#14538a">Step 2</span>
+    <p>embed_sim &lt; 0.20（生产）/ 0.06（Mock）→ 直接丢弃<br>
+    关键词重叠伪相似度 &lt;5ms 瞬时计算<br>
+    无关海报在嵌入层即被拦截</p>
+  </div>
+  <div class="fp-card">
+    <h4 style="color:#0b2a4a">第三层 · LLM相关性终判</h4>
+    <span class="tag" style="background:#dceefb;color:#14538a">Step 3</span>
+    <p>LLM 0-10分，&lt;4分直接丢弃<br>
+    仅边界case(3-6分)才调LLM，节约调用<br>
+    ≤2分明确无关 / ≥7分明确相关 → 不调API</p>
+  </div>
+</div>
+</div>
+
+<!-- ═══ 上传链路 + 修正 ═══ -->
+<div style="display:flex;gap:14px">
+<div class="upload-box" style="flex:1.2">
+  <h4>📤 海报上传 → 入库 → 可搜索 完整链路</h4>
+  <div class="upload-flow">
+    <span class="uf-step">上传图片</span><span class="uf-arrow">→</span>
+    <span class="uf-step">Tesseract OCR 提取</span><span class="uf-arrow">→</span>
+    <span class="uf-step">自动主题+关键词</span><span class="uf-arrow">→</span>
+    <span class="uf-step">Vision LLM 缓存</span><span class="uf-arrow">→</span>
+    <span class="uf-step">保存JSON</span><span class="uf-arrow">→</span>
+    <span class="uf-step" style="background:#eb2f96;color:#fff">Tab3+Tab4 可搜索</span>
+  </div>
+</div>
+
+<div class="upload-box" style="flex:0.8">
+  <h4>🔧 关键修正案例 (v1→v5 迭代)</h4>
+  <div class="fix-grid">
+    <div class="fix-item"><div class="prob">"天猫"搜不到</div><div class="sol">→ visual_description实体纳入搜索</div></div>
+    <div class="fix-item"><div class="prob">"双十二"→"双十一"</div><div class="sol">→ 前后字符交叉验证</div></div>
+    <div class="fix-item"><div class="prob">"白金卡"弱匹配泛滥</div><div class="sol">→ 降级分5→3, MIN_TOTAL 15→35</div></div>
+    <div class="fix-item"><div class="prob">"18"误配含"18"文本</div><div class="sol">→ 跳过≤3位纯数字</div></div>
+    <div class="fix-item"><div class="prob">OCR噪声行</div><div class="sol">→ 中文占比&lt;30%过滤</div></div>
+    <div class="fix-item"><div class="prob">OCR繁体字</div><div class="sol">→ 下载chi_sim简体包优先</div></div>
+  </div>
+</div>
+</div>
+
+<div class="footer">AI智能营销助手 · Knowledge Agent · 多模态检索技术 &nbsp;|&nbsp; 2026-07</div>
+</body></html>

@@ -10,7 +10,7 @@ v2 新增:
   - 实时信号追加到 customer_profile.significant_signals
 """
 
-import os, sqlite3, pandas as pd, json
+import os, re, sqlite3, pandas as pd, json
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -185,20 +185,31 @@ def customer_get(oneid: str) -> Optional[Dict]:
 # ================================================================
 
 def campaign_insert(campaign: Dict) -> Dict:
-    """接收项目三创建的新活动。"""
+    """接收项目三创建/更新的活动。支持全部9个字段。"""
     conn = db()
     cid = campaign.get("campaign_id","")
     if not cid:
         return {"status":"error","message":"campaign_id is required"}
+    # 安全序列化JSON字段
+    def _safe_json(v, default="{}"):
+        if v is None:
+            return default
+        if isinstance(v, str):
+            return v  # 已经是JSON字符串
+        return json.dumps(v, ensure_ascii=False)
     conn.execute(
-        "INSERT OR REPLACE INTO campaigns (campaign_id, campaign_name, start_date, end_date, budget, rules) "
-        "VALUES (?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO campaigns "
+        "(campaign_id, campaign_name, start_date, end_date, target_segment, rules, budget, expected_reach, campaign_poster_path) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
         [cid,
          campaign.get("campaign_name", campaign.get("name","")),
          campaign.get("start_date",""),
          campaign.get("end_date",""),
+         _safe_json(campaign.get("target_segment")),
+         _safe_json(campaign.get("rules")),
          campaign.get("budget",0),
-         json.dumps(campaign.get("rules",{}), ensure_ascii=False)]
+         campaign.get("expected_reach",0),
+         campaign.get("campaign_poster_path","")]
     )
     conn.commit()
     return {"status":"ok","campaign_id":cid,"action":"insert_or_update"}
@@ -257,7 +268,7 @@ def feedback_insert(event: Dict) -> Dict:
                 [amt, amt/12, oneid]
             )
             conn.commit()
-            signals.append(f"实时转化+{amt}元")
+            # 更新年消费即可, 不写signals（年消费在静态画像Tab显示）
 
     elif event_type == "conversation":
         intent = event.get("intent","")
@@ -265,7 +276,7 @@ def feedback_insert(event: Dict) -> Dict:
         concerns = event.get("top_concerns",[])
         summary = event.get("summary","")
 
-        # 搜索关键词 (追加)
+        # 搜索关键词: top_concerns中的话题追加到搜索意图
         if concerns:
             old = conn.execute("SELECT short_term_7d_top_search_keywords FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
             old_str = (old[0] or "") if old else ""
@@ -273,29 +284,93 @@ def feedback_insert(event: Dict) -> Dict:
             if new_items:
                 updates["short_term_7d_top_search_keywords"] = (old_str+","+",".join(new_items)).strip(",")
 
-        # 浏览偏好 (从intent推导)
-        if intent and intent not in ("咨询","其他",""):
+        # 浏览偏好: intent映射为内容偏好
+        intent_browse_map = {
+            "分期需求":"分期计算器","权益咨询":"权益商城","额度升级":"额度管理",
+            "账户问题":"账单详情","销户咨询":"还款页面","跨境出行":"境外消费专区",
+            "新户引导":"新手指引",
+        }
+        browse_tag = intent_browse_map.get(intent, "")
+        if browse_tag:
             old = conn.execute("SELECT mid_term_30d_browse_preferences FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
             old_str = (old[0] or "") if old else ""
-            tag = f"{intent}相关"
-            if tag not in old_str:
-                updates["mid_term_30d_browse_preferences"] = (old_str+","+tag).strip(",")
+            if browse_tag not in old_str:
+                updates["mid_term_30d_browse_preferences"] = (old_str+f",{browse_tag}({intent})").strip(",")
 
-        # 关键事件
+        # -- Key events: conversations do NOT auto-write --
+        # Key events are only triggered by actual system-detected milestone behaviors
+        # (actual card cancellation, installment signup, credit limit change, etc.),
+        # NOT by consultation/inquiry in Project 3 conversations.
+        # Conversation content goes to search intent (handled by top_concerns above).
+        # If Project 3 reports an explicit milestone event (e.g. conversion + large amount),
+        # it is handled by the corresponding event type.
+
+        # -- Conversation summary -> search intent enrichment --
+        # The topic of the conversation is itself a search intent signal
         if summary:
-            old = conn.execute("SELECT key_milestones FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
+            old = conn.execute("SELECT short_term_7d_top_search_keywords FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
             old_str = (old[0] or "") if old else ""
-            updates["key_milestones"] = (old_str+f"|对话:{summary[:50]}").strip("|")
+            # Extract keywords from summary (split by commas or spaces, max 3 words)
+            summary_words = re.split(r'[，,、\s]+', summary)
+            summary_kw = [w for w in summary_words if len(w) >= 2 and w not in old_str][:3]
+            if summary_kw:
+                existing = updates.get("short_term_7d_top_search_keywords", old_str)
+                base = existing
+                new_items = [w for w in summary_kw if w not in base]
+                if new_items:
+                    updates["short_term_7d_top_search_keywords"] = (base + "," + ",".join(new_items)).strip(",")
 
-        # 满意度/焦虑度 影响风险信号
-        if sentiment in ("anxious","焦虑","不满","dissatisfied"):
-            signals.append(f"对话负面情绪:{sentiment}")
-        signals.append(f"对话:intent={intent},sentiment={sentiment}")
+        # -- Sentiment: stored in feedback_events, NOT in warning signals --
+        # Sentiment from Project 3 conversations is read by Dashboard Tab 3
+        # (Intent Recognition -> Sentiment Analysis) from the feedback_events table,
+        # and combined with overdue/churn/risk data to compute anxiety & satisfaction.
+        # Only severe negative + high-risk combinations trigger warnings via other event types.
+
+    elif event_type == "impression":
+        # P3曝光: 仅记录在feedback_events中(活动效果Tab展示)
+        pass
+
+    elif event_type == "browse":
+        # P3浏览(客户感兴趣): 活跃度+1, 记录到浏览偏好
+        conn.execute("UPDATE customer_profile SET long_term_90d_activity_score=MIN(long_term_90d_activity_score+1,100) WHERE oneid=?",[oneid])
+        conn.commit()
+        detail = event.get("detail",{})
+        if isinstance(detail, str):
+            try: detail = json.loads(detail)
+            except: detail = {}
+        page = detail.get("page","") or event.get("channel_name","")
+        if page:
+            old = conn.execute("SELECT mid_term_30d_browse_preferences FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
+            old_str = (old[0] or "") if old else ""
+            if page not in old_str:
+                updates["mid_term_30d_browse_preferences"] = (old_str+f",{page}").strip(",")
+
+    elif event_type == "ignore":
+        # P3忽略(不感兴趣): 不更新画像, 仅记录
+        pass
+
+    elif event_type == "unsubscribe":
+        # P3退订: 活跃度-5, 更新渠道退订标记, 流失风险增加
+        conn.execute("UPDATE customer_profile SET long_term_90d_activity_score=MAX(long_term_90d_activity_score-5,0) WHERE oneid=?",[oneid])
+        channel = event.get("channel","") or event.get("channel_name","")
+        # 标记渠道退订
+        if channel:
+            ch_map = {"APP Push":"push_consent","短信":"sms_consent","邮件":"email_consent",
+                      "微信公众号":"wechat_consent","电话":"phone_consent"}
+            col = ch_map.get(channel)
+            if col:
+                conn.execute(f"UPDATE customer_profile SET {col}=FALSE WHERE oneid=?",[oneid])
+            # 追加退订渠道记录
+            old = conn.execute("SELECT unsubscribe_channels FROM customer_profile WHERE oneid=?",[oneid]).fetchone()
+            old_str = (old[0] or "") if old else ""
+            if channel not in old_str:
+                conn.execute("UPDATE customer_profile SET unsubscribe_channels=? WHERE oneid=?",
+                            [(old_str+","+channel).strip(","), oneid])
+        conn.commit()
 
     elif event_type in ("click","reject"):
-        campaign = event.get("campaign_id", event.get("campaign",""))
-        action = "感兴趣" if event_type=="click" else "不感兴趣"
-        signals.append(f"活动:{campaign[:25]}-{action}")
+        # 旧版兼容: 点击/拒绝不写入signals
+        pass
 
     # 批量 UPDATE
     if updates:

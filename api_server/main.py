@@ -52,6 +52,7 @@ def load():
     s = DATA
     _data["snapshot"] = pd.read_csv(os.path.join(s, "customer_snapshot.csv"))
     _data["intent"] = pd.read_csv(os.path.join(s, "intent_vector.csv"))
+    _data["basic"] = pd.read_csv(os.path.join(s, "customer_basic.csv"))  # 含name/gender等人口字段
     _data["events"] = pd.read_csv(os.path.join(s, "event_sequence_per_customer.csv"))
     _data["consent"] = pd.read_csv(os.path.join(s, "customer_consent.csv"))
     _data["contact"] = pd.read_csv(os.path.join(s, "contact_history.csv"))
@@ -100,6 +101,18 @@ class FreqCheckRequest(BaseModel):
     cust_ids: List[str]
     planned_channel: str = ""
 
+class CampaignCreate(BaseModel):
+    """活动创建/更新 — 项目三调用此接口注册新活动"""
+    campaign_id: str = Field(..., description="活动唯一ID, 如 CAMP_2026_DOUBLE11")
+    campaign_name: str = Field(..., description="活动名称, 如 '双十一分期免息大促'")
+    start_date: Optional[str] = Field("", description="开始日期 YYYY-MM-DD")
+    end_date: Optional[str] = Field("", description="结束日期 YYYY-MM-DD")
+    target_segment: Optional[Dict] = Field({}, description="目标客群, JSON格式, 如 {'age_range':[22,45], 'card_level':['金卡','白金卡']}")
+    rules: Optional[Dict] = Field({}, description="活动规则, JSON格式, 如 {'免息期数':3, '最低消费':3000, '适用商户':['天猫','京东']}")
+    budget: Optional[int] = Field(0, description="活动预算(元)")
+    expected_reach: Optional[int] = Field(0, description="预期触达人数")
+    campaign_poster_path: Optional[str] = Field("", description="活动海报图片路径")
+
 # ================================================================
 # API-01: 客户搜索 & 批量洞察
 # ================================================================
@@ -130,6 +143,10 @@ def search_customers(req: SearchRequest):
     # 关联意图
     cust_ids = page_df["cust_id"].tolist()
     rel_intent = intent_df[intent_df["cust_id"].isin(cust_ids)]
+    # 关联客户姓名 (snapshot不含name, 从customer_basic取)
+    basic_df = _data["basic"]
+    name_map = dict(zip(basic_df["cust_id"], basic_df["name"])) if "name" in basic_df.columns else {}
+    gender_map = dict(zip(basic_df["cust_id"], basic_df["gender"])) if "gender" in basic_df.columns else {}
 
     customers = []
     for _, row in page_df.iterrows():
@@ -144,6 +161,8 @@ def search_customers(req: SearchRequest):
         customers.append({
             "cust_id": cid, "oneid": row["oneid"],
             "profile": {
+                "name": name_map.get(cid, ""),
+                "gender": gender_map.get(cid, ""),
                 "age": int(row["age"]), "city": row["city"],
                 "income_level": row["income_level"], "lifecycle_stage": row["lifecycle_stage"],
                 "vip_tier": row["vip_tier"],
@@ -322,6 +341,55 @@ def campaign_performance(campaign_id: str = ""):
     return {"total": len(results), "results": results}
 
 # ================================================================
+# API-06: 活动详情查询 (项目三展示活动给客户)
+# ================================================================
+@app.get("/api/v1/campaign/list", summary="活动详情列表 (项目三展示用)")
+def campaign_list(campaign_id: str = ""):
+    """返回活动目录的全部详情, 供项目三向客户展示活动信息。
+
+    参数:
+    - campaign_id (可选): 指定活动ID, 不传则返回全部活动
+
+    返回字段:
+    - campaign_id, campaign_name, start_date, end_date
+    - target_segment: 目标客群 (已解析JSON)
+    - rules: 活动规则 (已解析JSON)
+    - budget: 预算, expected_reach: 预期触达, campaign_poster_path: 海报路径
+    - summary: 人类可读的活动摘要
+    """
+    rows = get_campaigns()
+    results = []
+    for r in rows:
+        d = dict(r)
+        if campaign_id and d.get("campaign_id","") != campaign_id:
+            continue
+        # 解析JSON字段(兼容Python dict格式和标准JSON)
+        import ast
+        for json_field in ["target_segment", "rules"]:
+            raw = d.get(json_field)
+            if not raw:
+                d[json_field] = {}
+                continue
+            try:
+                d[json_field] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    d[json_field] = ast.literal_eval(raw)
+                except (ValueError, SyntaxError):
+                    d[json_field] = raw  # 保留原始字符串
+        # 生成人类可读摘要
+        name = d.get("campaign_name","")
+        start = d.get("start_date","")
+        end = d.get("end_date","")
+        budget = d.get("budget",0)
+        reach = d.get("expected_reach",0)
+        rules = d.get("rules",{})
+        rules_str = ", ".join(f"{k}:{v}" for k, v in rules.items()) if isinstance(rules, dict) else str(rules)
+        d["summary"] = f"「{name}」 {start}~{end} | 预算{budget/10000:.0f}万 触达{reach/10000:.0f}万 | {rules_str}"
+        results.append(d)
+    return {"total": len(results), "results": results}
+
+# ================================================================
 # 健康检查
 # ================================================================
 # ---- 集成意图引擎 + 知识图谱路由 ----
@@ -377,12 +445,27 @@ def db_feedback_import(events: List[Dict]):
         "note": "conversation→更新搜索关键词/浏览偏好/关键事件; conversion→更新年消费; click/reject→记录活动交互"
     }
 
-@app.post("/api/v1/db/campaign/import", summary="项目三新建活动 (INSERT OR REPLACE)")
-def db_campaign_import(campaigns: List[Dict]):
-    """接收项目三创建的新活动ID。campaign_id不存在则INSERT, 存在则UPDATE。"""
+@app.post("/api/v1/db/campaign/import", summary="项目三新建/更新活动")
+def db_campaign_import(campaigns: List[CampaignCreate]):
+    """接收项目三创建或更新的活动。campaign_id不存在则INSERT, 存在则UPDATE。
+
+    请求体: 活动数组, 每条包含:
+    - campaign_id (必填): 活动唯一ID
+    - campaign_name (必填): 活动名称
+    - start_date: 开始日期 YYYY-MM-DD
+    - end_date: 结束日期 YYYY-MM-DD
+    - target_segment: 目标客群 (JSON)
+    - rules: 活动规则 (JSON)
+    - budget: 预算(元)
+    - expected_reach: 预期触达人数
+    - campaign_poster_path: 海报路径
+    """
     results = []
     for c in campaigns:
-        r = campaign_insert(c)
+        d = c.model_dump()
+        # 移除None值, 让db_store的默认值生效
+        d = {k: v for k, v in d.items() if v is not None}
+        r = campaign_insert(d)
         results.append(r)
     return {"imported": len(results), "results": results}
 

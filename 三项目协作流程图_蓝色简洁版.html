@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>三项目协作流程架构图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#fff;display:flex;justify-content:center;padding:24px}
+
+svg{width:1200px;height:740px}
+</style>
+</head>
+<body>
+
+<svg viewBox="0 0 1200 740" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#93c5fd"/>
+  </marker>
+  <marker id="ah2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#60a5fa"/>
+  </marker>
+  <marker id="ah3" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+  </marker>
+</defs>
+
+<!-- ═══ Title ═══ -->
+<text x="600" y="30" text-anchor="middle" font-size="18" font-weight="800" fill="#0b2a4a">AI 智能营销助手 — 系统总体架构</text>
+<text x="600" y="50" text-anchor="middle" font-size="11" fill="#8899aa">项目一 Knowledge Agent (底层认知基石) → 项目二 Strategy Agent (策略大脑) → 项目三 Marketing Agent (触达手脚)</text>
+
+<!-- ═══════════════ PROJECT 1 CENTER BOX ═══════════════ -->
+<!-- Outer frame -->
+<rect x="60" y="72" width="720" height="560" rx="12" fill="#f8fafd" stroke="#2563eb" stroke-width="2.5"/>
+
+<!-- P1 Title bar -->
+<rect x="60" y="72" width="720" height="42" rx="12" fill="#2563eb"/>
+<rect x="60" y="102" width="720" height="12" fill="#2563eb"/>
+<text x="420" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">项目一 · Knowledge Agent &nbsp;—&nbsp; 企业知识引擎与记忆中心 &nbsp;—&nbsp; 「理解」引擎</text>
+
+<!-- ═══ LAYER 1: 能力层 ═══ -->
+<rect x="80" y="128" width="680" height="112" rx="8" fill="#fff" stroke="#dbeafe" stroke-width="1.5"/>
+<!-- Layer label -->
+<rect x="80" y="128" width="160" height="34" rx="8" fill="#eff6ff"/>
+<rect x="228" y="128" width="12" height="34" fill="#eff6ff"/>
+<text x="160" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">🎯 能力层</text>
+
+<text x="258" y="150" font-size="11" font-weight="600" fill="#1e40af">理解用户画像</text>
+<text x="258" y="164" font-size="9.5" fill="#64748b">静态画像59字段 · 动态记忆5信号×4窗口 · 意图情绪6类+4标签 · 活动效果触达→转化</text>
+
+<text x="258" y="192" font-size="11" font-weight="600" fill="#1e40af">理解商品权益</text>
+<text x="258" y="206" font-size="9.5" fill="#64748b">知识图谱183节点·1040边 · 产品权益树15×90 · 全文检索150文档 · 多模态检索四层管线</text>
+
+<text x="258" y="230" font-size="9" fill="#93c5fd">→ 客户360大屏(:8509) 4Tab &nbsp;|&nbsp; → 知识图谱大屏(:8508) 4Tab</text>
+
+<!-- ═══ LAYER 2: 平台层 ═══ -->
+<rect x="80" y="252" width="680" height="130" rx="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+<rect x="80" y="252" width="160" height="34" rx="8" fill="#eff6ff"/>
+<rect x="228" y="252" width="12" height="34" fill="#eff6ff"/>
+<text x="160" y="274" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">⚙️ 平台层</text>
+
+<!-- Platform items -->
+<rect x="258" y="262" width="105" height="36" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="310" y="279" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">NLP 自然语言处理</text>
+<text x="310" y="292" text-anchor="middle" font-size="7.5" fill="#94a3b8">分词·实体识别</text>
+
+<rect x="370" y="262" width="105" height="36" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="422" y="279" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">LLM 大模型</text>
+<text x="422" y="292" text-anchor="middle" font-size="7.5" fill="#94a3b8">DeepSeek 5功能</text>
+
+<rect x="482" y="262" width="105" height="36" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="534" y="279" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">意图识别引擎</text>
+<text x="534" y="292" text-anchor="middle" font-size="7.5" fill="#94a3b8">双引擎·三级降级</text>
+
+<rect x="594" y="262" width="105" height="36" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="646" y="279" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">语义处理</text>
+<text x="646" y="292" text-anchor="middle" font-size="7.5" fill="#94a3b8">情感·相似度·OCR</text>
+
+<rect x="706" y="262" width="42" height="36" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="727" y="282" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">...</text>
+
+<!-- Second row -->
+<rect x="258" y="305" width="248" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="382" y="320" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">GraphRAG 混合检索 (图遍历 + TF-IDF向量 + 关键词融合)</text>
+<text x="382" y="332" text-anchor="middle" font-size="7.5" fill="#94a3b8">183节点 · 1040边 · kw×0.5+graph×0.2+embed×0.3</text>
+
+<rect x="514" y="305" width="234" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="631" y="320" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">统一API服务层 FastAPI 14接口 + Swagger</text>
+<text x="631" y="332" text-anchor="middle" font-size="7.5" fill="#94a3b8">A→B(5) + A→C(7) + C→A(2) · 批量导入 · 反馈回传</text>
+
+<!-- OneID + Profile -->
+<rect x="258" y="344" width="360" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="438" y="359" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">OneID融合引擎 (64K映射·36项测试) &nbsp;+&nbsp; 客户画像引擎 (59字段×8000客户·三级更新)</text>
+<text x="438" y="371" text-anchor="middle" font-size="7.5" fill="#94a3b8">强/中/弱三级ID · 4步算法 · T+1/微批/事件驱动</text>
+
+<!-- ═══ LAYER 3: 数据层 ═══ -->
+<rect x="80" y="394" width="680" height="90" rx="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+<rect x="80" y="394" width="160" height="34" rx="8" fill="#eff6ff"/>
+<rect x="228" y="394" width="12" height="34" fill="#eff6ff"/>
+<text x="160" y="416" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">💾 数据层</text>
+
+<rect x="258" y="404" width="242" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="379" y="419" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">结构化数据 18张表</text>
+<text x="379" y="431" text-anchor="middle" font-size="7.5" fill="#94a3b8">客户8K·信用卡19K·交易760K·APP事件369K·产品15·权益90·活动25</text>
+
+<rect x="508" y="404" width="240" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="628" y="419" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">非结构化数据 150份</text>
+<text x="628" y="431" text-anchor="middle" font-size="7.5" fill="#94a3b8">产品文档TXT 22份 · ASR对话 956条 · 海报 12组</text>
+
+<rect x="258" y="444" width="490" height="32" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="503" y="459" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e40af">OneID 统一融合 64,776条映射 · T+1批量(03:00) · 微批(每小时) · 事件驱动(<100ms)</text>
+<text x="503" y="471" text-anchor="middle" font-size="7.5" fill="#94a3b8">SQLite数据库 (PostgreSQL兼容接口设计, 换连接串即可升级)</text>
+
+<!-- ═══ LAYER 4: 基础设施层 ═══ -->
+<rect x="80" y="496" width="680" height="80" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+<rect x="80" y="496" width="160" height="34" rx="8" fill="#f1f5f9"/>
+<rect x="228" y="496" width="12" height="34" fill="#f1f5f9"/>
+<text x="160" y="518" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">🖥️ 基础设施层</text>
+
+<rect x="258" y="508" width="155" height="28" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="335" y="526" text-anchor="middle" font-size="9" font-weight="600" fill="#475569">SQLite 数据库</text>
+
+<rect x="420" y="508" width="155" height="28" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="497" y="526" text-anchor="middle" font-size="9" font-weight="600" fill="#475569">NetworkX 图引擎</text>
+
+<rect x="582" y="508" width="155" height="28" rx="5" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="659" y="526" text-anchor="middle" font-size="9" font-weight="600" fill="#475569">TF-IDF + Tesseract OCR</text>
+
+<rect x="258" y="542" width="500" height="26" rx="5" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,2"/>
+<text x="508" y="559" text-anchor="middle" font-size="8.5" fill="#94a3b8">→ 演进方向: PostgreSQL + Neo4j + Milvus + Kafka + Docker + Qwen3-8B 本地部署</text>
+
+<!-- ═══════════════ RIGHT: PROJECT 2 ═══════════════ -->
+<rect x="810" y="148" width="250" height="150" rx="10" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+<rect x="810" y="148" width="250" height="38" rx="10" fill="#2563eb"/>
+<rect x="810" y="174" width="250" height="12" fill="#2563eb"/>
+<text x="935" y="172" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">项目二 · Strategy Agent</text>
+<text x="935" y="198" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">「决策」大脑</text>
+
+<text x="935" y="222" text-anchor="middle" font-size="9.5" fill="#475569">📋 圈选客群</text>
+<text x="935" y="240" text-anchor="middle" font-size="8.5" fill="#64748b">多维度群像刻画 · 评分排序</text>
+<text x="935" y="258" text-anchor="middle" font-size="8.5" fill="#64748b">客群分段 · 频控合规过滤</text>
+
+<text x="935" y="278" text-anchor="middle" font-size="9.5" fill="#475569">📊 生成决策策略包</text>
+<text x="935" y="292" text-anchor="middle" font-size="8.5" fill="#64748b">渠道/预算/权益/内容/实验</text>
+
+<!-- ═══════════════ RIGHT: PROJECT 3 ═══════════════ -->
+<rect x="810" y="340" width="250" height="150" rx="10" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="810" y="340" width="250" height="38" rx="10" fill="#1d4ed8"/>
+<rect x="810" y="366" width="250" height="12" fill="#1d4ed8"/>
+<text x="935" y="364" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">项目三 · Marketing Agent</text>
+<text x="935" y="390" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">「触达」手脚</text>
+
+<text x="935" y="414" text-anchor="middle" font-size="9.5" fill="#475569">💬 客户沟通展示</text>
+<text x="935" y="432" text-anchor="middle" font-size="8.5" fill="#64748b">多类型Agent · 多渠道推送</text>
+<text x="935" y="450" text-anchor="middle" font-size="8.5" fill="#64748b">个性化AIGC内容生成</text>
+
+<text x="935" y="470" text-anchor="middle" font-size="9.5" fill="#475569">📡 收集反馈回传</text>
+<text x="935" y="484" text-anchor="middle" font-size="8.5" fill="#64748b">曝光→点击→转化→投诉</text>
+
+<!-- ═══════════════ ARROWS & CONNECTIONS ═══════════════ -->
+
+<!-- A→B -->
+<line x1="760" y1="200" x2="805" y2="200" stroke="#93c5fd" stroke-width="2.5" marker-end="url(#ah)"/>
+<text x="782" y="192" text-anchor="middle" font-size="7.5" fill="#60a5fa" font-weight="600">A→B 数据供给</text>
+<text x="782" y="215" text-anchor="middle" font-size="6.5" fill="#94a3b8">5个API</text>
+
+<!-- A→C -->
+<line x1="760" y1="390" x2="805" y2="390" stroke="#60a5fa" stroke-width="2.5" marker-end="url(#ah2)"/>
+<text x="782" y="382" text-anchor="middle" font-size="7.5" fill="#60a5fa" font-weight="600">A→C 直接服务</text>
+<text x="782" y="405" text-anchor="middle" font-size="6.5" fill="#94a3b8">7个API</text>
+
+<!-- B→C -->
+<line x1="935" y1="298" x2="935" y2="335" stroke="#60a5fa" stroke-width="2" marker-end="url(#ah2)"/>
+<text x="955" y="318" font-size="7" fill="#60a5fa" font-weight="600">B→C</text>
+<text x="955" y="329" font-size="6" fill="#94a3b8">策略包</text>
+
+<!-- ═══════════════ FEEDBACK LOOP ═══════════════ -->
+<!-- C→A feedback (bottom) -->
+<path d="M 810 480 L 790 480 L 790 660 L 420 660 L 420 594" stroke="#fbbf24" stroke-width="2.5" fill="none" stroke-dasharray="8,3" marker-end="url(#ah3)"/>
+
+<!-- Feedback box at bottom -->
+<rect x="200" y="650" width="440" height="40" rx="8" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="420" y="667" text-anchor="middle" font-size="10" font-weight="700" fill="#d97706">🔄 C→A 反馈回流 (2个API)</text>
+<text x="420" y="682" text-anchor="middle" font-size="8" fill="#92400e">项目三回传行为事件+对话摘要 → 项目一画像即时更新+意图重算 → 「更好的理解」</text>
+
+<!-- ═══════════════ LEFT: DATA SOURCES ═══════════════ -->
+<rect x="200" y="586" width="160" height="28" rx="6" fill="#f8fafd" stroke="#e2e8f0" stroke-width="1"/>
+<text x="280" y="604" text-anchor="middle" font-size="8.5" font-weight="600" fill="#64748b">多源数据接入</text>
+
+</svg>
+
+</body>
+</html>

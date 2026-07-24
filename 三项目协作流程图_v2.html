@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>三项目协作流程架构图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#fff;display:flex;justify-content:center;padding:20px}
+
+svg{width:1200px;height:780px}
+
+/* Title */
+.tt{font-size:13px;font-weight:700;fill:#1a1a2e}
+
+/* Box styles */
+.box{stroke-width:1.2}
+.box-cap{fill:url(#g-cap);stroke:#a78bfa}
+.box-plat{fill:url(#g-plat);stroke:#60a5fa}
+.box-data{fill:url(#g-data);stroke:#34d399}
+.box-infra{fill:url(#g-infra);stroke:#9ca3af}
+.box-p2{fill:url(#g-p2);stroke:#a78bfa}
+.box-p3{fill:url(#g-p3);stroke:#f472b6}
+.box-fb{fill:url(#g-fb);stroke:#fbbf24}
+
+/* Item tags */
+.tag{font-size:9px;font-weight:600}
+.tag-cap{fill:#6d28d9}
+.tag-plat{fill:#1e40af}
+.tag-data{fill:#065f46}
+.tag-infra{fill:#374151}
+
+/* Descriptions */
+.desc{font-size:8px;fill:#6b7280}
+.desc-cap{font-size:8px;fill:#7c3aed}
+.desc-plat{font-size:8px;fill:#2563eb}
+.desc-data{font-size:8px;fill:#059669}
+.desc-infra{font-size:8px;fill:#4b5563}
+
+.hdr{font-size:10.5px;font-weight:700}
+.hdr-cap{fill:#fff}
+.hdr-plat{fill:#fff}
+.hdr-data{fill:#fff}
+.hdr-infra{fill:#fff}
+
+.conn{stroke:#cbd5e1;stroke-width:1.8;fill:none}
+.conn-arrow{stroke:#cbd5e1;stroke-width:1.8;fill:none;marker-end:url(#arrowhead)}
+.conn-blue{stroke:#93c5fd;stroke-width:2;fill:none;marker-end:url(#arrowhead-blue)}
+.conn-pink{stroke:#f9a8d4;stroke-width:2;fill:none;marker-end:url(#arrowhead-pink)}
+.conn-amber{stroke:#fcd34d;stroke-width:2.2;fill:none;marker-end:url(#arrowhead-amber)}
+.conn-dash{stroke:#94a3b8;stroke-width:1.5;fill:none;stroke-dasharray:6,4;marker-end:url(#arrowhead-gray)}
+
+.lbl{font-size:8px;fill:#64748b;text-anchor:middle}
+.lbl-small{font-size:7.5px;fill:#94a3b8;text-anchor:middle}
+</style>
+</head>
+<body>
+
+<svg viewBox="0 0 1200 780" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <!-- Gradients -->
+  <linearGradient id="g-cap" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#f5f3ff"/><stop offset="100%" stop-color="#ede9fe"/>
+  </linearGradient>
+  <linearGradient id="g-plat" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#eff6ff"/><stop offset="100%" stop-color="#dbeafe"/>
+  </linearGradient>
+  <linearGradient id="g-data" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#ecfdf5"/><stop offset="100%" stop-color="#d1fae5"/>
+  </linearGradient>
+  <linearGradient id="g-infra" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#f9fafb"/><stop offset="100%" stop-color="#f3f4f6"/>
+  </linearGradient>
+  <linearGradient id="g-p2" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#faf5ff"/><stop offset="100%" stop-color="#f3e8ff"/>
+  </linearGradient>
+  <linearGradient id="g-p3" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#fdf2f8"/><stop offset="100%" stop-color="#fce7f3"/>
+  </linearGradient>
+  <linearGradient id="g-fb" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#fffbeb"/><stop offset="100%" stop-color="#fef3c7"/>
+  </linearGradient>
+
+  <!-- Layer headers -->
+  <linearGradient id="gh-cap" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#7c3aed"/>
+  </linearGradient>
+  <linearGradient id="gh-plat" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#2563eb"/>
+  </linearGradient>
+  <linearGradient id="gh-data" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/>
+  </linearGradient>
+  <linearGradient id="gh-infra" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#6b7280"/><stop offset="100%" stop-color="#4b5563"/>
+  </linearGradient>
+
+  <!-- Arrowheads -->
+  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/>
+  </marker>
+  <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#93c5fd"/>
+  </marker>
+  <marker id="arrowhead-pink" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#f9a8d4"/>
+  </marker>
+  <marker id="arrowhead-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#fcd34d"/>
+  </marker>
+  <marker id="arrowhead-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+  </marker>
+</defs>
+
+<!-- ═══════════════ TITLE ═══════════════ -->
+<text x="600" y="28" text-anchor="middle" class="tt">AI 智能营销助手 — 三项目协作流程架构</text>
+
+<!-- ═══════════════ LEFT: DATA SOURCES ═══════════════ -->
+<rect x="18" y="90" width="130" height="42" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+<text x="83" y="107" text-anchor="middle" font-size="9" font-weight="700" fill="#475569">多源数据</text>
+<text x="83" y="121" text-anchor="middle" font-size="7.5" fill="#94a3b8">银行核心 · CRM · APP埋点</text>
+
+<rect x="18" y="145" width="130" height="32" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+<text x="83" y="159" text-anchor="middle" font-size="8.5" font-weight="600" fill="#475569">结构化数据 18表</text>
+<text x="83" y="171" text-anchor="middle" font-size="7" fill="#94a3b8">8,000客户·760K交易</text>
+
+<rect x="18" y="188" width="130" height="32" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+<text x="83" y="202" text-anchor="middle" font-size="8.5" font-weight="600" fill="#475569">非结构化 150份</text>
+<text x="83" y="214" text-anchor="middle" font-size="7" fill="#94a3b8">文档·对话·海报</text>
+
+<rect x="18" y="233" width="130" height="32" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+<text x="83" y="247" text-anchor="middle" font-size="8.5" font-weight="600" fill="#475569">项目三回传数据</text>
+<text x="83" y="259" text-anchor="middle" font-size="7" fill="#94a3b8">反馈事件·对话摘要</text>
+
+<!-- Left → P1 data arrows -->
+<line x1="148" y1="111" x2="218" y2="125" class="conn-arrow"/>
+<line x1="148" y1="161" x2="218" y2="190" class="conn-arrow"/>
+<line x1="148" y1="204" x2="218" y2="255" class="conn-arrow"/>
+<line x1="148" y1="249" x2="218" y2="320" class="conn-arrow"/>
+
+<!-- ═══════════════ CENTER: 项目一 ═══════════════ -->
+
+<!-- P1 bounding box -->
+<rect x="224" y="50" width="550" height="610" rx="14" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.4"/>
+<text x="499" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#2563eb">项目一 · Knowledge Agent — 「理解」引擎</text>
+
+<!-- ═══ LAYER 1: 能力层 ═══ -->
+<rect x="240" y="80" width="518" height="168" rx="12" class="box-cap"/>
+<rect x="240" y="80" width="518" height="32" rx="12" fill="url(#gh-cap)"/>
+<rect x="240" y="100" width="518" height="12" fill="url(#gh-cap)"/>
+<text x="254" y="101" class="hdr hdr-cap">🎯 能力层 — 「理解什么」</text>
+
+<!-- Cap sub-groups -->
+<rect x="252" y="120" width="248" height="30" rx="6" fill="#faf8fe" stroke="#d8b4fe" stroke-width="0.8"/>
+<text x="262" y="134" font-size="9" font-weight="700" fill="#7c3aed">理解用户画像</text>
+<text x="262" y="146" font-size="7.5" fill="#a78bfa">静态画像 · 动态记忆 · 意图情绪 · 活动效果</text>
+
+<rect x="506" y="120" width="240" height="30" rx="6" fill="#faf8fe" stroke="#d8b4fe" stroke-width="0.8"/>
+<text x="516" y="134" font-size="9" font-weight="700" fill="#7c3aed">理解商品权益</text>
+<text x="516" y="146" font-size="7.5" fill="#a78bfa">知识图谱 · 产品权益树 · 全文检索 · 多模态</text>
+
+<!-- Cap items row -->
+<rect x="252" y="158" width="115" height="38" rx="5" fill="#fff" stroke="#e9d5ff" stroke-width="0.6"/>
+<text x="309" y="173" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">客户360大屏</text>
+<text x="309" y="187" text-anchor="middle" font-size="7" fill="#a78bfa">4Tab·5维59字段</text>
+
+<rect x="375" y="158" width="115" height="38" rx="5" fill="#fff" stroke="#e9d5ff" stroke-width="0.6"/>
+<text x="432" y="173" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">意图识别</text>
+<text x="432" y="187" text-anchor="middle" font-size="7" fill="#a78bfa">6类意图·4种情绪</text>
+
+<rect x="498" y="158" width="125" height="38" rx="5" fill="#fff" stroke="#e9d5ff" stroke-width="0.6"/>
+<text x="560" y="173" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">知识图谱大屏</text>
+<text x="560" y="187" text-anchor="middle" font-size="7" fill="#a78bfa">183节点·1040边</text>
+
+<rect x="631" y="158" width="115" height="38" rx="5" fill="#fff" stroke="#e9d5ff" stroke-width="0.6"/>
+<text x="688" y="173" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">多模态检索</text>
+<text x="688" y="187" text-anchor="middle" font-size="7" fill="#a78bfa">四层管线·假阳性控制</text>
+
+<!-- ═══ LAYER 2: 平台层 ═══ -->
+<rect x="240" y="260" width="518" height="128" rx="12" class="box-plat"/>
+<rect x="240" y="260" width="518" height="32" rx="12" fill="url(#gh-plat)"/>
+<rect x="240" y="280" width="518" height="12" fill="url(#gh-plat)"/>
+<text x="254" y="281" class="hdr hdr-plat">⚙️ 平台层 — 「怎么理解」— NLP · 大模型 · 意图识别 · 语义处理 · GraphRAG</text>
+
+<!-- Platform items -->
+<rect x="252" y="300" width="78" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="291" y="315" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">NLP引擎</text>
+<text x="291" y="328" text-anchor="middle" font-size="6.5" fill="#93c5fd">自然语言处理</text>
+
+<rect x="338" y="300" width="88" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="382" y="315" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">LLM大模型</text>
+<text x="382" y="328" text-anchor="middle" font-size="6.5" fill="#93c5fd">DeepSeek 5功能</text>
+
+<rect x="434" y="300" width="88" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="478" y="315" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">意图识别引擎</text>
+<text x="478" y="328" text-anchor="middle" font-size="6.5" fill="#93c5fd">双引擎·三级降级</text>
+
+<rect x="530" y="300" width="88" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="574" y="315" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">语义处理</text>
+<text x="574" y="328" text-anchor="middle" font-size="6.5" fill="#93c5fd">情感·相似度·OCR</text>
+
+<rect x="626" y="300" width="120" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="686" y="315" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">GraphRAG混合检索</text>
+<text x="686" y="328" text-anchor="middle" font-size="6.5" fill="#93c5fd">图遍历+向量+关键词</text>
+
+<!-- Platform: API + OneID row -->
+<rect x="252" y="344" width="248" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="376" y="359" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">统一API服务层 (FastAPI 14接口)</text>
+<text x="376" y="372" text-anchor="middle" font-size="6.5" fill="#93c5fd">A→B(5) + A→C(7) + C→A(2) · Swagger文档</text>
+
+<rect x="508" y="344" width="238" height="36" rx="5" fill="#fff" stroke="#bfdbfe" stroke-width="0.6"/>
+<text x="627" y="359" text-anchor="middle" font-size="8" font-weight="600" fill="#1e40af">OneID融合引擎 · 客户画像引擎</text>
+<text x="627" y="372" text-anchor="middle" font-size="6.5" fill="#93c5fd">64K映射 · 36测试 · 59字段 × 8000客户</text>
+
+<!-- ═══ LAYER 3: 数据层 ═══ -->
+<rect x="240" y="400" width="518" height="108" rx="12" class="box-data"/>
+<rect x="240" y="400" width="518" height="32" rx="12" fill="url(#gh-data)"/>
+<rect x="240" y="420" width="518" height="12" fill="url(#gh-data)"/>
+<text x="254" y="421" class="hdr hdr-data">💾 数据层 — 「靠什么理解」— 结构化表 + 非结构化数据 + OneID映射</text>
+
+<!-- Data items -->
+<rect x="252" y="440" width="248" height="28" rx="5" fill="#fff" stroke="#a7f3d0" stroke-width="0.6"/>
+<text x="376" y="453" text-anchor="middle" font-size="8" font-weight="600" fill="#065f46">结构化数据 18张表</text>
+<text x="376" y="463" text-anchor="middle" font-size="6.5" fill="#6ee7b7">客户·卡·交易·账单·CRM·APP事件·产品·权益·活动…</text>
+
+<rect x="508" y="440" width="238" height="28" rx="5" fill="#fff" stroke="#a7f3d0" stroke-width="0.6"/>
+<text x="627" y="453" text-anchor="middle" font-size="8" font-weight="600" fill="#065f46">非结构化数据 150份</text>
+<text x="627" y="463" text-anchor="middle" font-size="6.5" fill="#6ee7b7">TXT文档·ASR对话·海报JSON</text>
+
+<rect x="252" y="473" width="360" height="28" rx="5" fill="#fff" stroke="#a7f3d0" stroke-width="0.6"/>
+<text x="432" y="486" text-anchor="middle" font-size="8" font-weight="600" fill="#065f46">OneID统一融合 64,776条 · 三级ID分级(强→中→弱) · 4步算法</text>
+<text x="432" y="498" text-anchor="middle" font-size="6.5" fill="#6ee7b7">T+1批量(03:00) · 微批(每小时) · 事件驱动(<100ms)</text>
+
+<!-- ═══ LAYER 4: 基础设施层 ═══ -->
+<rect x="240" y="520" width="518" height="100" rx="12" class="box-infra"/>
+<rect x="240" y="520" width="518" height="32" rx="12" fill="url(#gh-infra)"/>
+<rect x="240" y="540" width="518" height="12" fill="url(#gh-infra)"/>
+<text x="254" y="541" class="hdr hdr-infra">🖥️ 基础设施层 — 数据库·存储·计算·AI算力</text>
+
+<rect x="252" y="560" width="162" height="28" rx="5" fill="#fff" stroke="#d1d5db" stroke-width="0.6"/>
+<text x="333" y="573" text-anchor="middle" font-size="8" font-weight="600" fill="#374151">SQLite 数据库</text>
+<text x="333" y="583" text-anchor="middle" font-size="6.5" fill="#9ca3af">PostgreSQL兼容接口</text>
+
+<rect x="422" y="560" width="160" height="28" rx="5" fill="#fff" stroke="#d1d5db" stroke-width="0.6"/>
+<text x="502" y="573" text-anchor="middle" font-size="8" font-weight="600" fill="#374151">NetworkX + TF-IDF</text>
+<text x="502" y="583" text-anchor="middle" font-size="6.5" fill="#9ca3af">图引擎·向量检索</text>
+
+<rect x="590" y="560" width="156" height="28" rx="5" fill="#fff" stroke="#d1d5db" stroke-width="0.6"/>
+<text x="668" y="573" text-anchor="middle" font-size="8" font-weight="600" fill="#374151">Tesseract OCR + DeepSeek</text>
+<text x="668" y="583" text-anchor="middle" font-size="6.5" fill="#9ca3af">中文识别·LLM API</text>
+
+<rect x="252" y="592" width="494" height="22" rx="5" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="0.6"/>
+<text x="499" y="607" text-anchor="middle" font-size="7.5" fill="#6b7280">→ 演进方向: PostgreSQL + Neo4j + Milvus + Kafka + Docker + Qwen3-8B 本地部署</text>
+
+<!-- ═══════════════ Arrows P1 → P2 ═══════════════ -->
+<line x1="758" y1="200" x2="858" y2="200" class="conn-blue"/>
+<text x="808" y="194" class="lbl">A→B 数据供给</text>
+<text x="808" y="215" class="lbl-small">画像/意图/知识/渠道/频控/效果</text>
+<text x="808" y="225" class="lbl-small">━━━ 5个API接口</text>
+
+<!-- Arrow P1 → P3 -->
+<line x1="758" y1="400" x2="858" y2="400" class="conn-pink"/>
+<text x="808" y="394" class="lbl">A→C 直接服务</text>
+<text x="808" y="415" class="lbl-small">OneID/画像/意图/知识/事件/分类</text>
+<text x="808" y="425" class="lbl-small">━━━ 7个API接口</text>
+
+<!-- ═══════════════ RIGHT: 项目二 ═══════════════ -->
+<rect x="864" y="130" width="290" height="160" rx="14" class="box-p2"/>
+<rect x="864" y="130" width="290" height="38" rx="14" fill="url(#gh-cap)"/>
+<rect x="864" y="155" width="290" height="13" fill="url(#gh-cap)"/>
+<text x="1009" y="154" text-anchor="middle" class="hdr hdr-cap">🧭 项目二 · Strategy Agent「决策」大脑</text>
+
+<rect x="878" y="178" width="262" height="48" rx="6" fill="#fff" stroke="#d8b4fe" stroke-width="0.6"/>
+<text x="1009" y="194" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">📋 圈选客群 + 生成决策</text>
+<text x="1009" y="208" text-anchor="middle" font-size="7.5" fill="#a78bfa">自然语言目标→结构化策略任务</text>
+<text x="1009" y="220" text-anchor="middle" font-size="7" fill="#c4b5fd">多维度群像刻画 · 评分排序 · 客群分段</text>
+
+<rect x="878" y="232" width="262" height="48" rx="6" fill="#fff" stroke="#d8b4fe" stroke-width="0.6"/>
+<text x="1009" y="248" text-anchor="middle" font-size="8.5" font-weight="600" fill="#6d28d9">📊 策略包输出</text>
+<text x="1009" y="262" text-anchor="middle" font-size="7.5" fill="#a78bfa">渠道分配 · 预算分配 · 权益规则</text>
+<text x="1009" y="274" text-anchor="middle" font-size="7" fill="#c4b5fd">频控合规 · A/B实验 · 触达节奏</text>
+
+<!-- ═══════════════ RIGHT: 项目三 ═══════════════ -->
+<rect x="864" y="330" width="290" height="160" rx="14" class="box-p3"/>
+<rect x="864" y="330" width="290" height="38" rx="14" fill="#db2777"/>
+<rect x="864" y="355" width="290" height="13" fill="#db2777"/>
+<text x="1009" y="354" text-anchor="middle" class="hdr" fill="#fff">💬 项目三 · Marketing Agent「触达」手脚</text>
+
+<rect x="878" y="378" width="262" height="48" rx="6" fill="#fff" stroke="#f9a8d4" stroke-width="0.6"/>
+<text x="1009" y="394" text-anchor="middle" font-size="8.5" font-weight="600" fill="#be185d">💬 客户沟通展示</text>
+<text x="1009" y="408" text-anchor="middle" font-size="7.5" fill="#f472b6">查询类·服务类·营销类 多类型Agent</text>
+<text x="1009" y="420" text-anchor="middle" font-size="7" fill="#fbcfe8">多渠道推送 · 个性化AIGC内容生成</text>
+
+<rect x="878" y="432" width="262" height="48" rx="6" fill="#fff" stroke="#f9a8d4" stroke-width="0.6"/>
+<text x="1009" y="448" text-anchor="middle" font-size="8.5" font-weight="600" fill="#be185d">📡 收集反馈回传 (C→A)</text>
+<text x="1009" y="462" text-anchor="middle" font-size="7.5" fill="#f472b6">曝光→点击→转化→拒绝→投诉</text>
+<text x="1009" y="474" text-anchor="middle" font-size="7" fill="#fbcfe8">行为事件回传 + 对话摘要回传</text>
+
+<!-- B→C arrow -->
+<line x1="1009" y1="290" x2="1009" y2="330" class="conn-pink"/>
+<text x="1040" y="312" font-size="7.5" fill="#db2777" font-weight="600">B→C 策略包下发</text>
+
+<!-- ═══════════════ FEEDBACK LOOP ═══════════════ -->
+<!-- C→A feedback arrow (curved back from right to left) -->
+<path d="M 864 454 L 810 454 L 810 670 L 499 670 L 499 628" class="conn-amber"/>
+<text x="655" y="690" text-anchor="middle" font-size="8.5" font-weight="700" fill="#d97706">🔄 C→A 反馈回流 (2个API) → 画像即时更新 + 意图重算 + 情绪更新 + 活跃度调整 → 「更好的理解」</text>
+
+<!-- P3→P1 bottom feedback box -->
+<rect x="330" y="640" width="340" height="38" rx="10" class="box-fb"/>
+<text x="500" y="656" text-anchor="middle" font-size="9" font-weight="700" fill="#d97706">反馈回流: 理解 → 决策 → 触达 → 反馈 → 更好的理解</text>
+<text x="500" y="672" text-anchor="middle" font-size="7.5" fill="#92400e">每次客户交互，都让AI更「理解」这个客户</text>
+
+</svg>
+
+</body>
+</html>

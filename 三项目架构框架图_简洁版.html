@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>三项目架构框架</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',sans-serif;background:#fff;display:flex;justify-content:center;padding:20px}
+svg{width:1100px;height:600px}
+</style>
+</head>
+<body>
+
+<svg viewBox="0 0 1100 600" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <marker id="a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#2563eb"/>
+  </marker>
+  <marker id="a2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+  </marker>
+</defs>
+
+<!-- Title -->
+<text x="550" y="28" text-anchor="middle" font-size="17" font-weight="800" fill="#0b2a4a">AI 智能营销助手 — 系统总体架构</text>
+
+<!-- ═══ PROJECT 1 BOX ═══ -->
+<rect x="40" y="55" width="760" height="480" rx="10" fill="#f8fafd" stroke="#2563eb" stroke-width="2.5"/>
+<rect x="40" y="55" width="760" height="38" rx="10" fill="#2563eb"/>
+<rect x="40" y="80" width="760" height="13" fill="#2563eb"/>
+<text x="420" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">项目一 · Knowledge Agent &nbsp;—&nbsp; 「理解」引擎</text>
+
+<!-- Layer 1: 能力层 -->
+<rect x="62" y="110" width="716" height="95" rx="7" fill="#fff" stroke="#dbeafe" stroke-width="1.5"/>
+<rect x="62" y="110" width="716" height="30" rx="7" fill="#eff6ff"/>
+<rect x="740" y="110" width="38" height="30" fill="#eff6ff"/>
+<text x="420" y="130" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">🎯 能力层 — 「理解什么」</text>
+
+<text x="420" y="164" text-anchor="middle" font-size="13" fill="#1e40af">理解用户画像（静态画像 · 动态记忆 · 意图情绪 · 活动效果）</text>
+<text x="420" y="188" text-anchor="middle" font-size="13" fill="#1e40af">理解商品权益（知识图谱 · 产品权益树 · 全文检索 · 多模态检索）</text>
+
+<!-- Layer 2: 平台层 -->
+<rect x="62" y="218" width="716" height="95" rx="7" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+<rect x="62" y="218" width="716" height="30" rx="7" fill="#eff6ff"/>
+<rect x="740" y="218" width="38" height="30" fill="#eff6ff"/>
+<text x="420" y="238" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">⚙️ 平台层 — 「怎么理解」</text>
+
+<text x="420" y="272" text-anchor="middle" font-size="13" fill="#1e40af">NLP · 大模型 (DeepSeek) · 意图识别 · 语义处理 · GraphRAG 混合检索</text>
+<text x="420" y="296" text-anchor="middle" font-size="12" fill="#64748b">OneID融合引擎 · 客户画像引擎 · 统一API服务层 (FastAPI 14接口)</text>
+
+<!-- Layer 3: 数据层 -->
+<rect x="62" y="326" width="716" height="75" rx="7" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+<rect x="62" y="326" width="716" height="30" rx="7" fill="#eff6ff"/>
+<rect x="740" y="326" width="38" height="30" fill="#eff6ff"/>
+<text x="420" y="346" text-anchor="middle" font-size="12" font-weight="700" fill="#2563eb">💾 数据层 — 「靠什么理解」</text>
+
+<text x="420" y="378" text-anchor="middle" font-size="13" fill="#1e40af">结构化数据 (18张表) &nbsp;+&nbsp; 非结构化数据 (150份文档/对话/海报) &nbsp;+&nbsp; OneID统一映射 (64K)</text>
+
+<!-- Layer 4: 基础设施层 -->
+<rect x="62" y="414" width="716" height="55" rx="7" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+<rect x="62" y="414" width="716" height="30" rx="7" fill="#f1f5f9"/>
+<rect x="740" y="414" width="38" height="30" fill="#f1f5f9"/>
+<text x="420" y="434" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">🖥️ 基础设施层</text>
+
+<text x="420" y="458" text-anchor="middle" font-size="12" fill="#64748b">SQLite 数据库 · NetworkX 图引擎 · TF-IDF · Tesseract OCR · Streamlit 双大屏 · DeepSeek API</text>
+
+<!-- ═══ RIGHT SIDE: P2 + P3 ═══ -->
+
+<!-- P2 -->
+<rect x="840" y="100" width="210" height="175" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+<rect x="840" y="100" width="210" height="34" rx="8" fill="#2563eb"/>
+<rect x="840" y="122" width="210" height="12" fill="#2563eb"/>
+<text x="945" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">项目二 · Strategy Agent</text>
+<text x="945" y="158" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">「决策」大脑</text>
+<text x="945" y="188" text-anchor="middle" font-size="12" fill="#64748b">圈选客群</text>
+<text x="945" y="212" text-anchor="middle" font-size="12" fill="#64748b">生成决策策略包</text>
+<text x="945" y="236" text-anchor="middle" font-size="12" fill="#64748b">渠道/预算/权益分配</text>
+
+<!-- P3 -->
+<rect x="840" y="310" width="210" height="175" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="840" y="310" width="210" height="34" rx="8" fill="#1d4ed8"/>
+<rect x="840" y="332" width="210" height="12" fill="#1d4ed8"/>
+<text x="945" y="332" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">项目三 · Marketing Agent</text>
+<text x="945" y="368" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">「触达」手脚</text>
+<text x="945" y="398" text-anchor="middle" font-size="12" fill="#64748b">客户沟通展示</text>
+<text x="945" y="422" text-anchor="middle" font-size="12" fill="#64748b">多渠道触达推送</text>
+<text x="945" y="446" text-anchor="middle" font-size="12" fill="#64748b">收集反馈回传</text>
+
+<!-- Arrows -->
+<line x1="800" y1="170" x2="835" y2="170" stroke="#2563eb" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="818" y="162" text-anchor="middle" font-size="9" fill="#2563eb" font-weight="600">数据</text>
+<text x="818" y="186" text-anchor="middle" font-size="9" fill="#2563eb" font-weight="600">供给</text>
+
+<line x1="800" y1="400" x2="835" y2="400" stroke="#2563eb" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="818" y="392" text-anchor="middle" font-size="9" fill="#2563eb" font-weight="600">直接</text>
+<text x="818" y="416" text-anchor="middle" font-size="9" fill="#2563eb" font-weight="600">服务</text>
+
+<line x1="945" y1="275" x2="945" y2="305" stroke="#2563eb" stroke-width="2" marker-end="url(#a)"/>
+<text x="960" y="292" font-size="9" fill="#2563eb" font-weight="600">策略包下发</text>
+
+<!-- Feedback loop -->
+<path d="M 840 450 L 810 450 L 810 555 L 420 555 L 420 470" stroke="#f59e0b" stroke-width="2.5" fill="none" stroke-dasharray="8,3" marker-end="url(#a2)"/>
+<rect x="230" y="542" width="380" height="30" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="420" y="561" text-anchor="middle" font-size="11" font-weight="700" fill="#d97706">🔄 反馈回流 C→A &nbsp;→&nbsp; 画像更新 + 意图重算 &nbsp;→&nbsp; 「更好的理解」</text>
+
+</svg>
+
+</body>
+</html>

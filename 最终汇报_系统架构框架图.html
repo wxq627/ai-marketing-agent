@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI智能营销助手 — 系统总体架构</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1040 30%, #0d1b3e 60%, #0a1628 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 30px 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1400px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 40px 35px;
+  }
+
+  /* ===== Title ===== */
+  .title-block {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .title-block h1 {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 3px;
+  }
+  .title-block .subtitle {
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    margin-top: 6px;
+    letter-spacing: 2px;
+  }
+
+  /* ===== Legend ===== */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+  }
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+  }
+  .legend-dot.done { background: linear-gradient(135deg, #22c55e, #10b981); box-shadow: 0 0 10px rgba(34,197,94,0.4); }
+  .legend-dot.partial { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 0 10px rgba(245,158,11,0.4); }
+  .legend-dot.planned { background: linear-gradient(135deg, #6b7280, #9ca3af); box-shadow: 0 0 6px rgba(107,114,128,0.3); border: 1px dashed rgba(255,255,255,0.3); }
+
+  /* ===== Layer ===== */
+  .layer {
+    margin-bottom: 12px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .layer-header .icon {
+    font-size: 22px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+  }
+  .layer-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 18px;
+  }
+
+  /* Layer colors */
+  .layer-capability { background: rgba(139,92,246,0.08); }
+  .layer-capability .layer-header { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .layer-capability .icon { background: rgba(139,92,246,0.25); }
+
+  .layer-platform { background: rgba(59,130,246,0.08); }
+  .layer-platform .layer-header { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .layer-platform .icon { background: rgba(59,130,246,0.25); }
+
+  .layer-data { background: rgba(16,185,129,0.08); }
+  .layer-data .layer-header { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .layer-data .icon { background: rgba(16,185,129,0.25); }
+
+  .layer-infra { background: rgba(107,114,128,0.08); }
+  .layer-infra .layer-header { background: rgba(107,114,128,0.15); color: #d1d5db; }
+  .layer-infra .icon { background: rgba(107,114,128,0.25); }
+
+  /* ===== Module Card ===== */
+  .module {
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    flex: 1 1 180px;
+    min-width: 150px;
+    max-width: 260px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+  }
+  .module:hover {
+    transform: translateY(-2px);
+  }
+  .module .mod-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .module .mod-desc {
+    font-size: 11px;
+    opacity: 0.75;
+    line-height: 1.5;
+  }
+  .module .mod-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .module .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  /* Status colors */
+  .mod-done {
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.35);
+    color: #bbf7d0;
+  }
+  .mod-done .mod-title { color: #4ade80; }
+  .mod-done .tag { background: rgba(34,197,94,0.2); color: #86efac; }
+
+  .mod-partial {
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.35);
+    color: #fde68a;
+  }
+  .mod-partial .mod-title { color: #fbbf24; }
+  .mod-partial .tag { background: rgba(245,158,11,0.2); color: #fcd34d; }
+
+  .mod-planned {
+    background: rgba(107,114,128,0.1);
+    border: 1px dashed rgba(255,255,255,0.15);
+    color: #d1d5db;
+  }
+  .mod-planned .mod-title { color: #9ca3af; }
+  .mod-planned .tag { background: rgba(107,114,128,0.2); color: #9ca3af; }
+
+  /* ===== Connector ===== */
+  .connector-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 28px;
+    position: relative;
+  }
+  .connector-arrow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .connector-line {
+    width: 60px;
+    height: 2px;
+    background: rgba(255,255,255,0.15);
+  }
+  .connector-head {
+    width: 0;
+    height: 0;
+    border-left: 12px solid rgba(255,255,255,0.2);
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+  }
+
+  /* ===== Project labels on right ===== */
+  .project-labels {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .project-label {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+  }
+  .proj-a { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); }
+  .proj-b { background: rgba(139,92,246,0.2); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.4); }
+  .proj-c { background: rgba(236,72,153,0.2); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.4); }
+
+  /* ===== Sub-project areas ===== */
+  .layer-body.with-zones {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .zone {
+    flex: 1;
+    min-width: 280px;
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .zone-label {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    display: inline-block;
+    letter-spacing: 1px;
+  }
+  .zone-a { background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.12); }
+  .zone-a .zone-label { background: rgba(59,130,246,0.2); color: #93c5fd; }
+  .zone-b { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.12); }
+  .zone-b .zone-label { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+  .zone-c { background: rgba(236,72,153,0.06); border: 1px solid rgba(236,72,153,0.12); }
+  .zone-c .zone-label { background: rgba(236,72,153,0.2); color: #f9a8d4; }
+  .zone .modules-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .zone .module {
+    flex: 1 1 130px;
+    min-width: 110px;
+    max-width: 200px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .zone .module .mod-title { font-size: 12px; }
+  .zone .module .mod-desc { font-size: 10px; }
+
+  /* ===== Data flow arrows ===== */
+  .flow-section {
+    margin-top: 20px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 20px;
+  }
+  .flow-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 15px;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .flow-box {
+    padding: 12px 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .flow-box.knowledge { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); }
+  .flow-box.strategy { background: rgba(139,92,246,0.2); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.4); }
+  .flow-box.marketing { background: rgba(236,72,153,0.2); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.4); }
+  .flow-arrow {
+    color: rgba(255,255,255,0.3);
+    font-size: 20px;
+    font-weight: 300;
+  }
+  .flow-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+    max-width: 80px;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .improvement-box {
+    flex: 1;
+    min-width: 280px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .improvement-box h3 {
+    font-size: 14px;
+    color: #fbbf24;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+  .improvement-box ul {
+    list-style: none;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.9;
+  }
+  .improvement-box ul li::before {
+    content: "→ ";
+    color: #fbbf24;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .container { padding: 20px 15px; }
+    .module { flex: 1 1 100%; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ========== TITLE ========== -->
+  <div class="title-block">
+    <h1>AI 智能营销助手 · 系统总体架构</h1>
+    <div class="subtitle">信用卡全链路智能营销平台 — 四层架构体系 | 最终汇报 v1.0</div>
+  </div>
+
+  <!-- ========== LEGEND ========== -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot done"></div> 已完成实现 (项目一 ~93%)</div>
+    <div class="legend-item"><div class="legend-dot partial"></div> 部分实现 / 框架已搭建</div>
+    <div class="legend-item"><div class="legend-dot planned"></div> 后续改进 &amp; 演进方向</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LAYER 4: 能力层 (Capability Layer) -->
+  <!-- ============================================================ -->
+  <div class="layer layer-capability">
+    <div class="layer-header">
+      <div class="icon">🎯</div>
+      <span>能力层 Capability — 业务应用与智能服务</span>
+    </div>
+    <div class="layer-body with-zones">
+      <!-- 项目一能力 -->
+      <div class="zone zone-a">
+        <div class="zone-label">📦 项目一：知识引擎能力</div>
+        <div class="modules-row">
+          <div class="module mod-done">
+            <div class="mod-title">👤 客户360视图</div>
+            <div class="mod-desc">统一客户画像大屏<br>5Tab(静态/动态/意图/归因/实时)</div>
+            <div class="mod-tags"><span class="tag">DeepSeek</span><span class="tag">Streamlit</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🔍 知识图谱检索</div>
+            <div class="mod-desc">产品-权益-活动图谱<br>树形层级+全文检索+混合排序</div>
+            <div class="mod-tags"><span class="tag">GraphRAG</span><span class="tag">183节点</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🧠 智能意图识别</div>
+            <div class="mod-desc">6类意图评分+情感分析<br>规则引擎+DeepSeek双引擎</div>
+            <div class="mod-tags"><span class="tag">LLM</span><span class="tag">可解释</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🖼️ 多模态商品理解</div>
+            <div class="mod-desc">海报/图片→结构化知识<br>Vision LLM+语义验证</div>
+            <div class="mod-tags"><span class="tag">DeepSeek-V</span><span class="tag">OCR</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 项目二能力 -->
+      <div class="zone zone-b">
+        <div class="zone-label">🧭 项目二：策略引擎能力</div>
+        <div class="modules-row">
+          <div class="module mod-partial">
+            <div class="mod-title">📋 经营目标理解</div>
+            <div class="mod-desc">自然语言→结构化策略任务<br>意图解析+参数校验</div>
+            <div class="mod-tags"><span class="tag">LLM</span><span class="tag">Prompt</span></div>
+          </div>
+          <div class="module mod-partial">
+            <div class="mod-title">👥 客群圈选与画像</div>
+            <div class="mod-desc">多维度群像刻画<br>规则过滤+评分排序</div>
+            <div class="mod-tags"><span class="tag">Scoring</span></div>
+          </div>
+          <div class="module mod-partial">
+            <div class="mod-title">📊 策略生成与预算</div>
+            <div class="mod-desc">渠道/预算/权益/频控<br>策略包JSON输出</div>
+            <div class="mod-tags"><span class="tag">Orch</span></div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">🔄 可解释追问</div>
+            <div class="mod-desc">多轮调整+替代方案<br>策略为什么这样生成</div>
+            <div class="mod-tags"><span class="tag">TODO</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 项目三能力 -->
+      <div class="zone zone-c">
+        <div class="zone-label">💬 项目三：触达执行能力</div>
+        <div class="modules-row">
+          <div class="module mod-planned">
+            <div class="mod-title">🤖 多类型智能体</div>
+            <div class="mod-desc">查询类/服务类/营销类<br>多轮渐进式对话</div>
+            <div class="mod-tags"><span class="tag">Agent</span></div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">📱 多渠道触达</div>
+            <div class="mod-desc">APP Push/短信/AI外呼<br>微信/邮件/公众号</div>
+            <div class="mod-tags"><span class="tag">8渠道</span></div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">📝 内容AIGC生成</div>
+            <div class="mod-desc">个性化话术+海报+文案<br>SMS/Push/外呼话术</div>
+            <div class="mod-tags"><span class="tag">LLM</span></div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">📈 反馈闭环回流</div>
+            <div class="mod-desc">曝光→点击→转化→投诉<br>C→A画像更新+C→B策略复盘</div>
+            <div class="mod-tags"><span class="tag">闭环</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector-row">
+    <div class="connector-arrow">
+      <div class="connector-line"></div><div class="connector-head"></div>
+    </div>
+    <span style="color:rgba(255,255,255,0.25);font-size:10px;margin:0 8px;">能力由平台服务支撑</span>
+    <div class="connector-arrow">
+      <div class="connector-head" style="transform:rotate(180deg);"></div><div class="connector-line"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LAYER 3: 平台层 (Platform Layer) -->
+  <!-- ============================================================ -->
+  <div class="layer layer-platform">
+    <div class="layer-header">
+      <div class="icon">⚙️</div>
+      <span>平台层 Platform — 核心引擎与中台服务</span>
+    </div>
+    <div class="layer-body with-zones">
+      <!-- 项目一平台 -->
+      <div class="zone zone-a">
+        <div class="zone-label">项目一：Knowledge Agent 引擎群</div>
+        <div class="modules-row">
+          <div class="module mod-done">
+            <div class="mod-title">🔗 OneID融合引擎</div>
+            <div class="mod-desc">强/中/弱ID三级映射<br>4步算法+冲突检测+7API</div>
+            <div class="mod-tags"><span class="tag">64K映射</span><span class="tag">36Test</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">📊 画像与记忆引擎</div>
+            <div class="mod-desc">静态59字段+动态5信号×4窗口<br>T+1/微批/事件驱动三级更新</div>
+            <div class="mod-tags"><span class="tag">8000客户</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🧩 GraphRAG引擎</div>
+            <div class="mod-desc">图检索+向量检索+融合排序<br>depth=1直接邻居/depth=2间接关联</div>
+            <div class="mod-tags"><span class="tag">183节点</span><span class="tag">1040边</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🎯 意图识别引擎</div>
+            <div class="mod-desc">规则评分+LLM分类双引擎<br>DeepSeek→RuleScorer→CSV降级</div>
+            <div class="mod-tags"><span class="tag">6意图</span><span class="tag">5情感</span></div>
+          </div>
+          <div class="module mod-done">
+            <div class="mod-title">🌐 统一API服务层</div>
+            <div class="mod-desc">FastAPI 20+端点+Swagger<br>CORS/健康检查/批量导入</div>
+            <div class="mod-tags"><span class="tag">14接口</span><span class="tag">REST</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 项目二平台 -->
+      <div class="zone zone-b">
+        <div class="zone-label">项目二：Strategy Agent 引擎群</div>
+        <div class="modules-row">
+          <div class="module mod-partial">
+            <div class="mod-title">📝 意图解析引擎</div>
+            <div class="mod-desc">自然语言→结构化策略任务</div>
+            <div class="mod-tags"><span class="tag">LLM</span></div>
+          </div>
+          <div class="module mod-partial">
+            <div class="mod-title">📊 评分推荐引擎</div>
+            <div class="mod-desc">客户打分+客群分段+排序</div>
+            <div class="mod-tags"><span class="tag">Scoring</span></div>
+          </div>
+          <div class="module mod-partial">
+            <div class="mod-title">📈 效果预测引擎</div>
+            <div class="mod-desc">Uplift/ROI/转化率预估<br>渠道影响概率计算</div>
+            <div class="mod-tags"><span class="tag">预测</span></div>
+          </div>
+          <div class="module mod-partial">
+            <div class="mod-title">🛡️ 合规检索引擎</div>
+            <div class="mod-desc">频控/授权/风险自动过滤<br>8渠道×3风险级别</div>
+            <div class="mod-tags"><span class="tag">合规</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 项目三平台 (planned) -->
+      <div class="zone zone-c">
+        <div class="zone-label">项目三：Marketing Agent 引擎群</div>
+        <div class="modules-row">
+          <div class="module mod-planned">
+            <div class="mod-title">🔀 渠道路由引擎</div>
+            <div class="mod-desc">8渠道智能路由<br>成本/容量/偏好决策</div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">💬 对话管理引擎</div>
+            <div class="mod-desc">多轮状态管理+上下文<br>3类Agent调度</div>
+          </div>
+          <div class="module mod-planned">
+            <div class="mod-title">📡 反馈收集引擎</div>
+            <div class="mod-desc">曝光/点击/转化/投诉<br>C→A画像更新实时链路</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector-row">
+    <div class="connector-arrow">
+      <div class="connector-line"></div><div class="connector-head"></div>
+    </div>
+    <span style="color:rgba(255,255,255,0.25);font-size:10px;margin:0 8px;">平台依赖数据支撑</span>
+    <div class="connector-arrow">
+      <div class="connector-head" style="transform:rotate(180deg);"></div><div class="connector-line"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LAYER 2: 数据层 (Data Layer) -->
+  <!-- ============================================================ -->
+  <div class="layer layer-data">
+    <div class="layer-header">
+      <div class="icon">💾</div>
+      <span>数据层 Data — 数据资产与处理管道</span>
+    </div>
+    <div class="layer-body">
+      <div class="module mod-done">
+        <div class="mod-title">📋 结构化数据 (18表)</div>
+        <div class="mod-desc">客户基础/信用卡/交易(76万)/账单(19万)/CRM/APP事件(37万)/产品/权益/活动/渠道/授权/归因…</div>
+        <div class="mod-tags"><span class="tag">CSV</span><span class="tag">8000客户</span><span class="tag">19939卡</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">📄 非结构化数据</div>
+        <div class="mod-desc">20份产品文档TXT / 956条ASR对话 / 12组活动海报+结构化JSON / 25个活动规则</div>
+        <div class="mod-tags"><span class="tag">150文档</span><span class="tag">多模态</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🔄 数据更新管道</div>
+        <div class="mod-desc">T+1批量(每日03:00) / 微批(每小时) / 事件驱动(<100ms) 三级更新机制</div>
+        <div class="mod-tags"><span class="tag">3级管道</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🔗 OneID映射主表</div>
+        <div class="mod-desc">64,776条映射记录 / 强(身份证)→中(手机/卡号)→弱(设备) 三级分级 / 冲突检测日志</div>
+        <div class="mod-tags"><span class="tag">id_mapping</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">📊 客户画像数据</div>
+        <div class="mod-desc">8000×58静态画像CSV / 8000×52 B端快照 / 8000×8意图向量 / 24000事件序列</div>
+        <div class="mod-tags"><span class="tag">预计算</span></div>
+      </div>
+      <div class="module mod-planned">
+        <div class="mod-title">🗄️ 生产级存储升级</div>
+        <div class="mod-desc">PostgreSQL(结构化) + Redis(热缓存) + Neo4j(图谱) + Milvus(向量) + Kafka(消息队列)</div>
+        <div class="mod-tags"><span class="tag">演进</span><span class="tag">Docker</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector-row">
+    <div class="connector-arrow">
+      <div class="connector-line"></div><div class="connector-head"></div>
+    </div>
+    <span style="color:rgba(255,255,255,0.25);font-size:10px;margin:0 8px;">数据运行于基础设施之上</span>
+    <div class="connector-arrow">
+      <div class="connector-head" style="transform:rotate(180deg);"></div><div class="connector-line"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LAYER 1: 基础设施层 (Infrastructure Layer) -->
+  <!-- ============================================================ -->
+  <div class="layer layer-infra">
+    <div class="layer-header">
+      <div class="icon">🖥️</div>
+      <span>基础设施层 Infrastructure — 计算·存储·网络·AI算力</span>
+    </div>
+    <div class="layer-body">
+      <div class="module mod-done">
+        <div class="mod-title">🐍 Python 3.11+</div>
+        <div class="mod-desc">核心开发语言<br>Pandas/Polars数据处理</div>
+        <div class="mod-tags"><span class="tag">语言栈</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🚀 FastAPI + Uvicorn</div>
+        <div class="mod-desc">异步REST API服务<br>自动Swagger文档</div>
+        <div class="mod-tags"><span class="tag">Web框架</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">📊 Streamlit</div>
+        <div class="mod-desc">双大屏可视化<br>客户360(8501)+知识图谱(8502)</div>
+        <div class="mod-tags"><span class="tag">前端</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🤖 DeepSeek API</div>
+        <div class="mod-desc">Embedding(768维)+Vision+Chat<br>意图分类+情感分析+语义验证</div>
+        <div class="mod-tags"><span class="tag">LLM</span><span class="tag">5模块</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🗄️ SQLite数据库</div>
+        <div class="mod-desc">关系型数据存储<br>PostgreSQL兼容接口设计</div>
+        <div class="mod-tags"><span class="tag">已实现</span></div>
+      </div>
+      <div class="module mod-done">
+        <div class="mod-title">🕸️ NetworkX图引擎</div>
+        <div class="mod-desc">内存知识图谱<br>183节点+1040边+7种关系</div>
+        <div class="mod-tags"><span class="tag">已实现</span></div>
+      </div>
+      <div class="module mod-partial">
+        <div class="mod-title">🔍 TF-IDF + OCR</div>
+        <div class="mod-desc">关键词+语义伪相似度<br>Tesseract OCR中文识别</div>
+        <div class="mod-tags"><span class="tag">已实现</span></div>
+      </div>
+      <div class="module mod-planned">
+        <div class="mod-title">🐳 PostgreSQL + Neo4j</div>
+        <div class="mod-desc">生产级数据库升级<br>图数据库+向量数据库</div>
+        <div class="mod-tags"><span class="tag">演进</span></div>
+      </div>
+      <div class="module mod-planned">
+        <div class="mod-title">📡 Kafka + Docker</div>
+        <div class="mod-desc">消息队列+容器化部署<br>C→A实时事件管道</div>
+        <div class="mod-tags"><span class="tag">演进</span></div>
+      </div>
+      <div class="module mod-planned">
+        <div class="mod-title">☁️ Milvus + Qwen3</div>
+        <div class="mod-desc">向量语义检索+本地LLM<br>替代关键词匹配+DeepSeek API</div>
+        <div class="mod-tags"><span class="tag">演进</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DATA FLOW -->
+  <!-- ============================================================ -->
+  <div class="flow-section">
+    <div class="flow-title">🔄 三项目闭环数据流</div>
+    <div class="flow-diagram">
+      <div class="flow-box knowledge">项目一<br>Knowledge Agent<br><small>数据+画像+意图+知识</small></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div class="flow-arrow">→</div>
+        <div class="flow-label">画像/意图<br>知识供给 (A→B)</div>
+      </div>
+      <div class="flow-box strategy">项目二<br>Strategy Agent<br><small>策略编排+推荐大脑</small></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div class="flow-arrow">→</div>
+        <div class="flow-label">策略包<br>指令下发 (B→C)</div>
+      </div>
+      <div class="flow-box marketing">项目三<br>Marketing Agent<br><small>智能交互+触达执行</small></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div class="flow-arrow" style="transform:rotate(180deg);">→</div>
+        <div class="flow-label">行为反馈<br>画像更新 (C→A)</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;">
+        <div style="position:absolute;top:-30px;left:50%;transform:translateX(-50%);">
+          <div class="flow-arrow" style="transform:rotate(-45deg);font-size:14px;">↗</div>
+        </div>
+        <div class="flow-label" style="margin-top:10px;">效果归因<br>策略复盘 (C→B)</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:11px;color:rgba(255,255,255,0.35);">
+      A→B: 5接口 | A→C: 7接口 | C→A: 2回传接口 | 共14个标准化REST接口
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- IMPROVEMENT ROADMAP -->
+  <!-- ============================================================ -->
+  <div class="footer">
+    <div class="improvement-box">
+      <h3>🔧 后续改进方向 — 短期 (1-2周)</h3>
+      <ul>
+        <li>CSV存储 → PostgreSQL + Redis热缓存 升级</li>
+        <li>GraphRAG: NetworkX → Neo4j 图数据库迁移</li>
+        <li>向量检索: 关键词匹配 → Milvus Embedding语义检索</li>
+        <li>APScheduler定时任务 + Kafka实时事件管道</li>
+        <li>Docker Compose 一键部署脚本</li>
+        <li>API限流中间件 + 结构化日志 + 全链路追踪</li>
+      </ul>
+    </div>
+    <div class="improvement-box">
+      <h3>🚀 后续改进方向 — 中期 (1-2月)</h3>
+      <ul>
+        <li>Qwen3-8B本地部署替代DeepSeek API (成本优化)</li>
+        <li>项目二: LLM Agent多轮追问+动态策略调整</li>
+        <li>项目三: 多类型智能体(查询/服务/营销)实现</li>
+        <li>A/B实验框架 + 策略效果自动复盘</li>
+        <li>前端升级: Streamlit → React+ECharts专业大屏</li>
+        <li>渠道模型训练: channel×preference×活跃度联合建模</li>
+      </ul>
+    </div>
+    <div class="improvement-box">
+      <h3>🌟 后续改进方向 — 长期愿景</h3>
+      <ul>
+        <li>端到端强化学习: 策略→触达→反馈→自动优化闭环</li>
+        <li>实时客户画像: Kafka事件流驱动的毫秒级画像更新</li>
+        <li>多模态知识图谱: 图片/视频/音频统一向量化入图</li>
+        <li>联邦学习: 跨银行数据联合建模(隐私计算)</li>
+        <li>数字人交互: 3D虚拟客户经理+语音合成</li>
+        <li>全渠道营销自动化: 千人千面实时决策</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

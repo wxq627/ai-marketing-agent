@@ -137,8 +137,9 @@ class KnowledgeGraph:
                 sample_list.append(samp)
 
         sample = pd.concat(sample_list, ignore_index=True)
-        sample = sample.drop_duplicates(subset=["oneid"]).head(n)
-        print(f"[KG] Sampled {len(sample)} representative customers from {len(profile)} total")
+        sample = sample.drop_duplicates(subset=["oneid"])  # 仅去重oneid, 同名不同人保留
+        sample = sample.head(n)
+        print(f"[KG] Sampled {len(sample)} customers from {len(profile)} total (同名不同oneid可共存)")
 
         # 构建 cust_id → primary card 映射 (确保每位客户至少1张卡)
         primary_cards = cards_df[cards_df["is_primary"] == True].groupby("cust_id").first().reset_index()
@@ -146,10 +147,13 @@ class KnowledgeGraph:
         for _, r in sample.iterrows():
             oneid = r["oneid"]
             cust_id = r["cust_id"]
+            raw_name = str(r.get("demographics_name", ""))
+            raw_city = str(r.get("demographics_city", ""))
+            display_name = f"{raw_name}({raw_city})" if raw_city else raw_name
             self.G.add_node(oneid, label="Customer", type="customer",
-                           name=str(r.get("demographics_name", "")),
+                           name=display_name,
                            age=int(r.get("demographics_age", 0)),
-                           city=str(r.get("demographics_city", "")),
+                           city=raw_city,
                            income_level=str(r.get("demographics_income_level", "")),
                            lifecycle=str(r.get("lifecycle_stage", "")),
                            card_level=str(r.get("account_primary_card_level", "")),
@@ -159,9 +163,9 @@ class KnowledgeGraph:
             pc = primary_cards[primary_cards["cust_id"] == cust_id]
             if len(pc) > 0:
                 cc = pc.iloc[0]
-                card_node = f"CARD_{str(cc['card_no'])[:8]}"
+                card_node = f"CARD_{cust_id}"  # 每客户唯一
                 self.G.add_node(card_node, label="CreditCard", type="card",
-                               name=f"{cc.get('card_level', '')}卡(尾号{str(cc['card_no'])[-4:]})",
+                               name=f"{cc.get('card_level', '')}卡({cust_id})",
                                card_level=str(cc.get("card_level", "")),
                                credit_amount=float(cc.get("credit_amount", 0)))
                 self.G.add_edge(oneid, card_node, relation="HOLDS")
@@ -169,13 +173,12 @@ class KnowledgeGraph:
                 if pid and pid != "nan" and self.G.has_node(pid):
                     self.G.add_edge(card_node, pid, relation="BELONGS_TO")
             else:
-                # fallback: 取该客户的任意一张卡
                 any_card = cards_df[cards_df["cust_id"] == cust_id].head(1)
                 if len(any_card) > 0:
                     cc = any_card.iloc[0]
-                    card_node = f"CARD_{str(cc['card_no'])[:8]}"
+                    card_node = f"CARD_{cust_id}"
                     self.G.add_node(card_node, label="CreditCard", type="card",
-                                   name=f"{cc.get('card_level', '')}卡(尾号{str(cc['card_no'])[-4:]})",
+                                   name=f"{cc.get('card_level', '')}卡({cust_id})",
                                    card_level=str(cc.get("card_level", "")),
                                    credit_amount=float(cc.get("credit_amount", 0)))
                     self.G.add_edge(oneid, card_node, relation="HOLDS")
@@ -460,18 +463,37 @@ class KnowledgeGraph:
             for n in sub["nodes"]:
                 expanded_ids.add(n["id"])
 
-        # ── 阶段3: 嵌入相似度 (尝试) ──
+        # ── 阶段3: 嵌入相似度 (批量, 避免N+1次API调用) ──
         embed_scores = {}
         try:
-            from llm_client import embed
-            q_vec = embed(query)
+            from llm_client import embed, is_available
+            # 收集所有需要嵌入的文本
+            node_texts = []
+            node_order = []
             for nid in expanded_ids:
                 d = self.G.nodes[nid]
                 node_text = f"{d.get('name','')} {d.get('type','')} {' '.join(str(v) for v in d.values() if isinstance(v,str))}"
                 if node_text.strip():
-                    t_vec = embed(node_text[:300])
-                    cos = float(np.dot(q_vec, t_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(t_vec) + 1e-8))
-                    embed_scores[nid] = max(0.0, cos)
+                    node_texts.append(node_text[:300])
+                    node_order.append(nid)
+            if node_texts:
+                if is_available():
+                    # 批量嵌入: 查询+所有节点 = 1次API调用 (替代原来的 1+N 次)
+                    all_texts = [query] + node_texts
+                    all_vecs = embed(all_texts)  # embed() 已支持列表输入, 单次API调用
+                    q_vec = all_vecs[0]
+                    for i, nid in enumerate(node_order):
+                        t_vec = all_vecs[i + 1]
+                        cos = float(np.dot(q_vec, t_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(t_vec) + 1e-8))
+                        embed_scores[nid] = max(0.0, cos)
+                else:
+                    # Mock模式: embed()本身已很快, 但仍合并为单次调用
+                    q_vec = embed(query)
+                    all_vecs = embed(node_texts)
+                    for i, nid in enumerate(node_order):
+                        t_vec = all_vecs[i] if all_vecs.ndim > 1 else all_vecs
+                        cos = float(np.dot(q_vec, t_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(t_vec) + 1e-8))
+                        embed_scores[nid] = max(0.0, cos)
         except Exception:
             pass
 

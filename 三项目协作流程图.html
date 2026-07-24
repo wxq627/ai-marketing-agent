@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>三项目协作流程图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',sans-serif;background:#fff;padding:20px 24px}
+
+.title{font-size:20px;font-weight:800;color:#0b2a4a;margin-bottom:2px}
+.sub{font-size:11px;color:#889;margin-bottom:16px}
+
+/* ═══ Main layout: 3 columns ═══ */
+.main{display:flex;gap:18px}
+.col-l{flex:1.6}
+.col-m{flex:0.6;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.col-r{flex:0.6;display:flex;flex-direction:column;justify-content:center;gap:16px}
+
+/* ═══ Project 1 stack (left column) ═══ */
+.p1{background:#f8fafd;border:2px solid #d0dce8;border-radius:12px;padding:12px 14px}
+
+.p1-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.p1-header .dot{width:12px;height:12px;border-radius:50%;background:#3ba9f5}
+.p1-header span{font-size:14px;font-weight:700;color:#14538a}
+
+/* Layers inside P1 */
+.layers{display:flex;flex-direction:column;gap:10px}
+.layer{border-radius:10px;overflow:hidden;border:1.5px solid}
+
+.layer-hdr{padding:7px 12px;font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px}
+.layer-body{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px}
+.layer-item{padding:5px 10px;border-radius:14px;font-size:10.5px;font-weight:600;white-space:nowrap}
+
+/* Layer colors */
+.l-cap .layer-hdr{background:linear-gradient(135deg,#7c3aed,#a78bfa)}
+.l-cap{border-color:#c4b5fd}
+.l-cap .layer-body{background:#faf8fe}
+.l-cap .layer-item{background:#ede9fe;color:#6d28d9}
+
+.l-plat .layer-hdr{background:linear-gradient(135deg,#1e7ec4,#3ba9f5)}
+.l-plat{border-color:#93c5fd}
+.l-plat .layer-body{background:#f5f9fd}
+.l-plat .layer-item{background:#dbeafe;color:#1e40af}
+
+.l-data .layer-hdr{background:linear-gradient(135deg,#0d9488,#10b981)}
+.l-data{border-color:#6ee7b7}
+.l-data .layer-body{background:#f6fdf9}
+.l-data .layer-item{background:#d1fae5;color:#065f46}
+
+.l-infra .layer-hdr{background:linear-gradient(135deg,#4b5563,#6b7280)}
+.l-infra{border-color:#d1d5db}
+.l-infra .layer-body{background:#f9fafb}
+.l-infra .layer-item{background:#e5e7eb;color:#374151}
+
+/* Capability split */
+.cap-split{display:flex;gap:8px}
+.cap-half{flex:1}
+.cap-label{font-size:10px;color:#7c3aed;font-weight:700;margin-bottom:4px;padding-left:2px}
+.cap-group{display:flex;flex-wrap:wrap;gap:4px}
+
+/* ═══ Arrow between columns ═══ */
+.arrow-box{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+.arrow-h{display:flex;align-items:center}
+.arrow-line{width:40px;height:2.5px;background:#93c5fd}
+.arrow-head{width:0;height:0;border-left:10px solid #93c5fd;border-top:7px solid transparent;border-bottom:7px solid transparent}
+.arrow-label{font-size:9px;color:#889;text-align:center;max-width:80px;line-height:1.3}
+
+/* ═══ Project 2 & 3 boxes (right columns) ═══ */
+.p-box{border-radius:12px;padding:16px;text-align:center}
+.p-box .p-num{font-size:11px;font-weight:700;margin-bottom:4px;opacity:.8}
+.p-box .p-name{font-size:17px;font-weight:800;margin-bottom:6px}
+.p-box .p-desc{font-size:11px;line-height:1.5;opacity:.85}
+
+.p2{background:linear-gradient(160deg,#ede9fe,#ddd6fe);border:2px solid #c4b5fd}
+.p2 .p-num{color:#7c3aed}.p2 .p-name{color:#6d28d9}.p2 .p-desc{color:#5b21b6}
+
+.p3{background:linear-gradient(160deg,#fce7f3,#fbcfe8);border:2px solid #f9a8d4}
+.p3 .p-num{color:#db2777}.p3 .p-name{color:#be185d}.p3 .p-desc{color:#9d174d}
+
+/* ═══ Feedback loop (bottom) ═══ */
+.feedback{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.fb-box{padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;text-align:center}
+.fb-arrow{font-size:20px;color:#999}
+
+.footer{text-align:center;margin-top:10px;font-size:9px;color:#ccc}
+</style>
+</head>
+<body>
+
+<div class="title">三项目协作流程：从「理解」到「决策」到「触达」到「更好的理解」</div>
+<div class="sub">项目一 Knowledge Agent（底层认知基石）→ 项目二 Strategy Agent（策略大脑）→ 项目三 Marketing Agent（触达手脚）→ 反馈回流 → 持续优化</div>
+
+<!-- ═══ Main 3-column layout ═══ -->
+<div class="main">
+
+<!-- COLUMN LEFT: 项目一 = 四层架构 -->
+<div class="col-l">
+<div class="p1">
+<div class="p1-header"><div class="dot"></div><span>项目一 · Knowledge Agent — 「理解」引擎</span></div>
+
+<div class="layers">
+
+<!-- 能力层 -->
+<div class="layer l-cap">
+<div class="layer-hdr">🎯 能力层 —「理解什么」</div>
+<div class="layer-body">
+<div class="cap-split">
+<div class="cap-half">
+<div class="cap-label">理解用户画像</div>
+<div class="cap-group">
+<span class="layer-item">静态画像 59字段</span>
+<span class="layer-item">动态记忆 5信号×4窗口</span>
+<span class="layer-item">意图情绪 6类+4标签</span>
+<span class="layer-item">活动效果 触达→转化</span>
+</div>
+</div>
+<div class="cap-half">
+<div class="cap-label">理解商品权益</div>
+<div class="cap-group">
+<span class="layer-item">知识图谱 183节点</span>
+<span class="layer-item">产品权益树 15×90</span>
+<span class="layer-item">全文检索 150文档</span>
+<span class="layer-item">多模态检索 四层管线</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 平台层 -->
+<div class="layer l-plat">
+<div class="layer-hdr">⚙️ 平台层 —「怎么理解」</div>
+<div class="layer-body">
+<span class="layer-item">NLP 自然语言处理</span>
+<span class="layer-item">LLM 大模型 (DeepSeek)</span>
+<span class="layer-item">意图识别 双引擎</span>
+<span class="layer-item">语义处理 情感分析</span>
+<span class="layer-item">GraphRAG 混合检索</span>
+<span class="layer-item">语义相似度计算</span>
+<span class="layer-item">OCR 文字提取</span>
+<span class="layer-item">FastAPI 14接口</span>
+</div>
+</div>
+
+<!-- 数据层 -->
+<div class="layer l-data">
+<div class="layer-hdr">💾 数据层 —「靠什么理解」</div>
+<div class="layer-body">
+<span class="layer-item">结构化 18表 (客户/卡/交易/账单/CRM/APP事件…)</span>
+<span class="layer-item">非结构化 150份 (文档TXT/ASR对话/海报JSON)</span>
+<span class="layer-item">OneID映射 64,776条</span>
+<span class="layer-item">三级更新管道 T+1 / 微批 / 事件驱动</span>
+</div>
+</div>
+
+<!-- 基础设施层 -->
+<div class="layer l-infra">
+<div class="layer-hdr">🖥️ 基础设施层</div>
+<div class="layer-body">
+<span class="layer-item">SQLite 数据库(PostgreSQL兼容)</span>
+<span class="layer-item">NetworkX 图引擎(Neo4j可导出)</span>
+<span class="layer-item">TF-IDF 向量检索</span>
+<span class="layer-item">Tesseract OCR</span>
+<span class="layer-item">Streamlit 双大屏</span>
+<span class="layer-item">→演进: PG+Neo4j+Milvus+Kafka+Docker+Qwen3</span>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<!-- COLUMN MIDDLE: Arrows A→B -->
+<div class="col-m">
+<div class="arrow-box">
+<div class="arrow-h"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+<div class="arrow-label">画像 / 意图<br>知识 / 渠道<br>频控 / 效果<br>━━━━━━<br>A→B 5个API</div>
+</div>
+<div class="p-box p2">
+<div class="p-num">项目二</div>
+<div class="p-name">Strategy Agent<br>「决策」大脑</div>
+<div class="p-desc">
+📋 圈选客群<br>
+📊 生成策略包<br>
+💰 渠道/预算分配<br>
+🛡️ 合规/频控审查
+</div>
+</div>
+</div>
+
+<!-- COLUMN RIGHT: Arrows B→C -->
+<div class="col-r">
+<div class="arrow-box">
+<div class="arrow-h"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+<div class="arrow-label">策略包 JSON<br>客群/权益<br>渠道/内容<br>频控/预算<br>━━━━━━<br>B→C 下发</div>
+</div>
+<div class="p-box p3">
+<div class="p-num">项目三</div>
+<div class="p-name">Marketing Agent<br>「触达」手脚</div>
+<div class="p-desc">
+💬 客户对话沟通<br>
+📱 多渠道推送展示<br>
+📝 个性化内容生成<br>
+📡 收集客户行为反馈
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- ═══ Feedback loop (bottom) ═══ -->
+<div class="feedback">
+<div class="fb-box" style="background:#fce7f3;color:#be185d;border:1.5px solid #f9a8d4">
+项目三 → 项目一 反馈回流 C→A (2个API)
+</div>
+<div class="fb-arrow">→</div>
+<div class="fb-box" style="background:#ede9fe;color:#6d28d9;border:1.5px solid #c4b5fd">
+更新理解: 意图重算 + 画像刷新 + 情绪更新 + 活跃度调整
+</div>
+<div class="fb-arrow">→</div>
+<div class="fb-box" style="background:#dbeafe;color:#1e40af;border:1.5px solid #93c5fd">
+「更好的理解」→ 项目二基于新画像重新决策
+</div>
+</div>
+
+<div class="footer">AI智能营销助手 · 三项目闭环协作流程 &nbsp;|&nbsp; 项目一 Knowledge Agent 为底层认知基石 &nbsp;|&nbsp; 2026-07</div>
+</body></html>

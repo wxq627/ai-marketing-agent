@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>情感分析体系 — 技术图表</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    background: linear-gradient(160deg, #f0f4fa 0%, #e8eef6 30%, #f5f7fb 60%, #eef3f9 100%);
+    min-height: 100vh;
+    padding: 30px 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* ---- Section Title ---- */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 20px; font-weight: 700; color: #0b2a4a;
+    margin-bottom: 18px; padding-bottom: 8px;
+    border-bottom: 3px solid #3ba9f5;
+  }
+  .section-title .num {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #1e7ec4, #3ba9f5);
+    color: #fff; font-size: 17px; font-weight: 800;
+  }
+
+  /* ---- Table ---- */
+  .table-wrap {
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 16px rgba(11,42,74,0.08);
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead th {
+    background: linear-gradient(180deg, #0b2a4a, #14538a);
+    color: #fff; font-weight: 600; padding: 13px 14px;
+    text-align: center; letter-spacing: 0.5px;
+  }
+  tbody td {
+    padding: 11px 14px; text-align: center;
+    border-bottom: 1px solid #dde5f0;
+  }
+  tbody tr:nth-child(even) { background: #f7f9fc; }
+  tbody tr:nth-child(odd)  { background: #fff; }
+  tbody tr:hover { background: #e8f2fc; }
+  td.left { text-align: left; }
+
+  /* ---- Badge ---- */
+  .badge {
+    display: inline-block; padding: 3px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+  }
+  .badge-up    { background: #e6f7ee; color: #0d7d3e; }
+  .badge-down  { background: #fde8e8; color: #b91c1c; }
+  .badge-red   { background: #fde8e8; color: #b91c1c; }
+  .badge-green { background: #e6f7ee; color: #0d7d3e; }
+  .badge-blue  { background: #dceefb; color: #14538a; }
+  .badge-pos   { background: #e6f7ee; color: #0d7d3e; border: 1px solid #b7e4cf; }
+  .badge-neg   { background: #fde8e8; color: #b91c1c; border: 1px solid #f5c6c6; }
+
+  /* ---- Arrow ---- */
+  .arrow-up   { color: #b91c1c; font-weight: 700; }
+  .arrow-down { color: #0d7d3e; font-weight: 700; }
+
+  /* ---- Merge Diagram ---- */
+  .merge-diagram {
+    display: flex; align-items: center; justify-content: center;
+    gap: 18px; flex-wrap: wrap; margin: 20px 0;
+  }
+  .merge-box {
+    padding: 18px 28px; border-radius: 12px; text-align: center;
+    min-width: 160px;
+  }
+  .merge-box h4 { font-size: 15px; margin-bottom: 6px; }
+  .merge-box p  { font-size: 12px; opacity: 0.85; }
+  .merge-plus { font-size: 28px; color: #14538a; font-weight: 300; }
+
+  /* ---- Gauge Row ---- */
+  .gauge-row {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .gauge-card {
+    flex: 1; min-width: 200px; border-radius: 12px; padding: 18px 20px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(11,42,74,0.06);
+  }
+  .gauge-card .emoji { font-size: 36px; margin-bottom: 6px; }
+  .gauge-card .label { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .gauge-card .score { font-size: 13px; opacity: 0.75; }
+  .gauge-card .strategy { font-size: 11.5px; margin-top: 8px; padding: 8px 12px;
+    border-radius: 8px; line-height: 1.5; }
+
+  /* ---- Final Output Flow ---- */
+  .output-flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; flex-wrap: wrap; margin-top: 16px;
+  }
+  .flow-step {
+    padding: 12px 22px; border-radius: 10px; font-weight: 600;
+    font-size: 13px; text-align: center;
+  }
+  .flow-arrow { font-size: 22px; color: #999; }
+
+  /* ---- Footer ---- */
+  .footer-note {
+    text-align: center; margin-top: 30px;
+    font-size: 12px; color: #8899aa;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- Chart 1: 基础规则引擎 — 触发条件 → 评分变化 -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">
+    <span class="num">1</span>
+    <span>基础规则引擎 — 触发条件与评分变化</span>
+    <span style="font-size:12px;color:#889;margin-left:8px;">文件: dashboard_customer360.py → render_intent()</span>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:5%">#</th>
+        <th style="width:28%;text-align:left">触发条件</th>
+        <th style="width:18%">焦虑度变化</th>
+        <th style="width:18%">满意度变化</th>
+        <th style="width:12%">触发级别</th>
+        <th style="width:19%;text-align:left">数据来源</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td><td class="left"><b>逾期 ≥ 3 次</b></td>
+        <td><span class="badge badge-red">+35</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-red">严重</span></td>
+        <td class="left" style="font-size:12px;color:#889">bill_record · payment_status</td>
+      </tr>
+      <tr>
+        <td>2</td><td class="left"><b>逾期 ≥ 2 次</b></td>
+        <td><span class="badge badge-red">+25</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-red">严重</span></td>
+        <td class="left" style="font-size:12px;color:#889">bill_record · payment_status</td>
+      </tr>
+      <tr>
+        <td>3</td><td class="left"><b>逾期 ≥ 1 次</b></td>
+        <td><span class="badge badge-red">+15</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge" style="background:#fef3cd;color:#92600a">中等</span></td>
+        <td class="left" style="font-size:12px;color:#889">bill_record · payment_status</td>
+      </tr>
+      <tr>
+        <td>4</td><td class="left"><b>流失风险分 ≥ 70</b></td>
+        <td><span class="badge badge-red">+20</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-red">严重</span></td>
+        <td class="left" style="font-size:12px;color:#889">crm_customer · churn_risk_score</td>
+      </tr>
+      <tr>
+        <td>5</td><td class="left"><b>流失风险分 ≥ 40</b></td>
+        <td><span class="badge" style="background:#fef3cd;color:#92600a">+10</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge" style="background:#fef3cd;color:#92600a">中等</span></td>
+        <td class="left" style="font-size:12px;color:#889">crm_customer · churn_risk_score</td>
+      </tr>
+      <tr>
+        <td>6</td><td class="left"><b>风险等级 = high</b></td>
+        <td><span class="badge badge-red">+20</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-red">严重</span></td>
+        <td class="left" style="font-size:12px;color:#889">customer_consent · risk_level</td>
+      </tr>
+      <tr>
+        <td>7</td><td class="left"><b>搜索「销户/注销/投诉」</b></td>
+        <td><span class="badge badge-red">+20</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-red">严重</span></td>
+        <td class="left" style="font-size:12px;color:#889">customer_profile · search_keywords</td>
+      </tr>
+      <tr>
+        <td>8</td><td class="left"><b>生命周期 = 沉睡期</b></td>
+        <td><span class="badge" style="background:#fef3cd;color:#92600a">+10</span></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge" style="background:#fef3cd;color:#92600a">中等</span></td>
+        <td class="left" style="font-size:12px;color:#889">crm_customer · lifecycle_stage</td>
+      </tr>
+      <tr style="border-top:2px solid #3ba9f5">
+        <td>9</td><td class="left"><b>价值等级 = high</b></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-green">+20</span></td>
+        <td><span class="badge badge-green">正面</span></td>
+        <td class="left" style="font-size:12px;color:#889">customer_profile · value_level</td>
+      </tr>
+      <tr>
+        <td>10</td><td class="left"><b>活跃度 ≥ 60</b></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-green">+15</span></td>
+        <td><span class="badge badge-green">正面</span></td>
+        <td class="left" style="font-size:12px;color:#889">customer_profile · activity_score</td>
+      </tr>
+      <tr>
+        <td>11</td><td class="left"><b>活跃度 ≥ 30</b></td>
+        <td><span style="color:#999">—</span></td>
+        <td><span class="badge badge-green">+5</span></td>
+        <td><span class="badge badge-blue">轻微</span></td>
+        <td class="left" style="font-size:12px;color:#889">customer_profile · activity_score</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-top:16px;font-size:12px;color:#889;">
+    <span>📌 焦虑度默认值 = <b style="color:#b91c1c">20</b>，满意度默认值 = <b style="color:#0d7d3e">60</b></span>
+    <span>📌 上限 = <b>100</b></span>
+    <span>📌 最终公式：<code>anxiety = min(20 + Σ加分项, 100)</code></span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- Chart 2: P3 实时情绪融合 -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">
+    <span class="num">2</span>
+    <span>P3 实时情绪融合 — 项目三对话反馈加权</span>
+    <span style="font-size:12px;color:#889;margin-left:8px;">数据源: feedback_events · 最近10次对话 sentiment 字段</span>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%">标签</th>
+        <th style="width:12%">方向</th>
+        <th style="width:10%">权重系数</th>
+        <th style="width:22%">对焦虑度影响</th>
+        <th style="width:22%">对满意度影响</th>
+        <th style="width:26%;text-align:left">计算公式</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-green" style="font-size:13px">满意</span></td>
+        <td><span class="badge badge-pos">正面 ↑</span></td>
+        <td>×5</td>
+        <td style="color:#999">不影响</td>
+        <td><span class="badge badge-green">提升满意度</span></td>
+        <td class="left" style="font-size:12px"><code>satisfaction += min(正面次数 × 5, 15)</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue" style="font-size:13px">中性</span></td>
+        <td><span class="badge badge-pos">正面 ↑</span></td>
+        <td>×5</td>
+        <td style="color:#999">不影响</td>
+        <td><span class="badge badge-green">提升满意度</span></td>
+        <td class="left" style="font-size:12px"><code>satisfaction += min(正面次数 × 5, 15)</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red" style="font-size:13px">焦虑</span></td>
+        <td><span class="badge badge-neg">负面 ↓</span></td>
+        <td>×8</td>
+        <td><span class="badge badge-red">加剧焦虑</span></td>
+        <td style="color:#999">不影响</td>
+        <td class="left" style="font-size:12px"><code>anxiety += min(负面次数 × 8, 25)</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red" style="font-size:13px;background:#fce4e4;color:#9b1c1c">不满</span></td>
+        <td><span class="badge badge-neg">负面 ↓</span></td>
+        <td>×8</td>
+        <td><span class="badge badge-red">加剧焦虑</span></td>
+        <td style="color:#999">不影响</td>
+        <td class="left" style="font-size:12px"><code>anxiety += min(负面次数 × 8, 25)</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- Fusion diagram -->
+  <div class="merge-diagram" style="margin-top:20px">
+    <div class="merge-box" style="background:linear-gradient(135deg,#fde8e8,#fce4e4);border:2px solid #e5b8b8;">
+      <h4 style="color:#b91c1c">🔴 负面情绪</h4>
+      <p>焦虑 + 不满</p>
+      <p style="font-size:14px;font-weight:700;color:#b91c1c">anxiety + min(n×8, 25)</p>
+    </div>
+    <div class="merge-plus">VS</div>
+    <div class="merge-box" style="background:linear-gradient(135deg,#e6f7ee,#d4f0e2);border:2px solid #b7e4cf;">
+      <h4 style="color:#0d7d3e">🟢 正面情绪</h4>
+      <p>满意 + 中性</p>
+      <p style="font-size:14px;font-weight:700;color:#0d7d3e">satisfaction + min(n×5, 15)</p>
+    </div>
+    <div class="merge-plus">→</div>
+    <div class="merge-box" style="background:linear-gradient(135deg,#dceefb,#c5e3f7);border:2px solid #9cc8e8;">
+      <h4 style="color:#14538a">判定规则</h4>
+      <p style="font-size:11px;line-height:1.6;text-align:left">
+        负面次数 > 正面次数 → 只加焦虑<br>
+        正面次数 > 负面次数 → 只加满意度<br>
+        相等 → 都不加
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- Chart 3: 五种情绪类型 + B端策略 -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">
+    <span class="num">3</span>
+    <span>LLM 深度语义情感分类 — 5 种情绪 × B 端策略建议</span>
+    <span style="font-size:12px;color:#889;margin-left:8px;">文件: intent_engine/llm_classifier.py → SentimentAnalyzer</span>
+  </div>
+
+  <div class="gauge-row">
+    <!-- 满意 -->
+    <div class="gauge-card" style="background:linear-gradient(170deg,#f6fdf8,#e6f7ee);border:1.5px solid #b7e4cf;">
+      <div class="emoji">😊</div>
+      <div class="label" style="color:#0d7d3e">满意</div>
+      <div class="score">
+        焦虑度 <b style="color:#0d7d3e">10</b> &nbsp;|&nbsp; 满意度 <b style="color:#0d7d3e">80</b>
+      </div>
+      <div style="margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:2px">
+          <span>焦虑度</span><span>10</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:10%;height:100%;background:linear-gradient(90deg,#52c41a,#10b981);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-top:8px;margin-bottom:2px">
+          <span>满意度</span><span>80</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:80%;height:100%;background:linear-gradient(90deg,#1e7ec4,#3ba9f5);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="strategy" style="background:rgba(16,185,129,0.1);color:#0d7d3e;">
+        💡 可推送升级/高端权益，话术可积极
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px">触发: 客服评价高 · 持续活跃 · 主动推荐他人</div>
+    </div>
+
+    <!-- 中性 -->
+    <div class="gauge-card" style="background:linear-gradient(170deg,#fafcfd,#eef3f8);border:1.5px solid #c5d3e0;">
+      <div class="emoji">😐</div>
+      <div class="label" style="color:#4a5a6a">中性</div>
+      <div class="score">
+        焦虑度 <b style="color:#4a5a6a">30</b> &nbsp;|&nbsp; 满意度 <b style="color:#4a5a6a">60</b>
+      </div>
+      <div style="margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:2px">
+          <span>焦虑度</span><span>30</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:30%;height:100%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-top:8px;margin-bottom:2px">
+          <span>满意度</span><span>60</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:60%;height:100%;background:linear-gradient(90deg,#1e7ec4,#3ba9f5);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="strategy" style="background:rgba(74,90,106,0.06);color:#4a5a6a;">
+        💡 按标准策略执行
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px">触发: 日常正常使用 · 无明显情绪表达</div>
+    </div>
+
+    <!-- 焦虑 -->
+    <div class="gauge-card" style="background:linear-gradient(170deg,#fefbf6,#fef3cd);border:1.5px solid #e5d598;">
+      <div class="emoji">😰</div>
+      <div class="label" style="color:#92600a">焦虑</div>
+      <div class="score">
+        焦虑度 <b style="color:#b45309">75</b> &nbsp;|&nbsp; 满意度 <b style="color:#b45309">30</b>
+      </div>
+      <div style="margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:2px">
+          <span>焦虑度</span><span>75</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:75%;height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-top:8px;margin-bottom:2px">
+          <span>满意度</span><span>30</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:30%;height:100%;background:linear-gradient(90deg,#1e7ec4,#3ba9f5);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="strategy" style="background:rgba(245,158,11,0.08);color:#92600a;">
+        💡 优先推荐低门槛分期，话术需温和关怀
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px">触发: 表达"还不上""压力大"· 多次查看账单</div>
+    </div>
+
+    <!-- 不满 -->
+    <div class="gauge-card" style="background:linear-gradient(170deg,#fefafa,#fde8e8);border:1.5px solid #f0c0c0;">
+      <div class="emoji">😡</div>
+      <div class="label" style="color:#b91c1c">不满</div>
+      <div class="score">
+        焦虑度 <b style="color:#b91c1c">60</b> &nbsp;|&nbsp; 满意度 <b style="color:#b91c1c">15</b>
+      </div>
+      <div style="margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:2px">
+          <span>焦虑度</span><span>60</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:60%;height:100%;background:linear-gradient(90deg,#ef4444,#dc2626);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-top:8px;margin-bottom:2px">
+          <span>满意度</span><span>15</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:15%;height:100%;background:linear-gradient(90deg,#1e7ec4,#3ba9f5);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="strategy" style="background:rgba(239,68,68,0.06);color:#b91c1c;">
+        💡 避免频繁营销，先推送安抚/补偿方案
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px">触发: 投诉记录 · APP频繁跳出 · 搜索"投诉""消保"</div>
+    </div>
+
+    <!-- 好奇 -->
+    <div class="gauge-card" style="background:linear-gradient(170deg,#faf7fd,#f0e6f6);border:1.5px solid #d0b8e0;">
+      <div class="emoji">🤔</div>
+      <div class="label" style="color:#7c3aed">好奇</div>
+      <div class="score">
+        焦虑度 <b style="color:#7c3aed">20</b> &nbsp;|&nbsp; 满意度 <b style="color:#7c3aed">55</b>
+      </div>
+      <div style="margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:2px">
+          <span>焦虑度</span><span>20</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:20%;height:100%;background:linear-gradient(90deg,#52c41a,#10b981);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#777;margin-top:8px;margin-bottom:2px">
+          <span>满意度</span><span>55</span>
+        </div>
+        <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="width:55%;height:100%;background:linear-gradient(90deg,#1e7ec4,#3ba9f5);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="strategy" style="background:rgba(139,92,246,0.06);color:#7c3aed;">
+        💡 推送详细介绍、对比优势，引导转化
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px">触发: 多次浏览新产品页面 · 搜索产品对比</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- Chart 4: 三源融合总览 -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">
+    <span class="num">4</span>
+    <span>情感分析总体架构 — 三源融合 → 综合判定</span>
+  </div>
+
+  <div class="output-flow">
+    <div class="flow-step" style="background:#dceefb;color:#14538a;border:1.5px solid #9cc8e8;">
+      基础规则引擎<br><span style="font-size:11px;opacity:0.7">11条触发规则<br>逾期/风险/价值/活跃度</span>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step" style="background:#e6f7ee;color:#0d7d3e;border:1.5px solid #b7e4cf;">
+      P3 实时情绪融合<br><span style="font-size:11px;opacity:0.7">最近10次对话<br>负面×8 / 正面×5</span>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step" style="background:#f0e6f6;color:#7c3aed;border:1.5px solid #d0b8e0;">
+      DeepSeek 语义分析<br><span style="font-size:11px;opacity:0.7">非结构化输出<br>60字分析+建议</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="background:linear-gradient(135deg,#0b2a4a,#14538a);color:#fff;font-size:16px;font-weight:800;">
+      综合判定<br><span style="font-size:12px;font-weight:400;opacity:0.85">焦虑/轻微焦虑/满意/中性</span>
+    </div>
+  </div>
+
+  <!-- Final output -->
+  <div style="display:flex;gap:14px;margin-top:24px;flex-wrap:wrap;justify-content:center">
+    <div style="flex:1;min-width:180px;max-width:250px;padding:16px;border-radius:10px;
+      background:linear-gradient(160deg,#fde8e8,#f8d0d0);border:2px solid #e5b8b8;text-align:center;">
+      <div style="font-size:28px;margin-bottom:4px">🔴</div>
+      <div style="font-weight:700;color:#b91c1c;font-size:18px">焦虑</div>
+      <div style="font-size:12px;color:#999">anxiety ≥ 70</div>
+    </div>
+    <div style="flex:1;min-width:180px;max-width:250px;padding:16px;border-radius:10px;
+      background:linear-gradient(160deg,#fefbf6,#fef3cd);border:2px solid #e5d598;text-align:center;">
+      <div style="font-size:28px;margin-bottom:4px">🟠</div>
+      <div style="font-weight:700;color:#92600a;font-size:18px">轻微焦虑</div>
+      <div style="font-size:12px;color:#999">anxiety ≥ 45</div>
+    </div>
+    <div style="flex:1;min-width:180px;max-width:250px;padding:16px;border-radius:10px;
+      background:linear-gradient(160deg,#e6f7ee,#d4f0e2);border:2px solid #b7e4cf;text-align:center;">
+      <div style="font-size:28px;margin-bottom:4px">🟢</div>
+      <div style="font-weight:700;color:#0d7d3e;font-size:18px">满意</div>
+      <div style="font-size:12px;color:#999">satisfaction ≥ 70</div>
+    </div>
+    <div style="flex:1;min-width:180px;max-width:250px;padding:16px;border-radius:10px;
+      background:linear-gradient(160deg,#fafcfd,#eef3f8);border:2px solid #c5d3e0;text-align:center;">
+      <div style="font-size:28px;margin-bottom:4px">⚪</div>
+      <div style="font-weight:700;color:#4a5a6a;font-size:18px">中性</div>
+      <div style="font-size:12px;color:#999">默认状态</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  AI智能营销助手 · Knowledge Agent · 情感分析技术体系 &nbsp;|&nbsp; 2026-07
+</div>
+
+</div>
+</body>
+</html>
