@@ -7,12 +7,14 @@ from ai_marketing.eligibility import evaluate_customer_insight
 from ai_marketing.llm_adapter import parse_campaign_goal
 from ai_marketing.local_knowledge_data import LocalKnowledgeData
 from ai_marketing.persona import DEFAULT_CLUSTER_COUNT, kmeans_available
-from ai_marketing.personalization import PersonalizedStrategyService
+from ai_marketing.personalization import PersonalizedStrategyService, _merge_unique_recommendations
 from ai_marketing.candidates import StrategyCandidateService
 from ai_marketing.historical_model_scoring import HistoricalModelScoreProvider
 from ai_marketing.storage import PlanRepository
 from ai_marketing.selection import BudgetConstrainedSelector
 from ai_marketing.strategy_value import StrategyValueCalculator
+from ai_marketing.strategy_copilot import _content_context, _fallback_content
+from app import _normalize_c_feedback_event, _published_strategy_delivery_status
 
 
 def test_generate_installment_plan():
@@ -334,10 +336,85 @@ def test_online_personalization_returns_recommendations_and_chat_strategy():
     )
 
     assert recommendations["recommendations"]
+    assert recommendations["status"] == "success"
+    assert recommendations["eligible_for_personalization"] is True
+    assert recommendations["eligible_for_marketing"] is True
+    assert recommendations["reason_code"] is None
+    assert recommendations["published_strategy_context"] == []
+    assert recommendations["published_strategy"] is None
     assert recommendations["recommendations"][0]["rank"] == 1
     assert all(item["allowed_channels"] == ["in_app"] for item in recommendations["recommendations"])
     assert decision["should_recommend"] is True
     assert decision["recommended_product_id"] == "INSTALLMENT"
+
+
+def test_online_personalization_returns_a_fixed_empty_envelope_without_consent():
+    service = PersonalizedStrategyService(LocalKnowledgeData(), MarketingDecisionEngine())
+
+    result = service.recommendations("UID000020", limit=5)
+
+    assert result["status"] == "not_eligible"
+    assert result["eligible_for_personalization"] is False
+    assert result["eligible_for_marketing"] is False
+    assert result["reason_code"] == "personalization_consent_required"
+    assert result["recommendations"] == []
+    assert result["published_strategy_context"] == []
+    assert result["published_strategy"] is None
+
+
+def test_published_strategy_delivery_status_keeps_auditable_membership_but_blocks_missing_consent():
+    status = _published_strategy_delivery_status(
+        {
+            "status": "not_eligible",
+            "eligible_for_personalization": False,
+            "eligible_for_marketing": False,
+            "reason_code": "personalization_consent_required",
+            "recommendations": [],
+        },
+        in_published_strategy=True,
+    )
+
+    assert status == {
+        "in_published_strategy": True,
+        "deliverable_now": False,
+        "block_reason": "personalization_consent_required",
+    }
+
+
+def test_personalization_deduplicates_published_and_catalogue_cards():
+    published = [
+        {
+            "product_id": "CAMPAIGN:SUMMER_FILM",
+            "benefit_id": "campaign_benefit",
+            "title": "观影活动权益",
+            "source": "published_strategy",
+        }
+    ]
+    catalogue = [
+        {
+            "product_id": "PROD_FILM_CARD",
+            "benefit_id": "BEN_FILM_001",
+            "title": "观影活动权益",
+            "source": "catalogue",
+        },
+        {
+            "product_id": "PROD_TRAVEL_CARD",
+            "benefit_id": "BEN_TRAVEL_001",
+            "title": "出行礼遇",
+            "source": "catalogue",
+        },
+    ]
+
+    result = _merge_unique_recommendations(published=published, catalogue=catalogue, limit=3)
+
+    assert [item["title"] for item in result] == ["观影活动权益", "出行礼遇"]
+
+
+def test_c_feedback_normalizes_to_detail_ignore_and_unsubscribe():
+    assert _normalize_c_feedback_event("详情") == "view_detail"
+    assert _normalize_c_feedback_event("ignore") == "ignored"
+    assert _normalize_c_feedback_event("not_interested") == "ignored"
+    assert _normalize_c_feedback_event("退订") == "unsubscribed"
 
 
 def test_real_data_candidate_generation_outputs_only_eligible_product_channel_pairs():
@@ -457,6 +534,23 @@ def test_strategy_value_uses_click_trigger_for_benefit_costs():
     assert value.p_long_term > 0
 
 
+def test_strategy_value_prefers_available_pd_score_over_risk_level_fallback():
+    candidate = {
+        "candidate_id": "CANDIDATE_PD_1",
+        "campaign_id": "CAMP_2026_618",
+        "contact_cost": 0.02,
+        "economic_profile": {"monthly_spend": 10000, "value_level": "medium", "risk_level": "low", "complaint_risk": 0.0},
+        "model_scores": {"probabilities": {"p_click": 0.5, "p_conversion": 0.2, "p_unsubscribe": 0.01}},
+        "pd_risk_score": {"model_available": True, "pd_6m": 0.12},
+    }
+
+    value = StrategyValueCalculator().score(candidate)
+
+    assert value.breakdown["pd_source"] == "pd_risk_model"
+    assert value.breakdown["pd_6m"] == 0.12
+    assert value.breakdown["credit_expected_loss"] == 60.0
+
+
 def test_budget_selector_enforces_budget_and_customer_deduplication():
     candidates = [
         {
@@ -512,6 +606,42 @@ def test_feedback_is_persisted(tmp_path):
     assert stored["stored"] is True
     assert rows[0]["event_type"] == "clicked"
     assert rows[0]["payload"]["oneid"] == "UID000001"
+
+
+def test_ignore_frequency_and_channel_unsubscribe_are_scoped_correctly(tmp_path):
+    repository = PlanRepository(tmp_path / "strategy.sqlite3")
+    base = {
+        "strategy_version": "STR_TEST_001",
+        "campaign_id": "CAMP_TEST",
+        "oneid": "UID000001",
+        "channel": "app_push",
+        "event_type": "ignored",
+    }
+    for day in (18, 20, 22):
+        repository.save_feedback({**base, "event_time": f"2026-07-{day} 10:00:00"})
+
+    frequency_block = repository.channel_delivery_state(
+        "UID000001", "CAMP_TEST", "app_push", as_of="2026-07-22 12:00:00"
+    )
+
+    assert frequency_block["allowed"] is False
+    assert frequency_block["reason"] == "unresponsive_frequency_cap_reached"
+    assert frequency_block["unresponsive_touches_7d"] == 3
+
+    repository.save_feedback({**base, "event_type": "view_detail", "event_time": "2026-07-23 10:00:00"})
+    responded = repository.channel_delivery_state(
+        "UID000001", "CAMP_TEST", "app_push", as_of="2026-07-23 12:00:00"
+    )
+    assert responded["allowed"] is True
+    assert responded["unresponsive_touches_7d"] == 0
+
+    repository.suppress_campaign_channel("UID000001", "CAMP_TEST", "app_push", "unsubscribed")
+    app_state = repository.channel_delivery_state("UID000001", "CAMP_TEST", "app_push")
+    sms_state = repository.channel_delivery_state("UID000001", "CAMP_TEST", "sms")
+
+    assert app_state["allowed"] is False
+    assert app_state["reason"] == "campaign_channel_unsubscribed"
+    assert sms_state["allowed"] is True
 
 
 def test_optimized_delivery_list_can_be_published_for_c_side(tmp_path):
@@ -710,3 +840,34 @@ def test_frequency_requires_channel_level_data_not_global_total():
     assert decision.channel_policy_blocks == {"app_push": ["frequency_data_missing"]}
     assert "frequency_cap_reached" not in decision.blocked_channels["app_push"]
     assert decision.data_quality_warnings == ["frequency_data_missing:app_push"]
+
+
+def test_copy_uses_campaign_brief_not_recent_behavior_filter():
+    configuration = {
+        "campaign_id": "CAMP_2026_SUMMER",
+        "campaign_name": "暑期出行季 · 消费权益",
+        "channel_mode": "app_sms",
+        "target_segments": ["high_intent"],
+        "operator_filters": {"recent_behaviors": ["entertainment", "movie"]},
+    }
+
+    content = _fallback_content(configuration, ["app", "sms"])
+
+    assert any(keyword in content["app"] for keyword in ("机票", "酒店", "WiFi"))
+    assert "观影" not in content["app"]
+    assert "电影" not in content["sms"]
+    assert len(content["sms"]) <= 70
+
+
+def test_campaign_brief_reads_project_one_activity_details():
+    configuration = {
+        "campaign_id": "CAMP_2026_618",
+        "campaign_name": "618购物节返现 · 消费权益",
+        "channel_mode": "app",
+    }
+
+    brief = _content_context(configuration)["campaign_brief"]
+
+    assert brief["campaign_name"] == "618购物节返现"
+    assert any("天猫/京东" in item or "6期免息" in item for item in brief["benefit_highlights"])
+    assert brief["validity"] == "2026-06-01至2026-06-18"

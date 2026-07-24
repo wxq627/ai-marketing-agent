@@ -139,27 +139,66 @@ def build_strategy_package(plan: MarketingPlan) -> dict:
     }
 
 
-def build_optimized_strategy_package(optimization: dict) -> dict:
+def build_optimized_strategy_package(
+    optimization: dict,
+    *,
+    operator_content: dict[str, str] | None = None,
+    copilot_review: dict[str, Any] | None = None,
+    offline_feedback_simulation: dict[str, Any] | None = None,
+) -> dict:
     """Convert the value-optimized delivery list into the same publishable C-side contract."""
     selected = list(optimization.get("_selected_candidates") or optimization.get("selected_candidate_sample", []))
     summary = optimization.get("selection_summary", {})
     context = optimization.get("campaign_context", {})
     object_type = str(context.get("strategy_object_type", "benefit"))
-    product = {
-        "installment": "credit_card_installment",
-        "benefit": "coupon_package",
-        "card_upgrade": "card_upgrade",
-        "activation": "customer_activation",
-    }.get(object_type, object_type)
+    product = str(context.get("strategy_display_name", context.get("campaign_name", object_type)))
     campaign_id = str(optimization.get("campaign_id", ""))
     channel_counts = Counter(str(item.get("channel", "")) for item in selected)
     selected_count = len(selected)
+    persona_clustering = optimization.get("persona_clustering", {})
+    strategy_view_segments = optimization.get("strategy_view", {}).get("segments", [])
+    default_strategy = {
+        "scoring_focus": "expected_net_value_per_budget_cost",
+        "channel_strategy": "Use the selected channel only after compliance and frequency checks.",
+        "offer_direction": "Prioritize the published campaign value.",
+        "content_direction": "Explain applicable conditions and fees before presenting the next action.",
+    }
+    audience_segments = [
+        {
+            "segment_id": f"KMEANS_{segment.get('cluster_code', 'UNASSIGNED')}",
+            "segment_name": segment.get("name", "数据驱动群像"),
+            "size": int(segment.get("size", 0)),
+            "priority": float(segment.get("strategy", {}).get("allocation_weight", 1.0)),
+            "features": segment.get("reasons", []),
+            "expected_conversion_rate": round(float(segment.get("conversion_rate", 0.0)) / 100, 4),
+            "expected_roi": round(float(segment.get("expected_value_wan", 0.0)) * 10000 / max(float(summary.get("budget_used", 0)), 0.01), 4),
+            "strategy": segment.get("strategy", default_strategy),
+        }
+        for segment in strategy_view_segments
+    ]
+    if not audience_segments:
+        audience_segments = [
+            {
+                "segment_id": "SEG001",
+                "segment_name": "价值优先客群",
+                "size": selected_count,
+                "priority": 1.0,
+                "features": ["positive_expected_net_value", "budget_feasible", "customer_deduplicated"],
+                "expected_conversion_rate": round(
+                    float(summary.get("expected_conversion_count", 0)) / max(selected_count, 1), 4
+                ),
+                "expected_roi": round(
+                    float(summary.get("expected_net_value", 0)) / max(float(summary.get("budget_used", 0)), 0.01), 4
+                ),
+                "strategy": default_strategy,
+            }
+        ]
     channel_routing = [
         {
             "channel": channel,
             "budget_ratio": round(count / max(selected_count, 1), 4),
             "contact_order": index,
-            "retry_rule": "Do not retry when the customer is frequency-blocked or has declined marketing.",
+            "retry_rule": "Do not retry when the customer is frequency-blocked or has unsubscribed from this campaign on the selected channel.",
         }
         for index, (channel, count) in enumerate(channel_counts.most_common(), start=1)
     ]
@@ -169,8 +208,8 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
             "oneid": item.get("oneid", ""),
             "final_decision": "ALLOW_VALUE_OPTIMIZED",
             "allowed_channels": [item["channel"]],
-            "persona_name": "价值优先客群",
-            "segment_id": "SEG001",
+            "persona_name": item.get("kmeans_persona", {}).get("name", "价值优先客群"),
+            "segment_id": f"KMEANS_{item.get('kmeans_persona', {}).get('cluster_code', 'UNASSIGNED')}",
             "candidate_id": item["candidate_id"],
             "expected_net_value": item["strategy_value"]["expected_net_value"],
             "p_conversion": item["model_scores"]["probabilities"]["p_conversion"],
@@ -189,6 +228,17 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
         "offer_direction": f"Prioritize the {benefit_category} value that matches the published campaign.",
         "content_direction": "Explain applicable conditions and fees before presenting the next action.",
     }
+    editable_content = {
+        str(channel): str(message).strip()
+        for channel, message in (operator_content or {}).items()
+        if str(channel) in {"app", "sms", "wechat", "email", "phone"} and str(message).strip()
+    }
+    experiment_plan = (offline_feedback_simulation or {}).get("experiment", {
+        "status": "planned",
+        "design": "stratified_ab_baseline_touch",
+        "primary_metric": "conversion_rate",
+    })
+    feedback_contract = (offline_feedback_simulation or {}).get("feedback_contract", {})
     return {
         "campaign_metadata": {
             "campaign_id": campaign_id,
@@ -199,26 +249,13 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
             "value_policy_version": optimization.get("value_policy_version", ""),
             "operator_constraints": optimization.get("operator_constraints", {}),
         },
-        "audience_segments": [
-            {
-                "segment_id": "SEG001",
-                "segment_name": "价值优先客群",
-                "size": selected_count,
-                "priority": 1.0,
-                "features": ["positive_expected_net_value", "budget_feasible", "customer_deduplicated"],
-                "expected_conversion_rate": round(
-                    float(summary.get("expected_conversion_count", 0)) / max(selected_count, 1), 4
-                ),
-                "expected_roi": round(
-                    float(summary.get("expected_net_value", 0)) / max(float(summary.get("budget_used", 0)), 0.01), 4
-                ),
-                "strategy": strategy,
-            }
-        ],
+        "audience_segments": audience_segments,
         "audience_persona": {
-            "method": "strategy_value_optimization",
-            "feature_names": ["p_conversion", "p_unsubscribe", "ltv", "benefit_cost", "risk_loss"],
-            "cluster_count": 1,
+            "method": persona_clustering.get("method", "strategy_value_optimization"),
+            "feature_names": persona_clustering.get(
+                "feature_names", ["p_conversion", "p_unsubscribe", "ltv", "benefit_cost", "risk_loss"]
+            ),
+            "cluster_count": persona_clustering.get("cluster_count", 1),
         },
         "benefit_rule": {
             "benefit_type": benefit_type,
@@ -244,10 +281,18 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
             "tone": "professional, clear, and compliant",
             "persona_content_briefs": [
                 {
-                    "segment_name": "价值优先客群",
-                    **strategy,
+                    "segment_name": segment["segment_name"],
+                    **segment.get("strategy", strategy),
                 }
+                for segment in audience_segments
             ],
+            "operator_edited_channel_content": editable_content,
+        },
+        "experiment_plan": experiment_plan,
+        "offline_feedback_simulation": offline_feedback_simulation or {},
+        "operator_decision_record": {
+            "copilot_review": copilot_review or {},
+            "content_confirmed": bool(editable_content),
         },
         "compliance_guard": {
             "frequency_limit": "Use the Stage 2 customer-level frequency rule.",
@@ -257,6 +302,7 @@ def build_optimized_strategy_package(optimization: dict) -> dict:
         "callback_config": {
             "feedback_url": "/api/strategy/feedback",
             "report_interval": "daily",
+            "feedback_contract": feedback_contract,
         },
     }
 def normalize_channel_name(name: str) -> str:

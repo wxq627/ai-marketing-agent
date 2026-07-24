@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -88,6 +88,24 @@ class PlanRepository:
                 """
                 create index if not exists idx_strategy_feedback_lookup
                 on strategy_feedback_event (strategy_version, campaign_id, event_time)
+                """
+            )
+            conn.execute(
+                """
+                create index if not exists idx_strategy_feedback_customer_channel
+                on strategy_feedback_event (oneid, channel, event_time)
+                """
+            )
+            conn.execute(
+                """
+                create table if not exists customer_campaign_channel_suppression (
+                    oneid text not null,
+                    campaign_id text not null,
+                    channel text not null,
+                    reason text not null,
+                    created_at text not null,
+                    primary key (oneid, campaign_id, channel)
+                )
                 """
             )
 
@@ -366,6 +384,166 @@ class PlanRepository:
             "stored": True,
         }
 
+    def suppress_campaign(self, oneid: str, campaign_id: str, reason: str) -> None:
+        """Mark a campaign as permanently suppressed for a customer (user_reject / unsubscribe)."""
+        with self._connection() as conn:
+            conn.execute(
+                """
+                create table if not exists customer_suppression (
+                    oneid text not null,
+                    campaign_id text not null,
+                    reason text not null,
+                    created_at text not null,
+                    primary key (oneid, campaign_id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                insert or ignore into customer_suppression (oneid, campaign_id, reason, created_at)
+                values (?, ?, ?, ?)
+                """,
+                (oneid, campaign_id, reason, _now()),
+            )
+
+    def get_suppressed_campaigns(self, oneid: str) -> frozenset[str]:
+        """Return legacy campaign-wide suppression records retained for historical compatibility."""
+        with self._connection() as conn:
+            conn.execute(
+                """
+                create table if not exists customer_suppression (
+                    oneid text not null,
+                    campaign_id text not null,
+                    reason text not null,
+                    created_at text not null,
+                    primary key (oneid, campaign_id)
+                )
+                """
+            )
+            rows = conn.execute(
+                "select campaign_id from customer_suppression where oneid = ?",
+                (oneid,),
+            ).fetchall()
+        return frozenset(row[0] for row in rows)
+
+    def suppress_campaign_channel(self, oneid: str, campaign_id: str, channel: str, reason: str) -> None:
+        """Stop one campaign on one channel after an explicit channel-level unsubscribe."""
+        with self._connection() as conn:
+            conn.execute(
+                """
+                insert or ignore into customer_campaign_channel_suppression
+                (oneid, campaign_id, channel, reason, created_at)
+                values (?, ?, ?, ?, ?)
+                """,
+                (oneid, campaign_id, channel, reason, _now()),
+            )
+
+    def channel_delivery_state(
+        self,
+        oneid: str,
+        campaign_id: str,
+        channel: str,
+        *,
+        as_of: str | None = None,
+        window_days: int = 7,
+        max_unresponsive_touches: int = 3,
+    ) -> dict[str, Any]:
+        """Return whether a campaign can still be sent on a channel for one customer.
+
+        Only explicit ``ignored`` events count as an unresponsive touch. A detail view,
+        click, or conversion breaks that sequence because the customer has responded.
+        """
+        now = _parse_normalized_time(_normalize_time(as_of))
+        lower_bound = (now - timedelta(days=window_days)).isoformat(sep=" ", timespec="seconds")
+        with self._connection() as conn:
+            suppressed = conn.execute(
+                """
+                select 1 from customer_campaign_channel_suppression
+                where oneid = ? and campaign_id = ? and channel = ?
+                """,
+                (oneid, campaign_id, channel),
+            ).fetchone()
+            rows = conn.execute(
+                """
+                select event_type from strategy_feedback_event
+                where oneid = ? and channel = ? and event_time >= ?
+                order by event_time desc, feedback_id desc
+                """,
+                (oneid, channel, lower_bound),
+            ).fetchall()
+
+        unresponsive_touches = 0
+        response_events = {"view_detail", "user_click", "clicked", "converted", "conversion"}
+        for (event_type,) in rows:
+            if event_type in response_events:
+                break
+            if event_type == "ignored":
+                unresponsive_touches += 1
+
+        if suppressed:
+            return {
+                "allowed": False,
+                "reason": "campaign_channel_unsubscribed",
+                "unresponsive_touches_7d": unresponsive_touches,
+                "window_days": window_days,
+                "max_unresponsive_touches": max_unresponsive_touches,
+            }
+        if unresponsive_touches >= max_unresponsive_touches:
+            return {
+                "allowed": False,
+                "reason": "unresponsive_frequency_cap_reached",
+                "unresponsive_touches_7d": unresponsive_touches,
+                "window_days": window_days,
+                "max_unresponsive_touches": max_unresponsive_touches,
+            }
+        return {
+            "allowed": True,
+            "reason": None,
+            "unresponsive_touches_7d": unresponsive_touches,
+            "window_days": window_days,
+            "max_unresponsive_touches": max_unresponsive_touches,
+        }
+
+    def get_benefit_affinity(self, persona_name: str) -> dict[str, float]:
+        """Aggregate detail-view/conversion feedback by benefit_category for a given persona.
+
+        Returns a dict of {benefit_category: affinity_score} where higher = more positive signal.
+        Neutral categories (no feedback) are omitted.
+        """
+        # Map campaign_id -> benefit_category
+        campaign_mapping: dict[str, str] = {}
+        csv_path = (
+            Path(__file__).resolve().parent.parent / "config" / "campaign_offer_mapping.csv"
+        )
+        if csv_path.exists():
+            import csv
+            with csv_path.open(encoding="utf-8-sig", newline="") as handle:
+                campaign_mapping = {row["campaign_id"]: row.get("benefit_category", "")
+                                    for row in csv.DictReader(handle)}
+
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                select campaign_id, event_type, count(*) as cnt
+                from strategy_feedback_event
+                where campaign_id != '' and event_type in ('view_detail', 'user_click', 'clicked', 'converted')
+                group by campaign_id, event_type
+                """
+            ).fetchall()
+
+        # Aggregate by benefit_category
+        cat_clicks: dict[str, float] = {}
+        cat_total: dict[str, float] = {}
+        for campaign_id, event_type, cnt in rows:
+            category = campaign_mapping.get(campaign_id, "")
+            if not category:
+                continue
+            cat_clicks[category] = cat_clicks.get(category, 0.0) + cnt
+            cat_total[category] = cat_total.get(category, 0.0) + cnt
+
+        return {cat: min(0.25, max(-0.25, cat_clicks[cat] / max(cat_total[cat], 1)))
+                for cat in cat_total if cat_total[cat] > 0}
+
     def list_feedback(
         self,
         *,
@@ -492,6 +670,10 @@ def _normalize_time(value: str | None) -> str:
 
 def _now() -> str:
     return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
+def _parse_normalized_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
 
 
 def _optional_string(value: object) -> str | None:

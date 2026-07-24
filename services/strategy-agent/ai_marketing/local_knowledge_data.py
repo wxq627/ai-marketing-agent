@@ -15,6 +15,8 @@ CHANNELS = {
     "app_push": {"consent_field": "push_consent", "source_name": "APP Push"},
     "sms": {"consent_field": "sms_consent", "source_name": "\u77ed\u4fe1"},
     "wechat": {"consent_field": "wechat_consent", "source_name": "\u5fae\u4fe1\u516c\u4f17\u53f7"},
+    "email": {"consent_field": "email_consent", "source_name": "\u90ae\u4ef6"},
+    "phone": {"consent_field": "phone_consent", "source_name": "\u7535\u8bdd\u5916\u547c"},
 }
 CITY_TIERS = {
     "\u5317\u4eac": 1,
@@ -42,6 +44,7 @@ class LocalKnowledgeData:
         self._snapshots: dict[str, dict[str, str]] | None = None
         self._intents: dict[str, dict[str, str]] | None = None
         self._events: dict[str, list[dict[str, str]]] | None = None
+        self._recent_behavior_signals: dict[str, list[str]] | None = None
         self._oneid_to_customer_id: dict[str, str] | None = None
 
     def build_customer_insight(
@@ -172,6 +175,39 @@ class LocalKnowledgeData:
             self._contacts = dict(grouped)
         return self._contacts
 
+    def _load_recent_behavior_signals(self) -> dict[str, list[str]]:
+        """Build 90-day consumption signals for operator-side behavioral filters."""
+        if self._recent_behavior_signals is not None:
+            return self._recent_behavior_signals
+        card_to_customer = {
+            row.get("card_no", ""): row.get("cust_id", "")
+            for row in _read_csv(self.structured_dir / "credit_card.csv")
+        }
+        signals: dict[str, set[str]] = defaultdict(set)
+        cutoff = "2026-04-15"
+        for row in _read_csv(self.structured_dir / "transaction_log.csv"):
+            if row.get("txn_type") != "消费" or row.get("timestamp", "") < cutoff:
+                continue
+            customer_id = card_to_customer.get(row.get("card_no", ""), "")
+            if not customer_id:
+                continue
+            category = row.get("merchant_category", "")
+            merchant = row.get("merchant_name", "")
+            text = f"{category} {merchant}"
+            if any(word in text for word in ("餐饮", "餐厅", "美食", "咖啡")):
+                signals[customer_id].add("餐饮消费")
+            if any(word in text for word in ("娱乐", "电影", "影院", "演出", "游戏")):
+                signals[customer_id].add("娱乐观影")
+            if any(word in text for word in ("购物", "商超", "百货", "电商")):
+                signals[customer_id].add("购物消费")
+            if any(word in text for word in ("交通", "酒店", "旅行", "航空", "机票")):
+                signals[customer_id].add("出行消费")
+        self._recent_behavior_signals = {
+            customer_id: sorted(customer_signals)
+            for customer_id, customer_signals in signals.items()
+        }
+        return self._recent_behavior_signals
+
     def _load_channel_context(self) -> dict[str, Any]:
         if self._channel_context is not None:
             return self._channel_context
@@ -251,6 +287,7 @@ class LocalKnowledgeData:
         customer_profile = {
             "oneid": source.get("oneid", ""),
             "gender": profile.get("demographics_gender", ""),
+            "city": _field(source, "city", "demographics_city"),
             "age": _as_int(_field(source, "age", "demographics_age"), default=35),
             "city_tier": CITY_TIERS.get(_field(source, "city", "demographics_city"), 3),
             "income_level": _field(source, "income_level", "demographics_income_level"),
@@ -274,6 +311,7 @@ class LocalKnowledgeData:
             "complaint_risk": min(1.0, complaint_count / 3),
             "value_level": _value(snapshot, consent, "value_level") or profile.get("value_value_level", ""),
             "lifecycle_stage": source.get("lifecycle_stage", ""),
+            "consumption_trend": _field(source, "consumption_trend", "mid_term_30d_consumption_trend"),
             "churn_risk_score": _as_int(_field(source, "churn_risk_score", "risk_churn_risk_score")),
             "owned_products": [_field(source, "product_name", "account_product_name")]
             if _field(source, "product_name", "account_product_name")
@@ -281,6 +319,7 @@ class LocalKnowledgeData:
             "channel_consents": channel_consents,
             "recent_contact_count": len(contact_history),
             "recent_contact_count_by_channel": recent_counts,
+            "recent_behavior_signals": self._load_recent_behavior_signals().get(source["cust_id"], []),
             "tags": _build_tags(source, consent),
         }
         return {
@@ -332,8 +371,14 @@ def _canonical_channel(value: str) -> str:
 
 
 def _build_tags(profile: dict[str, str], consent: dict[str, str]) -> list[str]:
-    tags = [profile.get("lifecycle_stage", ""), consent.get("value_level", "")]
-    if profile.get("mid_term_30d_consumption_trend") == "up":
+    tags = [
+        profile.get("lifecycle_stage", ""),
+        consent.get("value_level", ""),
+        profile.get("significant_signals", ""),
+        profile.get("search_keywords_7d", ""),
+        profile.get("browse_preferences_30d", ""),
+    ]
+    if profile.get("consumption_trend") == "up" or profile.get("mid_term_30d_consumption_trend") == "up":
         tags.append("consumption_growth")
     if profile.get("long_term_90d_dormancy_risk") == "high":
         tags.append("dormant_risk")

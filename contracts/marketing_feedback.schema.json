@@ -3,17 +3,24 @@
   "$id": "marketing_feedback.schema.json",
   "title": "Marketing Agent Feedback to Strategy Agent",
   "type": "object",
-  "required": ["campaign_id", "feedback_metrics"],
+  "required": ["campaign_id", "oneid", "channel", "event_type", "event_time"],
   "properties": {
     "campaign_id": {"type": "string"},
+    "oneid": {"type": "string"},
+    "channel": {"type": "string"},
+    "event_type": {
+      "type": "string",
+      "enum": ["view_detail", "ignored", "unsubscribed"]
+    },
+    "event_time": {"type": "string", "format": "date-time"},
     "feedback_metrics": {
       "type": "object",
-      "required": ["exposure_count", "click_count", "conversion_count", "complaint_count", "roi"],
       "properties": {
         "exposure_count": {"type": "integer"},
-        "click_count": {"type": "integer"},
+        "detail_view_count": {"type": "integer"},
+        "ignored_count": {"type": "integer"},
+        "unsubscribe_count": {"type": "integer"},
         "conversion_count": {"type": "integer"},
-        "reject_count": {"type": "integer"},
         "complaint_count": {"type": "integer"},
         "cost": {"type": "number"},
         "revenue": {"type": "number"},

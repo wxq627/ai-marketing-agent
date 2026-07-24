@@ -231,7 +231,37 @@ GET /api/strategy/customers/{oneid}/published-context?product=installment
 GET /api/strategy/customers/{oneid}/recommendations?scene=agent_home
 ```
 
-该接口返回基础个性化推荐列表，并附带当前客户命中的已发布策略上下文。C 端展示推荐卡片时，应优先使用策略上下文中的权益方向、内容方向和合规要求。
+该接口返回基础个性化推荐列表。为了让 C 端无需根据“字段是否存在”猜测状态，响应始终包含以下固定外壳：
+
+```json
+{
+  "oneid": "UID000001",
+  "scene": "agent_home",
+  "strategy_version": "online_personalization_v1",
+  "status": "success",
+  "eligible_for_personalization": true,
+  "eligible_for_marketing": true,
+  "reason_code": null,
+  "recommendations": [],
+  "published_strategy_context": [],
+  "published_strategy": null
+}
+```
+
+字段说明：
+
+| 字段 | 说明 |
+|---|---|
+| `status` | `success`、`no_recommendation` 或 `not_eligible`。 |
+| `eligible_for_personalization` | 是否已取得个性化推荐授权。 |
+| `eligible_for_marketing` | 是否通过营销准入校验。 |
+| `reason_code` | 空列表的机器可读原因，例如 `personalization_consent_required`、`marketing_eligibility_failed`、`no_matching_recommendation`。 |
+| `published_strategy_context` | 仅当存在可展示推荐卡且客户同时通过授权、准入时返回；其他情况固定为空数组。 |
+| `published_strategy` | 已发布策略的轻量标识，仅含 `campaign_id` 与 `strategy_version`；未命中时为 `null`。 |
+
+C 端只应在以下条件同时满足时展示营销/权益卡：`status == "success"`、两个 eligibility 字段均为 `true`，且 `recommendations` 非空。无授权、未准入或未命中卡片时，C 端应保留查询与服务能力，但不展示营销卡片。
+
+当返回已发布策略上下文时，C 端展示推荐卡片应优先使用其中的权益方向、内容方向和合规要求。
 
 ### 7.2 对话中的推荐决策
 
@@ -266,7 +296,7 @@ C 端仍负责生成自然语言回答；B 端提供的是“推荐什么、如�
 2. C 端不得使用 `draft` 或 `archived` 状态的策略。
 3. 当存在多个命中策略时，C 端应按返回顺序优先使用最新发布的策略；若策略产品与用户问题不匹配，则不主动营销。
 4. C 端输出任何营销内容前，应遵守 `compliance_guard` 中的频控和禁止承诺要求。
-5. 当用户明确拒绝营销、取消授权或表达投诉时，C 端应停止营销推荐，并将事件回传给 B 端复盘模块。
+5. C 端触达后只回传 `view_detail`、`ignored`、`unsubscribed` 三类事件。`ignored` 不立即停止触达；同一客户同一渠道 7 天内连续 3 次 `ignored` 后，B 端将拦截该渠道的下一次营销触达。`unsubscribed` 则立即停止该客户在该渠道接收该活动，并将事件回传给 B 端。
 
 ## 9. 反馈回传约定
 
@@ -283,17 +313,19 @@ POST /api/strategy/feedback
   "strategy_version": "STR_MKT-BF14E483_001",
   "campaign_id": "MKT-BF14E483",
   "oneid": "UID000001",
+  "channel": "app_push",
+  "event_type": "ignored",
+  "event_time": "2026-07-24T10:00:00+08:00",
   "feedback_metrics": {
     "exposure_count": 1,
-    "click_count": 1,
-    "conversion_count": 0,
-    "complaint_count": 0,
-    "roi": 0
+    "ignored_count": 1
   }
 }
 ```
 
-Demo 当前会汇总 CTR、转化率、投诉率和优化建议。后续可将反馈按 `strategy_version`、客群、渠道、产品和时间窗口沉淀，用于模型重训、A/B 实验和预算再分配。
+接口响应中的 `delivery_policy` 会返回当前渠道是否仍可触达，以及原因。C 端在下一次发送前应调用已发布策略上下文接口并携带 `channel` 参数，例如 `GET /api/strategy/customers/{oneid}/published-context?channel=app_push`；若没有返回可用策略上下文，则不得在该渠道发送该活动。
+
+Demo 当前会汇总触达详情、忽略、退订等反馈。后续可将反馈按 `strategy_version`、客群、渠道、产品和时间窗口沉淀，用于模型重训、A/B 实验和预算再分配。
 
 ## 9. Demo 实现边界
 

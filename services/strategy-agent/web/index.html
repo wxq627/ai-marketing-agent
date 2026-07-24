@@ -3,122 +3,195 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AI 全链路智能营销决策系统</title>
+    <title>AI 智能营销策略工作台</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="topbar">
       <div class="brand-lockup">
-        <p class="eyebrow">策略运营工作台</p>
-        <h1>AI 全链路智能营销决策系统</h1>
+        <p class="eyebrow">营销策略运营工作台</p>
+        <h1>AI 智能营销策略工作台</h1>
       </div>
       <div class="topbar-actions">
-        <span id="publishedStatus" class="publish-status">未发布</span>
+        <span id="publishedStatus" class="publish-status">策略未发布</span>
         <button id="publishBtn" class="secondary-button" type="button" disabled>发布给 C 端</button>
-        <button id="generateBtn" class="primary-button" type="button">生成策略</button>
       </div>
     </header>
 
-    <main class="layout">
-      <aside class="workspace" aria-label="运营输入">
-        <div class="workspace-head">
-          <span class="workspace-index">01</span>
-          <div><h2>运营意图</h2><span id="statusText">输入目标后由 AI 提取策略参数</span></div>
+    <main class="copilot-layout">
+      <section class="strategy-workbench" aria-label="策略共创工作台">
+        <div class="workbench-title">
+          <span class="step-number">01</span>
+          <div>
+            <p class="eyebrow dark">AI 策略副驾</p>
+            <h2>与 AI 共创投放策略</h2>
+          </div>
         </div>
 
-        <label class="goal-label">
-          运营目标
-          <textarea id="goalInput" rows="6" placeholder="例如：面向高价值、近期有分期意图的客户，使用短信投放分期优惠，预算 20 万。"></textarea>
-        </label>
-        <button id="parseGoalBtn" class="outline-button" type="button" onclick="window.parseGoalFromUi?.()">解析运营意图</button>
-
-        <section class="ai-suggestion" aria-label="AI 解析建议">
-          <div class="suggestion-head"><h2>AI 解析建议</h2><span id="parseSource">待解析</span></div>
-          <p id="parseSummary">AI 会提取预算、活动、目标客群、渠道和风险约束，等待运营确认。</p>
-          <div id="parsedTags" class="parsed-tags"></div>
-          <div class="proposal-actions">
-            <button id="acceptSuggestionBtn" class="small-primary" type="button" disabled>确认并填入</button>
-            <button id="manualModeBtn" class="small-secondary" type="button">自行填写</button>
+        <section class="work-section intent-section">
+          <div class="section-heading">
+            <div><span class="section-kicker">运营目标</span><h3>告诉 AI 你想达成什么</h3></div>
+            <span id="statusText" class="section-status">等待运营输入</span>
+          </div>
+          <textarea id="goalInput" rows="5" placeholder="例如：10 万预算，面向近期有娱乐行为的高意图客户，通过 App 和电话推广观影权益。"></textarea>
+          <div class="inline-actions">
+            <button id="parseGoalBtn" class="primary-button" type="button">请 AI 分析目标</button>
+            <button id="manualModeBtn" class="text-button" type="button">直接手工配置</button>
           </div>
         </section>
 
-        <div class="form-grid">
-          <label>
-            活动
-            <select id="campaignInput" data-config-control disabled>
-              <option value="CAMP_2026_DOUBLE11">双十一分期免息大促</option>
-              <option value="CAMP_2026_618">618 购物节返现</option>
-              <option value="CAMP_2026_SUMMER">暑期出行季</option>
-            </select>
-          </label>
-          <label>
-            预算上限（万元）
-            <input id="budgetInput" data-config-control type="number" min="1" max="200" value="80" disabled>
-          </label>
-          <label>
-            目标客群
-            <select id="targetSegmentInput" data-config-control disabled>
-              <option value="auto">自动圈选</option>
-              <option value="high_value">高价值客户</option>
-              <option value="high_intent">高意图客户</option>
-              <option value="dormant">沉睡待唤醒客户</option>
-              <option value="young_new">年轻或新户客户</option>
-            </select>
-          </label>
-          <label>
-            投放渠道偏好
-            <select id="channelModeInput" data-config-control disabled>
-              <option value="omni">智能全渠道</option>
-              <option value="app">仅 App Push</option>
-              <option value="sms">仅短信</option>
-              <option value="wechat">仅微信公众号</option>
-              <option value="app_sms">App Push + 短信</option>
-              <option value="app_wechat">App Push + 微信公众号</option>
-              <option value="sms_wechat">短信 + 微信公众号</option>
-              <option value="app_sms_wechat">App Push + 短信 + 微信公众号</option>
-            </select>
-          </label>
-        </div>
-      </aside>
+        <section class="work-section copilot-section" aria-label="AI 策略建议">
+          <div class="section-heading">
+            <div><span class="section-kicker">策略预审</span><h3>AI 的判断与提醒</h3></div>
+            <span id="parseSource" class="source-badge">待分析</span>
+          </div>
+          <p id="parseSummary" class="copilot-summary">AI 会先理解目标，再结合渠道成本、合规约束和策略配置提出建议。</p>
+          <div id="parsedTags" class="parsed-tags"></div>
+          <div id="copilotAdvice" class="advice-list" aria-live="polite"></div>
+          <div id="followUpList" class="follow-up-list"></div>
+          <div id="questionComposer" class="question-composer" hidden>
+            <span id="questionContext" class="question-context"></span>
+            <div class="question-row">
+              <input id="questionInput" type="text" placeholder="继续追问 AI，例如：电话为什么建议试投？">
+              <button id="askQuestionBtn" class="small-primary" type="button">追问</button>
+            </div>
+          </div>
+          <div class="inline-actions review-actions">
+            <button id="acceptSuggestionBtn" class="small-primary" type="button" disabled>采纳解析并填入</button>
+            <button id="recheckBtn" class="small-secondary" type="button" disabled>AI 重新评估</button>
+          </div>
+        </section>
 
-      <section class="dashboard" aria-label="策略结果">
+        <section class="work-section configuration-section">
+          <div class="section-heading">
+            <div><span class="section-kicker">策略配置</span><h3>运营可随时调整</h3></div>
+            <span class="section-status">调整后可重新评估</span>
+          </div>
+          <div class="form-grid">
+            <label>活动<select id="campaignInput" data-config-control disabled></select></label>
+            <label>预算上限（万元）<input id="budgetInput" data-config-control type="number" min="1" max="200" value="80" disabled></label>
+            <div class="audience-field" data-config-control>
+              <span class="field-label">运营筛选条件</span>
+              <div id="audienceCheckGroup" class="audience-check-group">
+                <label class="audience-check"><input type="checkbox" value="high_value">高价值客户</label>
+                <label class="audience-check"><input type="checkbox" value="high_intent">高意图客户</label>
+                <label class="audience-check"><input type="checkbox" value="dormant">沉睡待唤醒客户</label>
+                <label class="audience-check"><input type="checkbox" value="young_new">年轻或新户客户</label>
+                <label class="audience-check"><input type="checkbox" value="high_activity">高活跃客户</label>
+                <label class="audience-check"><input type="checkbox" value="spend_growth">消费增长客户</label>
+                <label class="audience-check"><input type="checkbox" value="benefit_sensitive">权益敏感客户</label>
+                <label class="audience-check"><input type="checkbox" value="low_risk">低风险可转化客户</label>
+              </div>
+              <span class="field-note">未勾选为自动圈选；多选时命中任一运营条件即可进入候选池。下方客户属性与近期行为将作为叠加条件同时过滤。</span>
+            </div>
+            <div class="operator-filter-field" data-config-control>
+              <div class="operator-filter-heading">
+                <span class="field-label">客户属性与近期行为</span>
+                <button id="toggleOperatorFiltersBtn" class="filter-toggle" type="button" disabled>+ 添加筛选条件</button>
+              </div>
+              <div id="operatorFilterTags" class="operator-filter-tags" aria-live="polite"></div>
+              <div id="operatorFilterPanel" class="operator-filter-panel" hidden>
+                <div class="city-filter"><span class="field-label">城市（可多选）</span><div id="cityCheckGroup" class="audience-check-group"><label class="audience-check"><input type="checkbox" value="北京">北京</label><label class="audience-check"><input type="checkbox" value="上海">上海</label><label class="audience-check"><input type="checkbox" value="广州">广州</label><label class="audience-check"><input type="checkbox" value="深圳">深圳</label><label class="audience-check"><input type="checkbox" value="杭州">杭州</label><label class="audience-check"><input type="checkbox" value="成都">成都</label><label class="audience-check"><input type="checkbox" value="南京">南京</label><label class="audience-check"><input type="checkbox" value="武汉">武汉</label><label class="audience-check"><input type="checkbox" value="西安">西安</label><label class="audience-check"><input type="checkbox" value="重庆">重庆</label><label class="audience-check"><input type="checkbox" value="郑州">郑州</label><label class="audience-check"><input type="checkbox" value="苏州">苏州</label><label class="audience-check"><input type="checkbox" value="天津">天津</label><label class="audience-check"><input type="checkbox" value="长沙">长沙</label><label class="audience-check"><input type="checkbox" value="青岛">青岛</label><label class="audience-check"><input type="checkbox" value="宁波">宁波</label><label class="audience-check"><input type="checkbox" value="厦门">厦门</label><label class="audience-check"><input type="checkbox" value="合肥">合肥</label><label class="audience-check"><input type="checkbox" value="济南">济南</label><label class="audience-check"><input type="checkbox" value="福州">福州</label><label class="audience-check"><input type="checkbox" value="东莞">东莞</label><label class="audience-check"><input type="checkbox" value="大连">大连</label><label class="audience-check"><input type="checkbox" value="昆明">昆明</label><label class="audience-check"><input type="checkbox" value="沈阳">沈阳</label></div></div>
+                <label>性别
+                  <select id="filterGenderInput"><option value="">不限</option><option value="female">女性</option><option value="male">男性</option></select>
+                </label>
+                <div class="age-filter"><span class="field-label">年龄</span><div><input id="filterAgeMinInput" type="number" min="0" max="120" placeholder="最小"><span>至</span><input id="filterAgeMaxInput" type="number" min="0" max="120" placeholder="最大"></div></div>
+                <div class="customer-attribute-filter"><span class="field-label">客户价值</span><div id="valueLevelCheckGroup" class="audience-check-group"><label class="audience-check"><input type="checkbox" value="high">高价值</label><label class="audience-check"><input type="checkbox" value="medium">中价值</label><label class="audience-check"><input type="checkbox" value="low">长尾价值</label></div></div>
+                <div class="customer-attribute-filter"><span class="field-label">生命周期</span><div id="lifecycleCheckGroup" class="audience-check-group"><label class="audience-check"><input type="checkbox" value="新户">新户</label><label class="audience-check"><input type="checkbox" value="成长期">成长期</label><label class="audience-check"><input type="checkbox" value="成熟期">成熟期</label><label class="audience-check"><input type="checkbox" value="沉睡期">沉睡期</label></div></div>
+                <div class="customer-attribute-filter"><span class="field-label">风险等级</span><div id="riskLevelCheckGroup" class="audience-check-group"><label class="audience-check"><input type="checkbox" value="low">低风险</label><label class="audience-check"><input type="checkbox" value="medium">中风险</label></div></div>
+                <label>月均消费不低于（元）<input id="filterSpendMinInput" type="number" min="0" step="1000" placeholder="例如 8000"></label>
+                <div class="behavior-filter"><span class="field-label">近期行为（多选为同时满足）</span><div id="behaviorCheckGroup" class="audience-check-group"><label class="audience-check"><input type="checkbox" value="dining">餐饮消费</label><label class="audience-check"><input type="checkbox" value="entertainment">娱乐/观影</label><label class="audience-check"><input type="checkbox" value="shopping">购物消费</label><label class="audience-check"><input type="checkbox" value="benefit">权益/优惠互动</label><label class="audience-check"><input type="checkbox" value="travel">出行相关</label><label class="audience-check"><input type="checkbox" value="installment">分期/还款</label><label class="audience-check"><input type="checkbox" value="credit_upgrade">额度/升级</label></div></div>
+              </div>
+              <span class="field-note">这些条件与上方运营筛选条件共同构成候选池；条件越具体，最终可投人数可能越少。</span>
+            </div>
+            <div class="channel-field" data-config-control>
+              <span class="field-label">投放渠道</span>
+              <div id="channelCheckGroup" class="channel-check-group">
+                <label class="channel-check"><input type="checkbox" value="app">App Push</label>
+                <label class="channel-check"><input type="checkbox" value="sms">短信</label>
+                <label class="channel-check"><input type="checkbox" value="wechat">微信公众号</label>
+                <label class="channel-check"><input type="checkbox" value="email">邮件</label>
+                <label class="channel-check"><input type="checkbox" value="phone">电话外呼</label>
+              </div>
+              <label class="coverage-control"><input id="channelCoverageTrialInput" data-config-control type="checkbox" checked>多渠道覆盖试投</label>
+            </div>
+          </div>
+        </section>
+
+        <section class="work-section content-editor-section">
+          <div class="section-heading">
+            <div><span class="section-kicker">投放内容</span><h3>AI 初稿，运营定稿</h3></div>
+            <button id="draftContentBtn" class="small-secondary" type="button" disabled>AI 生成初稿</button>
+          </div>
+          <p class="editor-hint">按渠道维护不同话术。人工修改后的文案会随策略包发布给 C 端。</p>
+          <div id="contentTabs" class="content-tabs" role="tablist">
+            <button class="content-tab active" data-channel="app" type="button">App Push</button>
+            <button class="content-tab" data-channel="sms" type="button">短信</button>
+            <button class="content-tab" data-channel="phone" type="button">电话</button>
+            <button class="content-tab" data-channel="wechat" type="button">微信</button>
+            <button class="content-tab" data-channel="email" type="button">邮件</button>
+          </div>
+          <textarea id="channelCopyInput" class="copy-editor" data-config-control rows="5" disabled placeholder="请先确认策略配置，再让 AI 生成渠道文案。"></textarea>
+          <div class="copy-footer"><span id="copyStatus">未生成初稿</span><span>需包含适用条件与有效期，不承诺收益或审批。</span></div>
+        </section>
+
+        <section class="confirm-section">
+          <div><strong>确认并生成策略</strong><p>系统将基于最终配置、运营文案、合规规则和价值模型生成可发布策略。</p></div>
+          <button id="generateBtn" class="primary-button" type="button">生成策略</button>
+        </section>
+      </section>
+
+      <section class="analysis-workspace" aria-label="策略分析结果">
+        <div class="analysis-heading">
+          <div><p class="eyebrow dark">决策分析</p><h2>策略影响与投放结果</h2></div>
+          <span id="campaignId" class="campaign-id">尚未生成</span>
+        </div>
+
         <section class="metric-band" aria-label="核心指标">
           <article class="metric-card metric-audience"><span>推荐客群</span><strong id="audienceMetric">-</strong></article>
-          <article class="metric-card metric-conversion"><span>预计转化率</span><strong id="upliftMetric">-</strong></article>
-          <article class="metric-card metric-value"><span>预计净价值</span><strong id="roiMetric">-</strong></article>
+          <article class="metric-card metric-conversion"><span>A/B 转化提升</span><strong id="upliftMetric">-</strong></article>
+          <article class="metric-card metric-value"><span>模拟增量净收益</span><strong id="roiMetric">-</strong></article>
           <article class="metric-card metric-budget"><span>预算使用率</span><strong id="riskMetric">-</strong></article>
         </section>
 
-        <section class="decision-band" aria-label="AI 决策链路">
-          <div class="section-head"><h2>AI 决策链路</h2><span id="campaignId">尚未生成</span></div>
-          <div class="pipeline">
-            <div class="stage stage-compliance"><b>合规</b><span>授权 / 频控 / 容量</span></div>
-            <div class="stage stage-predict"><b>预测</b><span>打开 / 点击 / 转化 / 退订</span></div>
-            <div class="stage stage-value"><b>价值</b><span>收益 / LTV / 成本 / 风险</span></div>
-            <div class="stage stage-select"><b>优选</b><span>预算 / 去重 / 渠道</span></div>
+        <section class="analysis-panel strategy-focus">
+          <div class="section-heading"><div><span class="section-kicker">价值优化结果</span><h3>预算、合规与客户去重后的投放清单</h3></div><span id="optimizationStatus" class="section-status">等待生成</span></div>
+          <div id="optimizationSummary" class="optimization-summary">确认左侧策略后，系统会计算候选人群、预测响应和预期净价值。</div>
+          <div id="selectedCandidates" class="list compact-list"></div>
+        </section>
+
+        <section class="analysis-panel experiment-panel" aria-label="离线 A/B 反馈仿真">
+          <div class="section-heading">
+            <div><span class="section-kicker">复盘闭环</span><h3>A/B 效果复盘与增量评估</h3></div>
+            <span id="experimentStatus" class="source-badge">等待生成</span>
           </div>
+          <p id="experimentSummary" class="experiment-summary">生成策略后，系统会按渠道和客群分层，将合规候选稳定分为策略组与基线对照组，比较两组效果差异。</p>
+          <div class="experiment-kpis">
+            <div><span>策略组转化</span><strong id="treatmentConversionMetric">-</strong></div>
+            <div><span>对照组转化</span><strong id="controlConversionMetric">-</strong></div>
+            <div><span>模拟增量转化</span><strong id="incrementalConversionMetric">-</strong></div>
+            <div><span>增量净收益</span><strong id="incrementalValueMetric">-</strong></div>
+          </div>
+          <div class="ab-table-wrap">
+            <table class="ab-table">
+              <thead><tr><th>组别</th><th>样本</th><th>点击率</th><th>转化率</th><th>收益</th><th>成本</th><th>净价值</th></tr></thead>
+              <tbody id="abTestRows"><tr><td colspan="7" class="table-empty">等待策略生成</td></tr></tbody>
+            </table>
+          </div>
+          <div id="upliftModelNote" class="uplift-model-note">增量转化 = 策略组转化率 − 对照组转化率；增量净收益会按相同样本规模折算两组净价值后比较。</div>
         </section>
 
-        <section class="strategy-focus" aria-label="策略生成结果">
-          <div class="section-head"><h2>策略生成结果</h2><span id="optimizationStatus">等待生成</span></div>
-          <div id="optimizationSummary" class="optimization-summary">请先确认运营输入，再基于预算进行候选筛选。</div>
-          <div id="selectedCandidates" class="list"></div>
-        </section>
-
-        <div class="two-column">
-          <section class="result-panel audience-panel"><h2>推荐客群</h2><div id="segments" class="list"></div></section>
-          <section class="result-panel channel-panel"><h2>投放渠道</h2><div id="channels" class="list"></div></section>
+        <div class="analysis-grid">
+          <section class="analysis-panel"><div class="panel-title"><h3>KMeans 五类群像</h3></div><div id="segments" class="list"></div></section>
+          <section class="analysis-panel"><div class="panel-title"><h3>投放渠道</h3></div><div id="channels" class="list"></div></section>
         </div>
 
-        <section class="result-panel content-panel"><h2>内容生成</h2><div id="contentBox" class="content-box"></div></section>
-
-        <div class="two-column">
-          <section class="result-panel compliance-panel"><h2>合规校验</h2><div id="compliance" class="list"></div></section>
-          <section class="result-panel forecast-panel"><h2>效果预测</h2><svg id="forecastChart" viewBox="0 0 520 220" role="img" aria-label="效果预测柱状图"></svg></section>
+        <div class="analysis-grid analysis-grid-stack">
+          <section class="analysis-panel"><div class="panel-title"><h3>合规校验</h3></div><div id="compliance" class="list"></div></section>
+          <section class="analysis-panel forecast-panel"><div class="panel-title"><h3>效果预测</h3></div><svg id="forecastChart" viewBox="0 0 640 270" role="img" aria-label="效果预测图"></svg></section>
         </div>
       </section>
     </main>
-
     <script src="/app.js"></script>
   </body>
 </html>

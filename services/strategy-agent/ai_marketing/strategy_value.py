@@ -19,7 +19,7 @@ class StrategyValue:
     budget_cost: float
     value_density: float
     p_long_term: float
-    breakdown: dict[str, float]
+    breakdown: dict[str, float | str]
     policy_version: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -77,8 +77,12 @@ class StrategyValueCalculator:
 
         risk_level = str(profile.get("risk_level", "low")).lower()
         risk_policy = self.policy["risk"]
-        default_given_conversion = float(
-            risk_policy["default_probability_given_conversion"].get(risk_level, 0.015)
+        pd_result = candidate.get("pd_risk_score", {})
+        pd_from_model = _pd_probability(pd_result)
+        default_given_conversion = (
+            pd_from_model
+            if pd_from_model is not None
+            else float(risk_policy["default_probability_given_conversion"].get(risk_level, 0.015))
         )
         expected_credit_loss = (
             p_conversion * default_given_conversion * float(risk_policy["expected_loss_per_default"])
@@ -106,6 +110,8 @@ class StrategyValueCalculator:
             "unsubscribe_expected_loss": round(unsubscribe_expected_loss, 4),
             "complaint_expected_loss": round(complaint_expected_loss, 4),
             "credit_expected_loss": round(expected_credit_loss, 4),
+            "pd_6m": round(default_given_conversion, 6),
+            "pd_source": "pd_risk_model" if pd_from_model is not None else "risk_level_fallback",
             "baseline_ltv": round(baseline_ltv, 4),
         }
         return StrategyValue(
@@ -146,6 +152,15 @@ def _load_campaign_mapping(path: Path) -> dict[str, dict[str, str]]:
 
 def _probability(value: object) -> float:
     return _clamp(float(value or 0.0))
+
+
+def _pd_probability(pd_result: object) -> float | None:
+    if not isinstance(pd_result, dict) or not pd_result.get("model_available"):
+        return None
+    value = pd_result.get("pd_6m")
+    if value is None:
+        return None
+    return _probability(value)
 
 
 def _clamp(value: float) -> float:

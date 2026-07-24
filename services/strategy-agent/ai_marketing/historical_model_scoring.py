@@ -30,6 +30,8 @@ CHANNEL_SOURCE_NAMES = {
     "app_push": "APP Push",
     "sms": "\u77ed\u4fe1",
     "wechat": "\u5fae\u4fe1\u516c\u4f17\u53f7",
+    "email": "\u90ae\u4ef6",
+    "phone": "\u7535\u8bdd\u5916\u547c",
 }
 
 
@@ -167,9 +169,15 @@ class HistoricalModelScoreProvider:
         cards_by_customer: dict[str, list[dict[str, str]]] = defaultdict(list)
         for card in _read_csv(self.structured_dir / "credit_card.csv"):
             cards_by_customer[card["cust_id"]].append(card)
+        # channel-strategy v3: load extended profile fields
+        profile_extra: dict[str, dict[str, str]] = {}
+        profile_path = self.structured_dir / "customer_profile.csv"
+        if profile_path.exists():
+            profile_extra = {row["cust_id"]: row for row in _read_csv(profile_path)}
         self._customers = {}
         for customer_id, row in basic.items():
             active_cards = [card for card in cards_by_customer[customer_id] if card["card_status"] == "\u6b63\u5e38"]
+            extra = profile_extra.get(customer_id, {})
             self._customers[customer_id] = {
                 "age": _as_float(row.get("age")),
                 "city": row.get("city", "unknown"),
@@ -178,6 +186,8 @@ class HistoricalModelScoreProvider:
                 "education": row.get("education", "unknown"),
                 "active_card_count": float(len(active_cards)),
                 "max_credit_amount": max((_as_float(card.get("credit_amount")) for card in active_cards), default=0.0),
+                "app_active_days": _as_float(extra.get("long_term_90d_active_days", 0)),
+                "contact_preference": str(extra.get("contact_preference", "") or "\u672a\u77e5"),
             }
         return self._customers
 
@@ -284,6 +294,7 @@ class HistoricalModelScoreProvider:
         series = self._load_series()
         contacts_90d = _series_value(series["contacts"], customer_id, touch_time, 90)
         clicks_90d = _series_value(series["clicks"], customer_id, touch_time, 90)
+        source_channel = _source_channel(channel)
         return {
             "age": customer["age"],
             "city": str(customer["city"]),
@@ -293,13 +304,13 @@ class HistoricalModelScoreProvider:
             "active_card_count": customer["active_card_count"],
             "max_credit_amount": customer["max_credit_amount"],
             "campaign_id": campaign_id,
-            "channel": channel,
+            "channel": source_channel,
             "strategy_object_type": mapping["strategy_object_type"],
             "product_scope": mapping["product_scope"],
             "benefit_category": mapping["benefit_category"],
             "objective": mapping["objective"],
             "benefit_unit_cost_proxy": _as_float(mapping.get("benefit_unit_cost_proxy")),
-            "touch_cost": self._load_channel_costs().get(channel, 0.0),
+            "touch_cost": self._load_channel_costs().get(source_channel, 0.0),
             "touch_hour": float(touch_time.hour),
             "touch_weekday": float(touch_time.weekday()),
             "touch_month": float(touch_time.month),
@@ -318,6 +329,8 @@ class HistoricalModelScoreProvider:
             "historical_unsubscribes_90d": _series_value(series["unsubscribes"], customer_id, touch_time, 90),
             "overdue_bills_180d": _series_value(series["overdue"], customer_id, touch_time, 180),
             "min_payment_bills_180d": _series_value(series["min_payment"], customer_id, touch_time, 180),
+            "app_active_days": customer.get("app_active_days", 0.0),
+            "contact_preference": str(customer.get("contact_preference", "") or "未知"),
         }
 
 

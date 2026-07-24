@@ -1,6 +1,6 @@
 {
   "rule_version": "2026-07-v3",
-  "default_channels": ["app_push", "sms", "wechat"],
+  "default_channels": ["app_push", "sms", "wechat", "email", "phone"],
   "rules": [
     {
       "rule_id": "COMPLAINT_RISK_001",
@@ -44,7 +44,9 @@
       "caps": {
         "app_push": {"window_days": 7, "max_contacts": 3},
         "sms": {"window_days": 7, "max_contacts": 2},
-        "wechat": {"window_days": 7, "max_contacts": 2}
+        "wechat": {"window_days": 7, "max_contacts": 2},
+        "email": {"window_days": 7, "max_contacts": 2},
+        "phone": {"window_days": 7, "max_contacts": 1}
       },
       "action": "LIMIT_CHANNEL",
       "reason_code": "frequency_cap_reached",

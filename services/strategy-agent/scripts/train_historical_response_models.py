@@ -283,6 +283,9 @@ def make_feature_row(
         "y_unsubscribe": int(status == "unsubscribed"),
         "conversion_amount": float(attribution_record["conversion_amount"]) if converted_in_window else 0.0,
         "mapping_source": mapping["mapping_source"],
+        # channel-strategy v3 features
+        "app_active_days": float(contact.get("app_active_days", 0) or 0),
+        "contact_preference": str(contact.get("contact_preference", "未知") or "未知"),
     }
     return row
 
@@ -357,10 +360,12 @@ FEATURE_COLUMNS = [
     "app_events_7d", "app_events_30d", "app_searches_30d", "marketing_contacts_7d",
     "marketing_contacts_30d", "marketing_clicks_90d", "historical_click_rate_90d",
     "historical_unsubscribes_90d", "overdue_bills_180d", "min_payment_bills_180d",
+    "app_active_days", "contact_preference",
 ]
 CATEGORICAL_COLUMNS = {
     "city", "occupation", "income_level", "education", "campaign_id", "channel",
     "strategy_object_type", "product_scope", "benefit_category", "objective",
+    "contact_preference",
 }
 
 

@@ -16,15 +16,11 @@ from .models import CampaignRequest
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_MODEL = "deepseek-v4-pro"
 ALLOWED_PRODUCTS = {"installment", "coupon", "travel"}
-ALLOWED_CHANNEL_MODES = {
-    "omni",
-    "app",
-    "sms",
-    "wechat",
-    "app_sms",
-    "app_wechat",
-    "sms_wechat",
-    "app_sms_wechat",
+_VALID_CHANNEL_CODES = {"app", "sms", "wechat", "email", "phone"}
+ALLOWED_CHANNEL_MODES = {"omni"} | {
+    "_".join(sorted(combo))
+    for n in range(1, len(_VALID_CHANNEL_CODES) + 1)
+    for combo in __import__("itertools").combinations(sorted(_VALID_CHANNEL_CODES), n)
 }
 LOCAL_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
@@ -118,8 +114,13 @@ def _build_deepseek_payload(goal: str, defaults: CampaignRequest, model: str) ->
                     "You convert a bank marketing operator's goal into a constrained campaign request. "
                     "Return only one valid json object, with no markdown. "
                     "Use only product values installment, coupon, travel and channel_mode values "
-                    "omni, app, sms, wechat, app_sms, app_wechat, sms_wechat, app_sms_wechat. "
-                    "Use app_sms when the operator explicitly requires both App Push and SMS. "
+                    "omni, app, sms, wechat, email, phone, "
+                    "app_sms, app_wechat, app_phone, sms_wechat, sms_phone, sms_email, "
+                    "app_sms_wechat, app_sms_phone. "
+                    "Channel codes: app=App Push, sms=SMS, wechat=WeChat Official Account, "
+                    "email=Email, phone=Phone Outbound. "
+                    "Join channel codes with underscore for combinations, e.g. app_phone means "
+                    "App Push + Phone. "
                     "Use the supplied defaults when the operator does not specify budget, risk tolerance, or frequency. "
                     "When product_locked is true, keep the supplied default product exactly and do not infer another product. "
                     "Do not invent eligibility exceptions, customer counts, conversion results, financial promises, or compliance approvals. "
@@ -232,8 +233,12 @@ def _infer_channel_mode(goal: str, default: str) -> str:
         selected.append("sms")
     if "微信" in goal or "公众号" in goal:
         selected.append("wechat")
+    if "邮件" in goal or "email" in goal.lower():
+        selected.append("email")
+    if "电话" in goal or "外呼" in goal:
+        selected.append("phone")
     if selected:
-        return "_".join(selected)
+        return "_".join(sorted(selected))
     return default
 
 

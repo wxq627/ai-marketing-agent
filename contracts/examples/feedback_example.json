@@ -1,25 +1,12 @@
 {
-  "campaign_id": "CMP20260715001",
+  "strategy_version": "STR_CAMP_2026_618_001",
+  "campaign_id": "CAMP_2026_618",
+  "oneid": "UID000001",
+  "channel": "app_push",
+  "event_type": "ignored",
+  "event_time": "2026-07-24T10:00:00+08:00",
   "feedback_metrics": {
-    "exposure_count": 50000,
-    "click_count": 6200,
-    "conversion_count": 820,
-    "reject_count": 1300,
-    "complaint_count": 8,
-    "cost": 260000,
-    "revenue": 650000,
-    "roi": 2.5
-  },
-  "channel_attribution": [
-    {"channel": "app_push", "exposure_count": 30000, "conversion_count": 520, "cost": 60000, "roi": 3.1},
-    {"channel": "sms", "exposure_count": 12000, "conversion_count": 140, "cost": 72000, "roi": 1.2}
-  ],
-  "segment_performance": [
-    {"segment_id": "SEG001", "conversion_rate": 0.082, "complaint_rate": 0.00016, "recommendation": "保留并扩大"}
-  ],
-  "conversation_outcome": {
-    "positive_intent_count": 2200,
-    "negative_intent_count": 360,
-    "top_customer_questions": ["分期费率", "活动有效期", "提前还款规则"]
+    "exposure_count": 1,
+    "ignored_count": 1
   }
 }
